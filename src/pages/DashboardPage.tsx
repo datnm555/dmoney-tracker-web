@@ -86,7 +86,7 @@ export function DashboardPage() {
         <div>
           <h1 className="text-xl font-bold">{t('dashboard.title')}</h1>
           <p className="text-sm capitalize text-muted-foreground">
-            {month.toDate().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
+            {new Date().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
