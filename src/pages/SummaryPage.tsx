@@ -43,12 +43,15 @@ export function SummaryPage() {
 
   const handleSubmit = async (values: TransactionFormValues) => {
     const payload = {
-      date: values.date.format('YYYY-MM-DD'),
+      date: values.date,
       content: values.content,
-      creditAmount: values.creditAmount ?? 0,
-      debitAmount: values.debitAmount ?? 0,
+      creditAmount: values.type === 'in' ? values.amount : 0,
+      debitAmount: values.type === 'out' ? values.amount : 0,
       note: values.note,
-      category: values.category ?? null,
+      category: values.category,
+      paymentMethod: values.paymentMethod,
+      cardType: values.cardType,
+      bank: values.bank,
     }
     setSubmitting(true)
     try {

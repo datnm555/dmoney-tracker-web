@@ -11,6 +11,9 @@ export interface TransactionResponse {
   debit: MoneyResponse
   note: string | null
   category: string | null
+  paymentMethod: string
+  cardType: string | null
+  bank: string | null
 }
 
 export interface MonthlySummaryResponse {
