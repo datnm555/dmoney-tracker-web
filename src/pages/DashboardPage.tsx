@@ -69,7 +69,7 @@ export function DashboardPage() {
   }
 
   const monthTabs = [2, 1, 0].map((offset) => dayjs().subtract(offset, 'month'))
-  const bars = stats ? toIncomeExpenseBars(stats.monthly) : []
+  const bars = stats ? toIncomeExpenseBars(stats.monthly.slice(-6)) : []
   const current = stats?.monthly.at(-1)
   const previous = stats?.monthly.at(-2)
   const balanceDelta =
