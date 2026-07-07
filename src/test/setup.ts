@@ -7,7 +7,7 @@ window.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
-// jsdom does not implement window.matchMedia; antd's responsive observer needs it.
+// jsdom does not implement window.matchMedia; some libraries still probe it.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: (query: string) => ({

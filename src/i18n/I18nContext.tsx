@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Spin } from 'antd'
 import { STORAGE_KEYS } from '../api/client'
 import { getResources } from '../api/resourceApi'
 
@@ -49,8 +48,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <Spin size="large" />
+      <div className="flex min-h-screen items-center justify-center">
+        <div
+          className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-primary"
+          aria-label="loading"
+        />
       </div>
     )
   }
