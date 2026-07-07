@@ -60,14 +60,17 @@ export function AppLayout() {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground lg:inline">
-              {t('breadcrumb.home')} / {current ? t(current.key) : ''}
-            </span>
+            {current && (
+              <span className="hidden text-sm text-muted-foreground lg:inline">
+                {t('breadcrumb.home')} / {t(current.key)}
+              </span>
+            )}
             <div className="flex overflow-hidden rounded-md border text-xs font-semibold">
               {(['vi', 'en'] as const).map((code) => (
                 <button
                   key={code}
                   type="button"
+                  aria-pressed={lang === code}
                   onClick={() => setLang(code)}
                   className={cn(
                     'px-2 py-1 uppercase',
