@@ -361,12 +361,9 @@ export function TransactionsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className={isIncome ? 'font-semibold text-income' : 'font-semibold text-expense'}>
-                      {isIncome ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{dayjs(tx.date).format('DD/MM')}</span>
-                  </div>
+                  <span className={isIncome ? 'font-semibold text-income' : 'font-semibold text-expense'}>
+                    {isIncome ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
+                  </span>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
