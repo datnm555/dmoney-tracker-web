@@ -203,18 +203,18 @@ export function DashboardPage() {
                 <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
                 <YAxis tickFormatter={vnd} tickLine={false} axisLine={false} fontSize={11} width={86} />
                 <Tooltip formatter={(value) => vnd(Number(value))} />
-                <Bar dataKey="income" name={t('dashboard.legendIn')} fill="#6C4CF1" radius={[7, 7, 7, 7]} barSize={14} />
-                <Bar dataKey="expense" name={t('dashboard.legendOut')} fill="#d4d4d8" radius={[7, 7, 7, 7]} barSize={14} />
+                <Bar dataKey="income" name={t('dashboard.legendIn')} fill="#16a34a" radius={[7, 7, 7, 7]} barSize={14} />
+                <Bar dataKey="expense" name={t('dashboard.legendOut')} fill="#dc2626" radius={[7, 7, 7, 7]} barSize={14} />
               </BarChart>
             </ResponsiveContainer>
           </div>
           <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-primary" />
+              <span className="h-2 w-2 rounded-full bg-income" />
               {t('dashboard.legendIn')}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-zinc-300" />
+              <span className="h-2 w-2 rounded-full bg-expense" />
               {t('dashboard.legendOut')}
             </span>
           </div>
