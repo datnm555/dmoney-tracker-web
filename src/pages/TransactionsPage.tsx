@@ -32,7 +32,6 @@ import {
 } from '../api/transactionApi'
 import type { MonthlySummaryResponse, TransactionResponse } from '../api/types'
 import { CategoryIcon } from '../components/CategoryIcon'
-import { categoryVisual } from '../utils/categoryIcons'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
@@ -173,12 +172,8 @@ export function TransactionsPage() {
     return `${name.charAt(0).toUpperCase()}${name.slice(1)}`
   }
 
-  // Mockup: today gets "Hôm nay" + "Thứ Tư · 09/07"; other days get the weekday + date.
+  // 6b mockup: card header reads "Hôm nay · 09/07" / "Thứ Năm · 02/07".
   const dayTitle = (date: string) => (date === today ? t('transactions.today') : weekdayName(date))
-  const daySubtitle = (date: string) =>
-    date === today
-      ? `${weekdayName(date)} · ${dayjs(date).format('DD/MM')}`
-      : dayjs(date).format('DD/MM')
 
   return (
     <div className="grid gap-4">
@@ -324,67 +319,46 @@ export function TransactionsPage() {
       )}
 
       {groups.map((group) => (
-        <div key={group.date} className="grid gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="font-bold">{dayTitle(group.date)}</div>
-              <div className="text-xs text-muted-foreground">{daySubtitle(group.date)}</div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 text-sm">
-              {group.credit > 0 && (
-                <span className="flex items-center gap-1.5 font-medium text-income">
-                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-income" />
-                  +{formatMoney({ amount: group.credit, currency: 'VND' })}
-                </span>
-              )}
-              {group.debit > 0 && (
-                <span className="flex items-center gap-1.5 font-medium text-expense">
-                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-expense" />
-                  −{formatMoney({ amount: group.debit, currency: 'VND' })}
-                </span>
-              )}
-              <span
-                className={cn(
-                  'rounded-lg px-2.5 py-1 font-semibold',
-                  group.net >= 0 ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense',
-                )}
-              >
-                {t('transactions.net')} {group.net >= 0 ? '+' : '−'}
-                {formatMoney({ amount: Math.abs(group.net), currency: 'VND' })}
+        <Card key={group.date} className="overflow-hidden py-0">
+          <CardContent className="divide-y p-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+              <span className="flex items-center gap-2.5 font-bold">
+                <span
+                  aria-hidden="true"
+                  className={cn('h-2 w-2 rounded-full', group.net >= 0 ? 'bg-primary' : 'bg-expense')}
+                />
+                {dayTitle(group.date)} · {dayjs(group.date).format('DD/MM')}
               </span>
+              {group.net >= 0 ? (
+                <span className="rounded-lg bg-income/10 px-2.5 py-1 text-sm font-semibold text-income">
+                  {t('transactions.net')} +{formatMoney({ amount: group.net, currency: 'VND' })}
+                </span>
+              ) : (
+                <span className="text-sm font-semibold text-expense">
+                  −{formatMoney({ amount: Math.abs(group.net), currency: 'VND' })}
+                </span>
+              )}
             </div>
-          </div>
-          <div className="grid gap-2">
             {group.items.map((tx) => {
               const isIncome = tx.credit.amount > 0
-              const visual = categoryVisual(tx.category)
               return (
-                <div
-                  key={tx.id}
-                  className="relative flex items-center gap-3 overflow-hidden rounded-xl border bg-background py-3 pl-5 pr-3 shadow-xs"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn('absolute left-0 top-0 h-full w-1', isIncome ? 'bg-income' : 'bg-expense')}
-                  />
-                  <CategoryIcon category={tx.category} className="h-10 w-10 rounded-xl" />
+                <div key={tx.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <CategoryIcon category={tx.category} className="h-11 w-11 rounded-2xl" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-semibold">{tx.content}</div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      {tx.category && (
-                        <span className={cn('rounded-md px-1.5 py-0.5 font-medium', visual.labelClass)}>
-                          {t(`category.${tx.category}`)}
-                        </span>
-                      )}
-                      {paymentLabel(tx, t)}
+                    <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <span className="truncate">
+                        {tx.category ? `${t(`category.${tx.category}`)} · ` : ''}
+                        {paymentLabel(tx, t)}
+                      </span>
                       {tx.isAdvance && (
-                        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700">
+                        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
                           {t('form.isAdvance')}
                         </span>
                       )}
                     </div>
                     {tx.note && (
-                      <div className="mt-1 truncate text-xs italic text-muted-foreground">
+                      <div className="mt-0.5 truncate text-xs italic text-muted-foreground">
                         {t('form.note')}: {tx.note}
                       </div>
                     )}
@@ -415,8 +389,8 @@ export function TransactionsPage() {
                 </div>
               )
             })}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
 
       <TransactionFormModal
