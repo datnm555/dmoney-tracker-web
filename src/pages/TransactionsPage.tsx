@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
-import { MoreHorizontal, Plus } from 'lucide-react'
+import { MoreHorizontal, Plus, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -32,6 +32,7 @@ import {
   updateTransaction,
 } from '../api/transactionApi'
 import type { MonthlySummaryResponse, TransactionResponse } from '../api/types'
+import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
@@ -47,6 +48,7 @@ export function TransactionsPage() {
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [modalOpen, setModalOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<TransactionResponse | null>(null)
   const [deleting, setDeleting] = useState<TransactionResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -142,6 +144,10 @@ export function TransactionsPage() {
             value={month.format('YYYY-MM')}
             onChange={(e) => e.target.value && setMonth(dayjs(`${e.target.value}-01`))}
           />
+          <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="mr-1 h-4 w-4" />
+            {t('import.button')}
+          </Button>
           <Button
             onClick={() => {
               setEditing(null)
@@ -235,6 +241,12 @@ export function TransactionsPage() {
           setModalOpen(false)
           setEditing(null)
         }}
+      />
+
+      <ImportTransactionsDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => void load()}
       />
 
       <AlertDialog open={deleting !== null} onOpenChange={(next) => !next && setDeleting(null)}>

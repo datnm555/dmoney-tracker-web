@@ -35,3 +35,15 @@ export async function getDashboardStats(month: string): Promise<DashboardStatsRe
   const { data } = await apiClient.get<DashboardStatsResponse>('/transactions/stats', { params: { month } })
   return data
 }
+
+export interface ImportRowPayload {
+  date: string // YYYY-MM-DD
+  content: string
+  amount: number // signed: negative = debit, positive = credit
+  note: string | null
+}
+
+export async function importTransactions(rows: ImportRowPayload[]): Promise<{ imported: number }> {
+  const { data } = await apiClient.post<{ imported: number }>('/transactions/import', { rows })
+  return data
+}
