@@ -1,6 +1,7 @@
 import {
   Car,
   Clapperboard,
+  GraduationCap,
   ShoppingBag,
   Tag,
   Utensils,
@@ -25,6 +26,7 @@ const VISUALS: Record<CategoryCode, CategoryVisual> = {
   shopping: { icon: ShoppingBag, chipClass: 'bg-pink-100', iconClass: 'text-pink-600', labelClass: 'bg-pink-50 text-pink-700' },
   entertainment: { icon: Clapperboard, chipClass: 'bg-violet-100', iconClass: 'text-violet-600', labelClass: 'bg-violet-50 text-violet-700' },
   salary: { icon: Wallet, chipClass: 'bg-green-100', iconClass: 'text-green-600', labelClass: 'bg-green-50 text-green-700' },
+  education: { icon: GraduationCap, chipClass: 'bg-indigo-100', iconClass: 'text-indigo-600', labelClass: 'bg-indigo-50 text-indigo-700' },
   other: { icon: Tag, chipClass: 'bg-zinc-100', iconClass: 'text-zinc-500', labelClass: 'bg-zinc-100 text-zinc-600' },
 }
 

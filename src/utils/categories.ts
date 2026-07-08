@@ -6,6 +6,7 @@ export const CATEGORY_CODES = [
   'shopping',
   'entertainment',
   'salary',
+  'education',
   'other',
 ] as const
 
