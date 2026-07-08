@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { LogOut } from 'lucide-react'
+import { Bell, ChevronDown, LayoutDashboard, List, LogOut, PieChart, Settings } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -13,12 +14,21 @@ import { cn } from '@/lib/utils'
 import { useAuth } from '../auth/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
 
-const NAV_ITEMS = [
-  { to: '/app/dashboard', key: 'menu.dashboard' },
-  { to: '/app/transactions', key: 'menu.transactions' },
-] as const
+interface NavItem {
+  to: string
+  key: string
+  icon: LucideIcon
+}
 
-const COMING_SOON = ['menu.reports', 'menu.settings'] as const
+const NAV_ITEMS: NavItem[] = [
+  { to: '/app/dashboard', key: 'menu.dashboard', icon: LayoutDashboard },
+  { to: '/app/transactions', key: 'menu.transactions', icon: List },
+]
+
+const COMING_SOON: { key: string; icon: LucideIcon }[] = [
+  { key: 'menu.reports', icon: PieChart },
+  { key: 'menu.settings', icon: Settings },
+]
 
 export function AppLayout() {
   const { t, lang, setLang } = useI18n()
@@ -28,44 +38,54 @@ export function AppLayout() {
 
   const current = NAV_ITEMS.find((item) => location.pathname.startsWith(item.to))
 
+  const navLinkClass = (isActive: boolean) =>
+    cn(
+      'flex h-9 items-center gap-2.5 rounded-lg px-3 text-sm',
+      isActive ? 'bg-zinc-100 font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
+    )
+
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="sticky top-0 z-10 border-b bg-background">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4">
-          <NavLink to="/app/dashboard" className="flex items-center gap-2 font-bold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              ₫
+    <div className="flex min-h-screen bg-zinc-50">
+      <aside className="sticky top-0 hidden h-screen w-[230px] shrink-0 flex-col gap-6 border-r bg-background px-3.5 py-5 md:flex">
+        <NavLink to="/app/dashboard" className="flex items-center gap-2.5 px-2 font-semibold">
+          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-primary font-extrabold text-primary-foreground">
+            ₫
+          </span>
+          {t('app.title')}
+        </NavLink>
+        <nav className="flex flex-col gap-0.5">
+          {NAV_ITEMS.map((item) => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => navLinkClass(isActive)}>
+              <item.icon className="h-[15px] w-[15px]" />
+              {t(item.key)}
+            </NavLink>
+          ))}
+          {COMING_SOON.map((item) => (
+            <span
+              key={item.key}
+              className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-lg px-3 text-sm text-muted-foreground/50"
+            >
+              <item.icon className="h-[15px] w-[15px]" />
+              {t(item.key)}
             </span>
-            {t('app.title')}
-          </NavLink>
-          <nav className="hidden items-center gap-1 md:flex">
-            {NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground',
-                    isActive && 'bg-primary/10 text-primary',
-                  )
-                }
-              >
-                {t(item.key)}
-              </NavLink>
-            ))}
-            {COMING_SOON.map((key) => (
-              <span key={key} className="cursor-not-allowed rounded-md px-3 py-1.5 text-sm text-muted-foreground/50">
-                {t(key)}
-              </span>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-3">
+          ))}
+        </nav>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b bg-background px-4 md:px-7">
+          <span className="text-[12.5px] text-muted-foreground">
+            {t('breadcrumb.home')}
             {current && (
-              <span className="hidden text-sm text-muted-foreground lg:inline">
-                {t('breadcrumb.home')} / {t(current.key)}
-              </span>
+              <>
+                {' '}
+                <span className="text-zinc-300">/</span>{' '}
+                <span className="font-medium text-foreground">{t(current.key)}</span>
+              </>
             )}
-            <div className="flex overflow-hidden rounded-md border text-xs font-semibold">
+          </span>
+          <div className="flex items-center gap-3.5">
+            <div className="flex rounded-lg bg-zinc-100 p-[3px] text-[11.5px] font-semibold">
               {(['vi', 'en'] as const).map((code) => (
                 <button
                   key={code}
@@ -73,21 +93,35 @@ export function AppLayout() {
                   aria-pressed={lang === code}
                   onClick={() => setLang(code)}
                   className={cn(
-                    'px-2 py-1 uppercase',
-                    lang === code ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-zinc-100',
+                    'flex h-[26px] items-center rounded-md px-2.5 uppercase',
+                    lang === code ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground',
                   )}
                 >
                   {code}
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              aria-label="notifications"
+              className="grid h-9 w-9 place-items-center rounded-lg border text-foreground hover:bg-zinc-50"
+            >
+              <Bell className="h-4 w-4" />
+            </button>
+            <div className="h-[22px] w-px bg-border" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="gap-2 px-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+                <Button variant="ghost" className="h-auto gap-2.5 px-1.5 py-1">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
                     {(user?.displayName ?? '?').charAt(0).toUpperCase()}
                   </span>
-                  <span className="hidden text-sm sm:inline">{user?.displayName}</span>
+                  <span className="hidden flex-col items-start sm:flex">
+                    <span className="text-[12.5px] font-medium leading-tight">{user?.displayName}</span>
+                    <span className="text-[10.5px] font-normal leading-tight text-muted-foreground">
+                      {user?.email}
+                    </span>
+                  </span>
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -108,11 +142,21 @@ export function AppLayout() {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
-      </header>
-      <main className="mx-auto max-w-6xl p-4 md:p-6">
-        <Outlet />
-      </main>
+        </header>
+
+        <nav className="flex gap-1 border-b bg-background px-4 py-2 md:hidden">
+          {NAV_ITEMS.map((item) => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => navLinkClass(isActive)}>
+              <item.icon className="h-[15px] w-[15px]" />
+              {t(item.key)}
+            </NavLink>
+          ))}
+        </nav>
+
+        <main className="p-4 md:px-7 md:py-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   )
 }
