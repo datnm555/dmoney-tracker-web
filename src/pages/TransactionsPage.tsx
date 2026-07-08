@@ -44,7 +44,8 @@ type Filter = 'all' | 'in' | 'out'
 
 export function TransactionsPage() {
   const { t, lang } = useI18n()
-  const [month, setMonth] = useState<Dayjs>(dayjs())
+  // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
+  const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [modalOpen, setModalOpen] = useState(false)
@@ -55,11 +56,11 @@ export function TransactionsPage() {
 
   const load = useCallback(async () => {
     try {
-      setSummary(await getMonthlySummary(month.format('YYYY-MM')))
+      setSummary(await getMonthlySummary(monthKey))
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
     }
-  }, [month, t])
+  }, [monthKey, t])
 
   useEffect(() => {
     void load()
@@ -111,24 +112,30 @@ export function TransactionsPage() {
   const groups = groupTransactionsByDay(items)
   const today = dayjs().format('YYYY-MM-DD')
 
-  const monthOptions = Array.from({ length: 12 }, (_, i) => {
-    const m = dayjs().subtract(i, 'month')
-    const label = m.toDate().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
-      month: 'long',
-      year: 'numeric',
-    })
-    return { value: m.format('YYYY-MM'), label: `${label.charAt(0).toUpperCase()}${label.slice(1)}` }
-  })
-  if (!monthOptions.some((m) => m.value === month.format('YYYY-MM'))) {
-    const label = month.toDate().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
-      month: 'long',
-      year: 'numeric',
-    })
-    monthOptions.push({
-      value: month.format('YYYY-MM'),
-      label: `${label.charAt(0).toUpperCase()}${label.slice(1)}`,
-    })
+  const isWholeYear = /^\d{4}$/.test(monthKey)
+  const currentYear = dayjs().year()
+
+  const monthLabel = (m: Dayjs) => {
+    const name = m.toDate().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { month: 'long' })
+    const capitalized = `${name.charAt(0).toUpperCase()}${name.slice(1)}`
+    return `${capitalized} / ${m.year()}`
   }
+
+  // Whole-year option + every month of the current year up to now, newest first.
+  const monthOptions = [
+    { value: String(currentYear), label: `${t('filters.allYear')} ${currentYear}` },
+    ...Array.from({ length: dayjs().month() + 1 }, (_, i) => {
+      const m = dayjs().month(dayjs().month() - i)
+      return { value: m.format('YYYY-MM'), label: monthLabel(m) }
+    }),
+  ]
+
+  const rangeStart = isWholeYear ? dayjs(`${monthKey}-01-01`) : dayjs(`${monthKey}-01`).startOf('month')
+  const rangeEnd = isWholeYear
+    ? dayjs()
+    : dayjs(`${monthKey}-01`).isSame(dayjs(), 'month')
+      ? dayjs()
+      : dayjs(`${monthKey}-01`).endOf('month')
 
   const dayLabel = (date: string) => {
     if (date === today) return `${t('transactions.today')} · ${dayjs(date).format('DD/MM')}`
@@ -144,9 +151,8 @@ export function TransactionsPage() {
         <div>
           <h1 className="text-xl font-bold">{t('menu.transactions')}</h1>
           <p className="text-sm text-muted-foreground">
-            {month.startOf('month').format('DD/MM')} →{' '}
-            {month.isSame(dayjs(), 'month') ? dayjs().format('DD/MM/YYYY') : month.endOf('month').format('DD/MM/YYYY')} ·{' '}
-            {summary?.items.length ?? 0} {t('transactions.count')}
+            {rangeStart.format('DD/MM')} → {rangeEnd.format('DD/MM/YYYY')} · {summary?.items.length ?? 0}{' '}
+            {t('transactions.count')}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -194,12 +200,12 @@ export function TransactionsPage() {
                 {t('filters.month')} {t('filters.optional')}
               </span>
               <div className="flex items-center gap-2">
-                <Select value={month.format('YYYY-MM')} onValueChange={(value) => setMonth(dayjs(`${value}-01`))}>
-                  <SelectTrigger className="w-48">
-                    <span className="flex items-center gap-2">
-                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <Select value={monthKey} onValueChange={setMonthKey}>
+                  <SelectTrigger className="w-52">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <SelectValue />
-                    </span>
+                    </div>
                   </SelectTrigger>
                   <SelectContent>
                     {monthOptions.map((m) => (
@@ -214,7 +220,7 @@ export function TransactionsPage() {
                   variant="outline"
                   onClick={() => {
                     setFilter('all')
-                    setMonth(dayjs())
+                    setMonthKey(dayjs().format('YYYY-MM'))
                   }}
                 >
                   {t('filters.reset')}
