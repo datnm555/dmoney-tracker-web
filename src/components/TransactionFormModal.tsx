@@ -172,18 +172,9 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            <Label htmlFor="tx-date" className="shrink-0">
-              {t('form.date')}
-            </Label>
-            <Input
-              id="tx-date"
-              type="date"
-              required
-              className="flex-1"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+          <div className="grid grid-cols-2 items-center gap-2">
+            <Label htmlFor="tx-date">{t('form.date')}</Label>
+            <Input id="tx-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
 
           <div className="grid gap-2">
