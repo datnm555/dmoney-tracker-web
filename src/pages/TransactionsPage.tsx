@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
-import type { Dayjs } from 'dayjs'
 import { CalendarDays, Funnel, MoreHorizontal, Plus, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -124,21 +123,40 @@ export function TransactionsPage() {
 
   const isWholeYear = /^\d{4}$/.test(monthKey)
   const currentYear = dayjs().year()
+  const currentMonth = dayjs().month() + 1
 
-  const monthLabel = (m: Dayjs) => {
-    const name = m.toDate().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { month: 'long' })
-    const capitalized = `${name.charAt(0).toUpperCase()}${name.slice(1)}`
-    return `${capitalized} / ${m.year()}`
+  // monthKey split into the two dropdowns: year + (month | whole year).
+  const selYear = Number(monthKey.slice(0, 4))
+  const selMonth = isWholeYear ? 'all' : monthKey.slice(5)
+
+  const monthName = (n: number) => {
+    const name = new Date(2026, n - 1, 1).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
+      month: 'long',
+    })
+    return `${name.charAt(0).toUpperCase()}${name.slice(1)}`
   }
 
-  // Whole-year option + every month of the current year up to now, newest first.
+  const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i)
   const monthOptions = [
-    { value: String(currentYear), label: `${t('filters.allYear')} ${currentYear}` },
-    ...Array.from({ length: dayjs().month() + 1 }, (_, i) => {
-      const m = dayjs().month(dayjs().month() - i)
-      return { value: m.format('YYYY-MM'), label: monthLabel(m) }
-    }),
+    { value: 'all', label: t('filters.allYear'), disabled: false },
+    ...Array.from({ length: 12 }, (_, i) => ({
+      value: String(i + 1).padStart(2, '0'),
+      label: monthName(i + 1),
+      // Future months of the current year cannot be selected.
+      disabled: selYear === currentYear && i + 1 > currentMonth,
+    })),
   ]
+
+  const applyPeriod = (year: number, month: string) => {
+    if (month === 'all') {
+      setMonthKey(String(year))
+      return
+    }
+    // Clamp to the current month when switching back to the current year lands on a future month.
+    const clamped =
+      year === currentYear && Number(month) > currentMonth ? String(currentMonth).padStart(2, '0') : month
+    setMonthKey(`${year}-${clamped}`)
+  }
 
   const rangeStart = isWholeYear ? dayjs(`${monthKey}-01-01`) : dayjs(`${monthKey}-01`).startOf('month')
   const rangeEnd = isWholeYear
@@ -211,8 +229,8 @@ export function TransactionsPage() {
                 {t('filters.month')} {t('filters.optional')}
               </span>
               <div className="flex items-center gap-2">
-                <Select value={monthKey} onValueChange={setMonthKey}>
-                  <SelectTrigger className="w-52">
+                <Select value={selMonth} onValueChange={(value) => applyPeriod(selYear, value)}>
+                  <SelectTrigger className="w-40">
                     <div className="flex min-w-0 items-center gap-2">
                       <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <SelectValue />
@@ -220,8 +238,20 @@ export function TransactionsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {monthOptions.map((m) => (
-                      <SelectItem key={m.value} value={m.value}>
+                      <SelectItem key={m.value} value={m.value} disabled={m.disabled}>
                         {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={String(selYear)} onValueChange={(value) => applyPeriod(Number(value), selMonth)}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
                       </SelectItem>
                     ))}
                   </SelectContent>
