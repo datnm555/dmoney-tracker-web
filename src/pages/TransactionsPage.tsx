@@ -288,6 +288,11 @@ export function TransactionsPage() {
                       )}
                       {paymentLabel(tx, t)}
                     </div>
+                    {tx.note && (
+                      <div className="mt-1 truncate text-xs italic text-muted-foreground">
+                        {t('form.note')}: {tx.note}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-0.5">
                     <span className={isIncome ? 'font-semibold text-income' : 'font-semibold text-expense'}>
