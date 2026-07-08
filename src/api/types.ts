@@ -14,6 +14,7 @@ export interface TransactionResponse {
   paymentMethod: string
   cardType: string | null
   bank: string | null
+  isAdvance: boolean
 }
 
 export interface MonthlySummaryResponse {

@@ -11,6 +11,7 @@ export interface TransactionPayload {
   paymentMethod: string
   cardType: string | null
   bank: string | null
+  isAdvance: boolean
 }
 
 export async function getMonthlySummary(month: string): Promise<MonthlySummaryResponse> {

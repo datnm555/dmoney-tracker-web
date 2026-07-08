@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 import { ArrowDown, ArrowUp, Banknote, CircleCheck, CreditCard, Landmark } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ export interface TransactionFormValues {
   paymentMethod: PaymentMethodCode
   cardType: CardTypeCode | null
   bank: string | null
+  isAdvance: boolean
   note: string | null
 }
 
@@ -71,6 +73,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
   const [cardType, setCardType] = useState<CardTypeCode | null>(null)
   const [bank, setBank] = useState<string | null>(null)
   const [customBank, setCustomBank] = useState(false)
+  const [isAdvance, setIsAdvance] = useState(false)
   const [note, setNote] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -88,6 +91,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setPaymentMethod((editing.paymentMethod as PaymentMethodCode) ?? 'transfer')
       setCardType((editing.cardType as CardTypeCode) ?? null)
       setBank(editing.bank)
+      setIsAdvance(editing.isAdvance)
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
       setNote(editing.note ?? '')
     } else {
@@ -99,6 +103,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setPaymentMethod('transfer')
       setCardType(null)
       setBank(null)
+      setIsAdvance(false)
       setNote('')
     }
   }, [open, editing])
@@ -122,6 +127,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       paymentMethod,
       cardType: paymentMethod === 'card' ? cardType : null,
       bank: paymentMethod === 'card' ? (bank?.trim() || null) : null,
+      isAdvance,
       note: note.trim() || null,
     }
   }
@@ -193,6 +199,19 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
               <div className="flex h-9 items-center rounded-md border px-3 text-sm text-muted-foreground">₫ VND</div>
             </div>
           </div>
+
+          <label className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5">
+            <Checkbox
+              checked={isAdvance}
+              onCheckedChange={(checked) => setIsAdvance(checked === true)}
+              aria-label={t('form.isAdvance')}
+              className="mt-0.5"
+            />
+            <span className="grid gap-0.5 text-sm">
+              <span className="font-medium">{t('form.isAdvance')}</span>
+              <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
+            </span>
+          </label>
 
           <div className="grid gap-2">
             <Label>{t('form.category')}</Label>

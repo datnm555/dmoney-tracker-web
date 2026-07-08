@@ -13,6 +13,7 @@ const tx = (id: string, date: string, credit: number, debit: number): Transactio
   paymentMethod: 'transfer',
   cardType: null,
   bank: null,
+  isAdvance: false,
 })
 
 describe('groupTransactionsByDay', () => {

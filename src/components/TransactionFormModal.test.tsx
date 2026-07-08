@@ -85,6 +85,17 @@ describe('TransactionFormModal', () => {
     )
   })
 
+  it('submits isAdvance when the advance checkbox is ticked', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Tiền xe bus ứng trước')
+    await userEvent.type(screen.getByLabelText('form.amount'), '2000000')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.isAdvance' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ isAdvance: true }))
+  })
+
   it('save-and-continue submits with keepOpen and preserves the form values', async () => {
     const onSubmit = renderModal()
 
@@ -117,6 +128,7 @@ describe('TransactionFormModal', () => {
             paymentMethod: 'transfer',
             cardType: null,
             bank: null,
+            isAdvance: false,
           }}
           submitting={false}
           onSubmit={vi.fn()}

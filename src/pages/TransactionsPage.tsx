@@ -42,7 +42,7 @@ import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
 
-type Filter = 'all' | 'in' | 'out'
+type Filter = 'all' | 'in' | 'out' | 'advance'
 
 export function TransactionsPage() {
   const { t, lang } = useI18n()
@@ -79,6 +79,7 @@ export function TransactionsPage() {
       paymentMethod: values.paymentMethod,
       cardType: values.cardType,
       bank: values.bank,
+      isAdvance: values.isAdvance,
     }
     setSubmitting(true)
     try {
@@ -113,9 +114,11 @@ export function TransactionsPage() {
     }
   }
 
-  const items = (summary?.items ?? []).filter((tx) =>
-    filter === 'all' ? true : filter === 'in' ? tx.credit.amount > 0 : tx.debit.amount > 0,
-  )
+  const items = (summary?.items ?? []).filter((tx) => {
+    if (filter === 'all') return true
+    if (filter === 'advance') return tx.isAdvance
+    return filter === 'in' ? tx.credit.amount > 0 : tx.debit.amount > 0
+  })
   const groups = groupTransactionsByDay(items)
   const today = dayjs().format('YYYY-MM-DD')
 
@@ -198,6 +201,7 @@ export function TransactionsPage() {
                   <TabsTrigger value="out" className="data-[state=active]:text-expense">
                     ↓ {t('form.moneyOut')}
                   </TabsTrigger>
+                  <TabsTrigger value="advance">⏳ {t('form.isAdvance')}</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
@@ -287,6 +291,11 @@ export function TransactionsPage() {
                         </span>
                       )}
                       {paymentLabel(tx, t)}
+                      {tx.isAdvance && (
+                        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 font-medium text-amber-700">
+                          {t('form.isAdvance')}
+                        </span>
+                      )}
                     </div>
                     {tx.note && (
                       <div className="mt-1 truncate text-xs italic text-muted-foreground">
