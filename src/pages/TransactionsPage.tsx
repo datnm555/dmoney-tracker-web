@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
-import { MoreHorizontal, Plus, Upload } from 'lucide-react'
+import { CalendarDays, Funnel, MoreHorizontal, Plus, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -22,7 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getApiErrorMessage } from '../api/client'
 import {
@@ -111,6 +111,25 @@ export function TransactionsPage() {
   const groups = groupTransactionsByDay(items)
   const today = dayjs().format('YYYY-MM-DD')
 
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const m = dayjs().subtract(i, 'month')
+    const label = m.toDate().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
+      month: 'long',
+      year: 'numeric',
+    })
+    return { value: m.format('YYYY-MM'), label: `${label.charAt(0).toUpperCase()}${label.slice(1)}` }
+  })
+  if (!monthOptions.some((m) => m.value === month.format('YYYY-MM'))) {
+    const label = month.toDate().toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
+      month: 'long',
+      year: 'numeric',
+    })
+    monthOptions.push({
+      value: month.format('YYYY-MM'),
+      label: `${label.charAt(0).toUpperCase()}${label.slice(1)}`,
+    })
+  }
+
   const dayLabel = (date: string) => {
     if (date === today) return `${t('transactions.today')} · ${dayjs(date).format('DD/MM')}`
     const weekday = new Date(`${date}T00:00:00`).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
@@ -131,19 +150,6 @@ export function TransactionsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-            <TabsList>
-              <TabsTrigger value="all">{t('transactions.filterAll')}</TabsTrigger>
-              <TabsTrigger value="in">↑ {t('form.moneyIn')}</TabsTrigger>
-              <TabsTrigger value="out">↓ {t('form.moneyOut')}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <Input
-            type="month"
-            className="w-40"
-            value={month.format('YYYY-MM')}
-            onChange={(e) => e.target.value && setMonth(dayjs(`${e.target.value}-01`))}
-          />
           <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
             <Upload className="mr-1 h-4 w-4" />
             {t('import.button')}
@@ -160,16 +166,75 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 text-sm">
-        <span>
-          {t('transactions.creditThisMonth')}:{' '}
-          <strong className="text-income">+{summary ? formatMoney(summary.totalCredit) : '—'}</strong>
-        </span>
-        <span>
-          {t('transactions.debitThisMonth')}:{' '}
-          <strong className="text-expense">−{summary ? formatMoney(summary.totalDebit) : '—'}</strong>
-        </span>
-      </div>
+      <Card>
+        <CardContent className="grid gap-4 p-4 md:p-5">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Funnel className="h-4 w-4 text-primary" />
+            {t('filters.title')}
+          </div>
+
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">{t('filters.type')}</span>
+              <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
+                <TabsList>
+                  <TabsTrigger value="all">{t('transactions.filterAll')}</TabsTrigger>
+                  <TabsTrigger value="in" className="data-[state=active]:text-income">
+                    ↑ {t('form.moneyIn')}
+                  </TabsTrigger>
+                  <TabsTrigger value="out" className="data-[state=active]:text-expense">
+                    ↓ {t('form.moneyOut')}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">
+                {t('filters.month')} {t('filters.optional')}
+              </span>
+              <div className="flex items-center gap-2">
+                <Select value={month.format('YYYY-MM')} onValueChange={(value) => setMonth(dayjs(`${value}-01`))}>
+                  <SelectTrigger className="w-48">
+                    <span className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      <SelectValue />
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setFilter('all')
+                    setMonth(dayjs())
+                  }}
+                >
+                  {t('filters.reset')}
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap justify-end gap-2 text-sm">
+            <span className="rounded-lg bg-income/10 px-3 py-1.5">
+              <span className="text-muted-foreground">{t('summary.colCredit')}: </span>
+              <strong className="text-income">+{summary ? formatMoney(summary.totalCredit) : '—'}</strong>
+            </span>
+            <span className="rounded-lg bg-expense/10 px-3 py-1.5">
+              <span className="text-muted-foreground">{t('summary.colDebit')}: </span>
+              <strong className="text-expense">−{summary ? formatMoney(summary.totalDebit) : '—'}</strong>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {groups.length === 0 && (
         <Card>
