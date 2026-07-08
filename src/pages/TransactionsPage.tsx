@@ -36,7 +36,7 @@ import { CategoryIcon } from '../components/CategoryIcon'
 import { categoryVisual } from '../utils/categoryIcons'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
-import type { TransactionFormValues } from '../components/TransactionFormModal'
+import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
 import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
@@ -68,7 +68,7 @@ export function TransactionsPage() {
     void load()
   }, [load])
 
-  const handleSubmit = async (values: TransactionFormValues) => {
+  const handleSubmit = async (values: TransactionFormValues, options?: SubmitOptions) => {
     const payload = {
       date: values.date,
       content: values.content,
@@ -87,8 +87,13 @@ export function TransactionsPage() {
       } else {
         await createTransaction(payload)
       }
-      setModalOpen(false)
-      setEditing(null)
+      if (options?.keepOpen) {
+        // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.
+        toast.success(t('form.saved'))
+      } else {
+        setModalOpen(false)
+        setEditing(null)
+      }
       await load()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))

@@ -39,11 +39,16 @@ export interface TransactionFormValues {
   note: string | null
 }
 
+export interface SubmitOptions {
+  /** Keep the dialog open with the current values so the user can save a tweaked clone. */
+  keepOpen: boolean
+}
+
 interface Props {
   open: boolean
   editing: TransactionResponse | null
   submitting: boolean
-  onSubmit: (values: TransactionFormValues) => void
+  onSubmit: (values: TransactionFormValues, options?: SubmitOptions) => void
   onCancel: () => void
 }
 
@@ -100,16 +105,15 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
 
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault()
+  const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
     if (!content.trim()) nextErrors.content = t('form.contentRequired')
     if (amount <= 0) nextErrors.amount = t('form.amountRequired')
     if (paymentMethod === 'card' && !cardType) nextErrors.cardType = t('form.cardTypeRequired')
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) return
+    if (Object.keys(nextErrors).length > 0) return null
 
-    onSubmit({
+    return {
       date,
       content: content.trim(),
       type,
@@ -119,7 +123,18 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       cardType: paymentMethod === 'card' ? cardType : null,
       bank: paymentMethod === 'card' ? (bank?.trim() || null) : null,
       note: note.trim() || null,
-    })
+    }
+  }
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    const values = validateAndBuild()
+    if (values) onSubmit(values)
+  }
+
+  const handleSaveAndContinue = () => {
+    const values = validateAndBuild()
+    if (values) onSubmit(values, { keepOpen: true })
   }
 
   return (
@@ -345,10 +360,15 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
             />
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>
               {t('summary.cancel')}
             </Button>
+            {!editing && (
+              <Button type="button" variant="secondary" disabled={submitting} onClick={handleSaveAndContinue}>
+                {t('form.saveAndContinue')}
+              </Button>
+            )}
             <Button type="submit" disabled={submitting}>
               {t('summary.submit')}
             </Button>

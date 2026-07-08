@@ -84,4 +84,48 @@ describe('TransactionFormModal', () => {
       }),
     )
   })
+
+  it('save-and-continue submits with keepOpen and preserves the form values', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await userEvent.click(screen.getByRole('button', { name: 'form.saveAndContinue' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ content: 'Ăn trưa', amount: 50000 }),
+      { keepOpen: true },
+    )
+    // Dialog stays open (parent decides) and the fields keep their values for cloning.
+    expect(screen.getByLabelText('form.content')).toHaveValue('Ăn trưa')
+    expect(screen.getByLabelText('form.amount')).toHaveValue('50.000')
+  })
+
+  it('hides save-and-continue when editing', async () => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{
+            id: '1',
+            date: '2026-07-08',
+            content: 'Netflix',
+            credit: { amount: 0, currency: 'VND' },
+            debit: { amount: 260000, currency: 'VND' },
+            note: null,
+            category: null,
+            paymentMethod: 'transfer',
+            cardType: null,
+            bank: null,
+          }}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+
+    await screen.findByLabelText('form.content')
+    expect(screen.queryByRole('button', { name: 'form.saveAndContinue' })).not.toBeInTheDocument()
+  })
 })

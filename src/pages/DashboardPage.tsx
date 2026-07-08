@@ -15,7 +15,7 @@ import { createTransaction, getDashboardStats, getMonthlySummary } from '../api/
 import type { DashboardStatsResponse, MonthlySummaryResponse } from '../api/types'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { TransactionFormModal } from '../components/TransactionFormModal'
-import type { TransactionFormValues } from '../components/TransactionFormModal'
+import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
 import { toIncomeExpenseBars } from '../utils/chartData'
 import { formatMoney } from '../utils/money'
@@ -46,7 +46,7 @@ export function DashboardPage() {
     void load()
   }, [load])
 
-  const handleCreate = async (values: TransactionFormValues) => {
+  const handleCreate = async (values: TransactionFormValues, options?: SubmitOptions) => {
     setSubmitting(true)
     try {
       await createTransaction({
@@ -60,7 +60,12 @@ export function DashboardPage() {
         cardType: values.cardType,
         bank: values.bank,
       })
-      setModalOpen(false)
+      if (options?.keepOpen) {
+        // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.
+        toast.success(t('form.saved'))
+      } else {
+        setModalOpen(false)
+      }
       await load()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
