@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getApiErrorMessage } from '../api/client'
 import { createTransaction, getDashboardStats, getMonthlySummary } from '../api/transactionApi'
 import type { DashboardStatsResponse, MonthlySummaryResponse } from '../api/types'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
@@ -192,8 +193,13 @@ export function DashboardPage() {
               {recent.map((tx) => (
                 <TableRow key={tx.id}>
                   <TableCell>
-                    <div className="font-medium">{tx.content}</div>
-                    <div className="text-xs text-muted-foreground">{dayjs(tx.date).format('DD/MM')}</div>
+                    <div className="flex items-center gap-2.5">
+                      <CategoryIcon category={tx.category} />
+                      <div>
+                        <div className="font-medium">{tx.content}</div>
+                        <div className="text-xs text-muted-foreground">{dayjs(tx.date).format('DD/MM')}</div>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{paymentLabel(tx, t)}</Badge>

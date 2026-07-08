@@ -32,6 +32,7 @@ import {
   updateTransaction,
 } from '../api/transactionApi'
 import type { MonthlySummaryResponse, TransactionResponse } from '../api/types'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
@@ -261,6 +262,7 @@ export function TransactionsPage() {
             <CardContent className="divide-y p-0">
               {group.items.map((tx) => (
                 <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
+                  <CategoryIcon category={tx.category} />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{tx.content}</div>
                     <div className="text-xs text-muted-foreground">

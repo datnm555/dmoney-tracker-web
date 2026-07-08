@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import type { TransactionResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { CATEGORY_CODES } from '../utils/categories'
+import { categoryVisual } from '../utils/categoryIcons'
 import {
   BANK_PRESETS,
   CARD_TYPE_CODES,
@@ -173,11 +174,19 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
           <div className="grid gap-2">
             <Label>{t('form.category')}</Label>
             <div className="flex flex-wrap gap-1.5">
-              {CATEGORY_CODES.map((code) => (
-                <button key={code} type="button" onClick={() => setCategory(category === code ? null : code)}>
-                  <Badge variant={category === code ? 'default' : 'outline'}>{t(`category.${code}`)}</Badge>
-                </button>
-              ))}
+              {CATEGORY_CODES.map((code) => {
+                const visual = categoryVisual(code)
+                return (
+                  <button key={code} type="button" onClick={() => setCategory(category === code ? null : code)}>
+                    <Badge variant={category === code ? 'default' : 'outline'} className="gap-1">
+                      <visual.icon
+                        className={cn('h-3 w-3', category === code ? 'text-primary-foreground' : visual.iconClass)}
+                      />
+                      {t(`category.${code}`)}
+                    </Badge>
+                  </button>
+                )
+              })}
             </div>
           </div>
 
