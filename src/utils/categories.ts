@@ -8,6 +8,7 @@ export const CATEGORY_CODES = [
   'food',
   'shopping',
   'bills',
+  'savings',
   'other',
 ] as const
 
