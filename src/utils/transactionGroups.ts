@@ -2,6 +2,8 @@ import type { TransactionResponse } from '../api/types'
 
 export interface DayGroup {
   date: string
+  credit: number
+  debit: number
   net: number
   items: TransactionResponse[]
 }
@@ -15,9 +17,9 @@ export function groupTransactionsByDay(items: TransactionResponse[]): DayGroup[]
   }
   return [...byDate.entries()]
     .sort(([a], [b]) => (a < b ? 1 : -1))
-    .map(([date, dayItems]) => ({
-      date,
-      net: dayItems.reduce((sum, i) => sum + i.credit.amount - i.debit.amount, 0),
-      items: dayItems,
-    }))
+    .map(([date, dayItems]) => {
+      const credit = dayItems.reduce((sum, i) => sum + i.credit.amount, 0)
+      const debit = dayItems.reduce((sum, i) => sum + i.debit.amount, 0)
+      return { date, credit, debit, net: credit - debit, items: dayItems }
+    })
 }

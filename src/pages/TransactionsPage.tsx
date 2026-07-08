@@ -165,13 +165,19 @@ export function TransactionsPage() {
       ? dayjs()
       : dayjs(`${monthKey}-01`).endOf('month')
 
-  const dayLabel = (date: string) => {
-    if (date === today) return `${t('transactions.today')} · ${dayjs(date).format('DD/MM')}`
-    const weekday = new Date(`${date}T00:00:00`).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
+  const weekdayName = (date: string) => {
+    const name = new Date(`${date}T00:00:00`).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
       weekday: 'long',
     })
-    return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} · ${dayjs(date).format('DD/MM')}`
+    return `${name.charAt(0).toUpperCase()}${name.slice(1)}`
   }
+
+  // Mockup: today gets "Hôm nay" + "Thứ Tư · 09/07"; other days get the weekday + date.
+  const dayTitle = (date: string) => (date === today ? t('transactions.today') : weekdayName(date))
+  const daySubtitle = (date: string) =>
+    date === today
+      ? `${weekdayName(date)} · ${dayjs(date).format('DD/MM')}`
+      : dayjs(date).format('DD/MM')
 
   return (
     <div className="grid gap-4">
@@ -291,12 +297,34 @@ export function TransactionsPage() {
 
       {groups.map((group) => (
         <div key={group.date} className="grid gap-2">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span className="font-medium">{dayLabel(group.date)}</span>
-            <span className={group.net >= 0 ? 'font-semibold text-income' : 'font-semibold text-expense'}>
-              {group.net >= 0 ? '+' : '−'}
-              {formatMoney({ amount: Math.abs(group.net), currency: 'VND' })}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="font-bold">{dayTitle(group.date)}</div>
+              <div className="text-xs text-muted-foreground">{daySubtitle(group.date)}</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              {group.credit > 0 && (
+                <span className="flex items-center gap-1.5 font-medium text-income">
+                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-income" />
+                  +{formatMoney({ amount: group.credit, currency: 'VND' })}
+                </span>
+              )}
+              {group.debit > 0 && (
+                <span className="flex items-center gap-1.5 font-medium text-expense">
+                  <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-expense" />
+                  −{formatMoney({ amount: group.debit, currency: 'VND' })}
+                </span>
+              )}
+              <span
+                className={cn(
+                  'rounded-lg px-2.5 py-1 font-semibold',
+                  group.net >= 0 ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense',
+                )}
+              >
+                {t('transactions.net')} {group.net >= 0 ? '+' : '−'}
+                {formatMoney({ amount: Math.abs(group.net), currency: 'VND' })}
+              </span>
+            </div>
           </div>
           <div className="grid gap-2">
             {group.items.map((tx) => {
