@@ -17,7 +17,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
-import type { TransactionResponse } from '../api/types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getOpenAdvances } from '../api/transactionApi'
+import type { AdvanceResponse, TransactionResponse } from '../api/types'
+import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
 import { CATEGORY_CODES } from '../utils/categories'
 import { categoryVisual } from '../utils/categoryIcons'
@@ -38,6 +41,7 @@ export interface TransactionFormValues {
   cardType: CardTypeCode | null
   bank: string | null
   isAdvance: boolean
+  advanceTransactionId: string | null
   note: string | null
 }
 
@@ -74,6 +78,9 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
   const [bank, setBank] = useState<string | null>(null)
   const [customBank, setCustomBank] = useState(false)
   const [isAdvance, setIsAdvance] = useState(false)
+  const [reimburse, setReimburse] = useState(false)
+  const [advanceId, setAdvanceId] = useState<string | null>(null)
+  const [advances, setAdvances] = useState<AdvanceResponse[]>([])
   const [note, setNote] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -92,6 +99,8 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setCardType((editing.cardType as CardTypeCode) ?? null)
       setBank(editing.bank)
       setIsAdvance(editing.isAdvance)
+      setReimburse(editing.advanceTransactionId !== null)
+      setAdvanceId(editing.advanceTransactionId)
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
       setNote(editing.note ?? '')
     } else {
@@ -104,9 +113,18 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setCardType(null)
       setBank(null)
       setIsAdvance(false)
+      setReimburse(false)
+      setAdvanceId(null)
       setNote('')
     }
   }, [open, editing])
+
+  useEffect(() => {
+    if (!open || !reimburse) return
+    getOpenAdvances(editing?.id)
+      .then(setAdvances)
+      .catch(() => setAdvances([]))
+  }, [open, reimburse, editing])
 
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
@@ -115,6 +133,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
     if (!content.trim()) nextErrors.content = t('form.contentRequired')
     if (amount <= 0) nextErrors.amount = t('form.amountRequired')
     if (paymentMethod === 'card' && !cardType) nextErrors.cardType = t('form.cardTypeRequired')
+    if (type === 'in' && reimburse && !advanceId) nextErrors.advance = t('form.advanceRequired')
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return null
 
@@ -127,7 +146,8 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       paymentMethod,
       cardType: paymentMethod === 'card' ? cardType : null,
       bank: paymentMethod === 'card' ? (bank?.trim() || null) : null,
-      isAdvance,
+      isAdvance: type === 'out' ? isAdvance : false,
+      advanceTransactionId: type === 'in' && reimburse ? advanceId : null,
       note: note.trim() || null,
     }
   }
@@ -156,7 +176,14 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
               <button
                 key={value}
                 type="button"
-                onClick={() => setType(value)}
+                onClick={() => {
+                  setType(value)
+                  if (value === 'in') setIsAdvance(false)
+                  else {
+                    setReimburse(false)
+                    setAdvanceId(null)
+                  }
+                }}
                 className={cn(
                   'flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium',
                   type === value ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground',
@@ -200,18 +227,53 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
             </div>
           </div>
 
-          <label className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5">
-            <Checkbox
-              checked={isAdvance}
-              onCheckedChange={(checked) => setIsAdvance(checked === true)}
-              aria-label={t('form.isAdvance')}
-              className="mt-0.5"
-            />
-            <span className="grid gap-0.5 text-sm">
-              <span className="font-medium">{t('form.isAdvance')}</span>
-              <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
-            </span>
-          </label>
+          {type === 'out' && (
+            <label className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5">
+              <Checkbox
+                checked={isAdvance}
+                onCheckedChange={(checked) => setIsAdvance(checked === true)}
+                aria-label={t('form.isAdvance')}
+                className="mt-0.5"
+              />
+              <span className="grid gap-0.5 text-sm">
+                <span className="font-medium">{t('form.isAdvance')}</span>
+                <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
+              </span>
+            </label>
+          )}
+
+          {type === 'in' && (
+            <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+              <label className="flex items-center gap-2.5">
+                <Checkbox
+                  checked={reimburse}
+                  onCheckedChange={(checked) => {
+                    setReimburse(checked === true)
+                    if (checked !== true) setAdvanceId(null)
+                  }}
+                  aria-label={t('form.reimburseAdvance')}
+                />
+                <span className="text-sm font-medium">{t('form.reimburseAdvance')}</span>
+              </label>
+              {reimburse && (
+                <>
+                  <Select value={advanceId ?? ''} onValueChange={setAdvanceId}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t('form.selectAdvance')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {advances.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {dayjs(a.date).format('DD/MM')} · {a.content} · −{formatMoney(a.debit)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.advance && <p className="text-xs text-expense">{errors.advance}</p>}
+                </>
+              )}
+            </div>
+          )}
 
           <div className="grid gap-2">
             <Label>{t('form.category')}</Label>

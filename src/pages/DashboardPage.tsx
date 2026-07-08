@@ -60,6 +60,7 @@ export function DashboardPage() {
         cardType: values.cardType,
         bank: values.bank,
         isAdvance: values.isAdvance,
+        advanceTransactionId: values.advanceTransactionId,
       })
       if (options?.keepOpen) {
         // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.

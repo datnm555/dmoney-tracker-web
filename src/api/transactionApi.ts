@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { DashboardStatsResponse, MonthlySummaryResponse } from './types'
+import type { AdvanceResponse, DashboardStatsResponse, MonthlySummaryResponse } from './types'
 
 export interface TransactionPayload {
   date: string // YYYY-MM-DD
@@ -12,6 +12,7 @@ export interface TransactionPayload {
   cardType: string | null
   bank: string | null
   isAdvance: boolean
+  advanceTransactionId: string | null
 }
 
 export async function getMonthlySummary(month: string): Promise<MonthlySummaryResponse> {
@@ -46,5 +47,12 @@ export interface ImportRowPayload {
 
 export async function importTransactions(rows: ImportRowPayload[]): Promise<{ imported: number }> {
   const { data } = await apiClient.post<{ imported: number }>('/transactions/import', { rows })
+  return data
+}
+
+export async function getOpenAdvances(forTransaction?: string): Promise<AdvanceResponse[]> {
+  const { data } = await apiClient.get<AdvanceResponse[]>('/transactions/advances/open', {
+    params: forTransaction ? { forTransaction } : undefined,
+  })
   return data
 }

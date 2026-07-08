@@ -15,6 +15,14 @@ export interface TransactionResponse {
   cardType: string | null
   bank: string | null
   isAdvance: boolean
+  advanceTransactionId: string | null
+}
+
+export interface AdvanceResponse {
+  id: string
+  date: string // YYYY-MM-DD
+  content: string
+  debit: MoneyResponse
 }
 
 export interface MonthlySummaryResponse {

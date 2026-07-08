@@ -9,6 +9,17 @@ vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
 }))
 
+vi.mock('../api/transactionApi', () => ({
+  getOpenAdvances: vi.fn().mockResolvedValue([
+    {
+      id: 'adv-1',
+      date: '2026-07-01',
+      content: 'Ứng trước tiền xe',
+      debit: { amount: 2_000_000, currency: 'VND' },
+    },
+  ]),
+}))
+
 function Wrapper({ children }: { children: ReactNode }) {
   return <I18nProvider>{children}</I18nProvider>
 }
@@ -96,6 +107,40 @@ describe('TransactionFormModal', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ isAdvance: true }))
   })
 
+  it('money-in shows the reimburse checkbox instead of the advance checkbox', async () => {
+    renderModal()
+
+    await screen.findByLabelText('form.content')
+    expect(screen.getByRole('checkbox', { name: 'form.isAdvance' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /form\.moneyIn/ }))
+
+    expect(screen.queryByRole('checkbox', { name: 'form.isAdvance' })).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'form.reimburseAdvance' })).toBeInTheDocument()
+  })
+
+  it('links a money-in to a selected open advance', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
+    await userEvent.type(screen.getByLabelText('form.content'), 'Nhận hoàn ứng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '2000000')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.reimburseAdvance' }))
+
+    // Submitting without picking an advance is rejected.
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(await screen.findByText('form.advanceRequired')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.click(await screen.findByRole('option', { name: /Ứng trước tiền xe/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'in', advanceTransactionId: 'adv-1', isAdvance: false }),
+    )
+  })
+
   it('save-and-continue submits with keepOpen and preserves the form values', async () => {
     const onSubmit = renderModal()
 
@@ -129,6 +174,7 @@ describe('TransactionFormModal', () => {
             cardType: null,
             bank: null,
             isAdvance: false,
+            advanceTransactionId: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}
