@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
 import { TransactionFormModal } from './TransactionFormModal'
 
-// No backend in tests: resources resolve empty, so t(key) returns the key itself.
 vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
 }))
@@ -14,55 +13,75 @@ function Wrapper({ children }: { children: ReactNode }) {
   return <I18nProvider>{children}</I18nProvider>
 }
 
+function renderModal(onSubmit = vi.fn()) {
+  render(
+    <Wrapper>
+      <TransactionFormModal open editing={null} submitting={false} onSubmit={onSubmit} onCancel={() => {}} />
+    </Wrapper>,
+  )
+  return onSubmit
+}
+
 describe('TransactionFormModal', () => {
-  it('rejects submit when both amounts are empty', async () => {
-    const onSubmit = vi.fn()
-    render(
-      <Wrapper>
-        <TransactionFormModal open editing={null} submitting={false} onSubmit={onSubmit} onCancel={() => {}} />
-      </Wrapper>,
-    )
+  it('rejects submit when amount is empty', async () => {
+    const onSubmit = renderModal()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
-    expect(await screen.findAllByText('form.amountRequired')).not.toHaveLength(0)
+    expect(await screen.findByText('form.amountRequired')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('submits when content and one amount are provided', async () => {
-    const onSubmit = vi.fn()
-    render(
-      <Wrapper>
-        <TransactionFormModal open editing={null} submitting={false} onSubmit={onSubmit} onCancel={() => {}} />
-      </Wrapper>,
-    )
+  it('requires a card type when paying by card', async () => {
+    const onSubmit = renderModal()
 
-    await userEvent.type(await screen.findByLabelText('form.content'), 'Lương')
-    await userEvent.type(screen.getByLabelText('form.credit'), '15000000')
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
+    await userEvent.type(screen.getByLabelText('form.amount'), '260000')
+    await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
-    const values = onSubmit.mock.calls[0][0]
-    expect(values.content).toBe('Lương')
-    expect(values.creditAmount).toBe(15000000)
+    expect(await screen.findByText('form.cardTypeRequired')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('submits the selected category', async () => {
-    const onSubmit = vi.fn()
-    render(
-      <Wrapper>
-        <TransactionFormModal open editing={null} submitting={false} onSubmit={onSubmit} onCancel={() => {}} />
-      </Wrapper>,
-    )
+  it('submits mapped values for a card expense', async () => {
+    const onSubmit = renderModal()
 
-    await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
-    await userEvent.type(screen.getByLabelText('form.debit'), '50000')
-    await userEvent.click(screen.getByLabelText('form.category'))
-    await userEvent.click(await screen.findByTitle('category.food'))
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
+    await userEvent.type(screen.getByLabelText('form.amount'), '260000')
+    await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
+    await userEvent.click(await screen.findByRole('radio', { name: 'payment.cardType.visa' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Techcombank' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
-    expect(onSubmit.mock.calls[0][0].category).toBe('food')
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Netflix',
+        type: 'out',
+        amount: 260000,
+        paymentMethod: 'card',
+        cardType: 'visa',
+        bank: 'Techcombank',
+      }),
+    )
+  })
+
+  it('defaults to transfer money-out with no card fields', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'out',
+        amount: 50000,
+        paymentMethod: 'transfer',
+        cardType: null,
+        bank: null,
+      }),
+    )
   })
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CategoryStat, DailyStat, MonthlyStat } from '../api/types'
-import { toBalanceLine, toCategoryPie, toDailyBars, toMonthlyBars } from './chartData'
+import { toBalanceLine, toCategoryPie, toDailyBars, toIncomeExpenseBars, toMonthlyBars } from './chartData'
 
 const vnd = (amount: number) => ({ amount, currency: 'VND' })
 
@@ -36,5 +36,12 @@ describe('chartData', () => {
     const byCategory: CategoryStat[] = [{ category: 'food', debit: vnd(200000) }]
     const t = (key: string) => `vi:${key}`
     expect(toCategoryPie(byCategory, t)).toEqual([{ label: 'vi:category.food', amount: 200000 }])
+  })
+
+  it('toIncomeExpenseBars maps monthly stats to T-labelled income/expense rows', () => {
+    expect(toIncomeExpenseBars(monthly)).toEqual([
+      { month: 'T6', income: 10, expense: 4 },
+      { month: 'T7', income: 0, expense: 5 },
+    ])
   })
 })

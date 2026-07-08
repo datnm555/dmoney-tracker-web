@@ -6,7 +6,7 @@ import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
-import { SummaryPage } from './pages/SummaryPage'
+import { TransactionsPage } from './pages/TransactionsPage'
 
 export default function App() {
   return (
@@ -18,12 +18,13 @@ export default function App() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/app" element={<ProtectedRoute />}>
               <Route element={<AppLayout />}>
-                <Route index element={<Navigate to="summary" replace />} />
+                <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="summary" element={<SummaryPage />} />
+                <Route path="transactions" element={<TransactionsPage />} />
+                <Route path="summary" element={<Navigate to="/app/transactions" replace />} />
               </Route>
             </Route>
-            <Route path="*" element={<Navigate to="/app/summary" replace />} />
+            <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

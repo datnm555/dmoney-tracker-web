@@ -6,6 +6,20 @@ export interface MonthlyBarDatum {
   amount: number
 }
 
+export interface IncomeExpenseDatum {
+  month: string
+  income: number
+  expense: number
+}
+
+export function toIncomeExpenseBars(monthly: MonthlyStat[]): IncomeExpenseDatum[] {
+  return monthly.map((m) => ({
+    month: `T${Number(m.month.slice(5))}`,
+    income: m.totalCredit.amount,
+    expense: m.totalDebit.amount,
+  }))
+}
+
 export interface PointDatum {
   x: string
   amount: number

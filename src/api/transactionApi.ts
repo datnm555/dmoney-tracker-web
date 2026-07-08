@@ -8,6 +8,9 @@ export interface TransactionPayload {
   debitAmount: number
   note: string | null
   category: string | null
+  paymentMethod: string
+  cardType: string | null
+  bank: string | null
 }
 
 export async function getMonthlySummary(month: string): Promise<MonthlySummaryResponse> {
