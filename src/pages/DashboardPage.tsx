@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
-import { Plus } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, ChevronDown, Plus, TrendingUp, WalletCards } from 'lucide-react'
 import { toast } from 'sonner'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '@/components/ui/badge'
@@ -95,16 +95,24 @@ export function DashboardPage() {
             })}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Tabs value={month.format('YYYY-MM')} onValueChange={(value) => setMonth(dayjs(`${value}-01`))}>
             <TabsList>
-              {monthTabs.map((m) => (
+              {monthTabs.map((m, i) => (
                 <TabsTrigger key={m.format('YYYY-MM')} value={m.format('YYYY-MM')}>
-                  T{m.month() + 1}
+                  {i === monthTabs.length - 1
+                    ? lang === 'vi'
+                      ? `Tháng ${m.month() + 1}`
+                      : m.toDate().toLocaleDateString('en-US', { month: 'short' })
+                    : `T${m.month() + 1}`}
                 </TabsTrigger>
               ))}
             </TabsList>
           </Tabs>
+          <div className="flex h-9 items-center gap-1.5 rounded-lg border bg-background px-3 text-sm shadow-xs">
+            ₫ VND
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
           <Button onClick={() => setModalOpen(true)}>
             <Plus className="mr-1 h-4 w-4" />
             {t('summary.create')}
@@ -114,25 +122,39 @@ export function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{t('dashboard.totalBalance')}</CardTitle>
+            <WalletCards className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summary ? formatMoney(summary.balance) : '—'}</div>
+          <CardContent className="grid gap-1.5">
+            <div className="text-2xl font-bold underline decoration-zinc-200 underline-offset-4">
+              {summary ? formatMoney(summary.balance) : '—'}
+            </div>
             {balanceDelta !== null && (
-              <p className={balanceDelta >= 0 ? 'text-xs text-income' : 'text-xs text-expense'}>
-                {balanceDelta >= 0 ? '+' : ''}
-                {balanceDelta.toFixed(1)}% {t('dashboard.vsLastMonth')}
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span
+                  className={
+                    balanceDelta >= 0
+                      ? 'flex items-center gap-0.5 rounded-full bg-income/10 px-1.5 py-0.5 font-medium text-income'
+                      : 'flex items-center gap-0.5 rounded-full bg-expense/10 px-1.5 py-0.5 font-medium text-expense'
+                  }
+                >
+                  <TrendingUp className="h-3 w-3" />
+                  {balanceDelta >= 0 ? '+' : ''}
+                  {balanceDelta.toFixed(1)}%
+                </span>
+                {t('dashboard.vsLastMonth')}
               </p>
             )}
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{t('summary.colCredit')}</CardTitle>
+            <ArrowUpRight className="h-4 w-4 text-income" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-income">
+          <CardContent className="grid gap-1.5">
+            <div className="text-2xl font-bold text-income underline decoration-income/30 underline-offset-4">
               +{summary ? formatMoney(summary.totalCredit) : '—'}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -141,11 +163,12 @@ export function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className="flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">{t('summary.colDebit')}</CardTitle>
+            <ArrowDownRight className="h-4 w-4 text-expense" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-expense">
+          <CardContent className="grid gap-1.5">
+            <div className="text-2xl font-bold text-expense underline decoration-expense/30 underline-offset-4">
               −{summary ? formatMoney(summary.totalDebit) : '—'}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -155,30 +178,49 @@ export function DashboardPage() {
         </Card>
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle className="text-base">{t('dashboard.cashflow')}</CardTitle>
+          {bars.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t('dashboard.cashflowSub')} — {bars[0].month} {t('common.to')} {bars[bars.length - 1].month}{' '}
+              {month.year()}
+            </p>
+          )}
         </CardHeader>
-        <CardContent className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={bars}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-              <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
-              <YAxis tickFormatter={vnd} tickLine={false} axisLine={false} fontSize={12} width={90} />
-              <Tooltip formatter={(value) => vnd(Number(value))} />
-              <Bar dataKey="income" name={t('summary.colCredit')} fill="#16a34a" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expense" name={t('summary.colDebit')} fill="#dc2626" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <CardContent className="grid gap-2">
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={bars} barGap={4}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
+                <YAxis tickFormatter={vnd} tickLine={false} axisLine={false} fontSize={11} width={86} />
+                <Tooltip formatter={(value) => vnd(Number(value))} />
+                <Bar dataKey="income" name={t('dashboard.legendIn')} fill="#6C4CF1" radius={[7, 7, 7, 7]} barSize={14} />
+                <Bar dataKey="expense" name={t('dashboard.legendOut')} fill="#d4d4d8" radius={[7, 7, 7, 7]} barSize={14} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-primary" />
+              {t('dashboard.legendIn')}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-zinc-300" />
+              {t('dashboard.legendOut')}
+            </span>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="text-base">{t('dashboard.recent')}</CardTitle>
-          <Link to="/app/transactions" className="text-sm text-primary hover:underline">
-            {t('dashboard.viewAll')}
-          </Link>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/app/transactions">{t('dashboard.viewAll')}</Link>
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -224,6 +266,7 @@ export function DashboardPage() {
           </Table>
         </CardContent>
       </Card>
+      </div>
 
       <TransactionFormModal
         open={modalOpen}

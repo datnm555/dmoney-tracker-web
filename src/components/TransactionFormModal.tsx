@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import dayjs from 'dayjs'
-import { Badge } from '@/components/ui/badge'
+import { ArrowDown, ArrowUp, Banknote, CircleCheck, CreditCard, Landmark } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -47,6 +48,12 @@ interface Props {
 }
 
 const formatThousands = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+
+const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
+  transfer: Landmark,
+  cash: Banknote,
+  card: CreditCard,
+}
 
 export function TransactionFormModal({ open, editing, submitting, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
@@ -130,14 +137,15 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                 type="button"
                 onClick={() => setType(value)}
                 className={cn(
-                  'rounded-md px-3 py-1.5 text-sm font-medium',
-                  type === value
-                    ? value === 'out'
-                      ? 'bg-white text-expense shadow-sm'
-                      : 'bg-white text-income shadow-sm'
-                    : 'text-muted-foreground',
+                  'flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium',
+                  type === value ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground',
                 )}
               >
+                {value === 'out' ? (
+                  <ArrowDown className={cn('h-3.5 w-3.5', type === value ? '' : 'text-expense')} />
+                ) : (
+                  <ArrowUp className={cn('h-3.5 w-3.5', type === value ? '' : 'text-income')} />
+                )}
                 {value === 'out' ? t('form.moneyOut') : t('form.moneyIn')}
               </button>
             ))}
@@ -173,17 +181,24 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
 
           <div className="grid gap-2">
             <Label>{t('form.category')}</Label>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="grid grid-cols-4 gap-2">
               {CATEGORY_CODES.map((code) => {
                 const visual = categoryVisual(code)
+                const selected = category === code
                 return (
-                  <button key={code} type="button" onClick={() => setCategory(category === code ? null : code)}>
-                    <Badge variant={category === code ? 'default' : 'outline'} className="gap-1">
-                      <visual.icon
-                        className={cn('h-3 w-3', category === code ? 'text-primary-foreground' : visual.iconClass)}
-                      />
-                      {t(`category.${code}`)}
-                    </Badge>
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setCategory(selected ? null : code)}
+                    className={cn(
+                      'flex flex-col items-center gap-1 rounded-lg border px-1.5 py-2.5 text-xs',
+                      selected
+                        ? 'border-primary bg-primary/5 font-medium text-primary'
+                        : 'text-muted-foreground hover:border-zinc-300',
+                    )}
+                  >
+                    <visual.icon className={cn('h-4 w-4', selected ? 'text-primary' : visual.iconClass)} />
+                    <span className="truncate">{t(`category.${code}`)}</span>
                   </button>
                 )
               })}
@@ -204,24 +219,32 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
               }}
               className="grid grid-cols-3 gap-2"
             >
-              {PAYMENT_METHOD_CODES.map((code) => (
-                <Label
-                  key={code}
-                  htmlFor={`tx-pm-${code}`}
-                  className={cn(
-                    'flex cursor-pointer items-center justify-center gap-2 rounded-md border px-2 py-2 text-sm',
-                    paymentMethod === code && 'border-primary bg-primary/5 text-primary',
-                  )}
-                >
-                  <RadioGroupItem id={`tx-pm-${code}`} value={code} className="sr-only" />
-                  {t(`payment.${code}`)}
-                </Label>
-              ))}
+              {PAYMENT_METHOD_CODES.map((code) => {
+                const Icon = PAYMENT_ICONS[code]
+                const selected = paymentMethod === code
+                return (
+                  <Label
+                    key={code}
+                    htmlFor={`tx-pm-${code}`}
+                    className={cn(
+                      'relative flex cursor-pointer flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-sm',
+                      selected ? 'border-primary bg-primary/5 text-primary' : 'text-muted-foreground',
+                    )}
+                  >
+                    <RadioGroupItem id={`tx-pm-${code}`} value={code} className="sr-only" />
+                    {selected && (
+                      <CircleCheck className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-background fill-primary text-primary-foreground" />
+                    )}
+                    <Icon className="h-4 w-4" />
+                    {t(`payment.${code}`)}
+                  </Label>
+                )
+              })}
             </RadioGroup>
           </div>
 
           {paymentMethod === 'card' && (
-            <>
+            <div className="grid gap-3 rounded-lg bg-zinc-50 p-3">
               <div className="grid gap-2">
                 <Label>{t('payment.cardType')}</Label>
                 <RadioGroup
@@ -234,12 +257,22 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                       key={code}
                       htmlFor={`tx-ct-${code}`}
                       className={cn(
-                        'flex cursor-pointer items-center justify-center rounded-md border px-2 py-2 text-sm uppercase',
-                        cardType === code && 'border-primary bg-primary/5 text-primary',
+                        'flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm',
+                        cardType === code && 'border-primary ring-1 ring-primary/30',
                       )}
                     >
-                      <RadioGroupItem id={`tx-ct-${code}`} value={code} className="sr-only" />
-                      {t(`payment.cardType.${code}`)}
+                      <RadioGroupItem id={`tx-ct-${code}`} value={code} />
+                      {code === 'visa' ? (
+                        <span className="text-[13px] font-extrabold italic tracking-tight text-primary">
+                          {t(`payment.cardType.${code}`)}
+                        </span>
+                      ) : (
+                        <span className="flex items-center">
+                          <span className="h-3 w-3 rounded-full bg-red-500" />
+                          <span className="-ml-1 h-3 w-3 rounded-full bg-amber-400 opacity-90" />
+                          <span className="ml-1.5">{t(`payment.cardType.${code}`)}</span>
+                        </span>
+                      )}
                     </Label>
                   ))}
                 </RadioGroup>
@@ -256,8 +289,21 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                         setBank(preset)
                         setCustomBank(false)
                       }}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
+                        bank === preset && !customBank && 'border-primary ring-1 ring-primary/30',
+                      )}
                     >
-                      <Badge variant={bank === preset && !customBank ? 'default' : 'outline'}>{preset}</Badge>
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
+                          preset === 'Techcombank' ? 'bg-red-600' : 'bg-green-600',
+                        )}
+                      >
+                        {preset.charAt(0)}
+                      </span>
+                      {preset}
                     </button>
                   ))}
                   <button
@@ -266,20 +312,25 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                       setCustomBank(true)
                       setBank(null)
                     }}
+                    className={cn(
+                      'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                      customBank && 'border-primary text-primary ring-1 ring-primary/30',
+                    )}
                   >
-                    <Badge variant={customBank ? 'default' : 'outline'}>＋ {t('payment.bank.other')}</Badge>
+                    ＋ {t('payment.bank.other')}
                   </button>
                 </div>
                 {customBank && (
                   <Input
                     aria-label={t('payment.bank')}
                     maxLength={100}
+                    className="bg-background"
                     value={bank ?? ''}
                     onChange={(e) => setBank(e.target.value)}
                   />
                 )}
               </div>
-            </>
+            </div>
           )}
 
           <div className="grid gap-2">

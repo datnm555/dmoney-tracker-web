@@ -13,8 +13,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   DropdownMenu,
@@ -33,6 +33,7 @@ import {
 } from '../api/transactionApi'
 import type { MonthlySummaryResponse, TransactionResponse } from '../api/types'
 import { CategoryIcon } from '../components/CategoryIcon'
+import { categoryVisual } from '../utils/categoryIcons'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
@@ -258,26 +259,37 @@ export function TransactionsPage() {
               {formatMoney({ amount: Math.abs(group.net), currency: 'VND' })}
             </span>
           </div>
-          <Card>
-            <CardContent className="divide-y p-0">
-              {group.items.map((tx) => (
-                <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
-                  <CategoryIcon category={tx.category} />
+          <div className="grid gap-2">
+            {group.items.map((tx) => {
+              const isIncome = tx.credit.amount > 0
+              const visual = categoryVisual(tx.category)
+              return (
+                <div
+                  key={tx.id}
+                  className="relative flex items-center gap-3 overflow-hidden rounded-xl border bg-background py-3 pl-5 pr-3 shadow-xs"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn('absolute left-0 top-0 h-full w-1', isIncome ? 'bg-income' : 'bg-expense')}
+                  />
+                  <CategoryIcon category={tx.category} className="h-10 w-10 rounded-xl" />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">{tx.content}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {tx.category ? `${t(`category.${tx.category}`)} · ` : ''}
+                    <div className="truncate font-semibold">{tx.content}</div>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {tx.category && (
+                        <span className={cn('rounded-md px-1.5 py-0.5 font-medium', visual.labelClass)}>
+                          {t(`category.${tx.category}`)}
+                        </span>
+                      )}
                       {paymentLabel(tx, t)}
                     </div>
                   </div>
-                  <Badge variant="outline" className="hidden sm:inline-flex">
-                    {paymentLabel(tx, t)}
-                  </Badge>
-                  <span
-                    className={tx.credit.amount > 0 ? 'font-semibold text-income' : 'font-semibold text-expense'}
-                  >
-                    {tx.credit.amount > 0 ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
-                  </span>
+                  <div className="flex flex-col items-end gap-0.5">
+                    <span className={isIncome ? 'font-semibold text-income' : 'font-semibold text-expense'}>
+                      {isIncome ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{dayjs(tx.date).format('DD/MM')}</span>
+                  </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -299,9 +311,9 @@ export function TransactionsPage() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+              )
+            })}
+          </div>
         </div>
       ))}
 
