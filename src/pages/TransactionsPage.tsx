@@ -276,16 +276,43 @@ export function TransactionsPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap justify-end gap-2 text-sm">
-            <span className="rounded-lg bg-income/10 px-3 py-1.5">
-              <span className="text-muted-foreground">{t('summary.colCredit')}: </span>
-              <strong className="text-income">+{summary ? formatMoney(summary.totalCredit) : '—'}</strong>
-            </span>
-            <span className="rounded-lg bg-expense/10 px-3 py-1.5">
-              <span className="text-muted-foreground">{t('summary.colDebit')}: </span>
-              <strong className="text-expense">−{summary ? formatMoney(summary.totalDebit) : '—'}</strong>
-            </span>
-          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="grid gap-2.5 p-4 md:p-5">
+          {(() => {
+            const credit = summary?.totalCredit.amount ?? 0
+            const debit = summary?.totalDebit.amount ?? 0
+            const total = credit + debit
+            const creditPct = total > 0 ? (credit / total) * 100 : 0
+            return (
+              <>
+                <div className="flex h-2.5 overflow-hidden rounded-full bg-zinc-100">
+                  {total > 0 && (
+                    <>
+                      <div className="h-full rounded-l-full bg-income" style={{ width: `${creditPct}%` }} />
+                      <div className="h-full flex-1 rounded-r-full bg-expense" />
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span>
+                    <span className="text-muted-foreground">{t('summary.colCredit')} </span>
+                    <strong className="text-income underline decoration-income/30 underline-offset-4">
+                      +{summary ? formatMoney(summary.totalCredit) : '—'}
+                    </strong>
+                  </span>
+                  <span>
+                    <span className="text-muted-foreground">{t('summary.colDebit')} </span>
+                    <strong className="text-expense underline decoration-expense/30 underline-offset-4">
+                      −{summary ? formatMoney(summary.totalDebit) : '—'}
+                    </strong>
+                  </span>
+                </div>
+              </>
+            )
+          })()}
         </CardContent>
       </Card>
 
