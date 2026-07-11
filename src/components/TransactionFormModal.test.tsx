@@ -151,18 +151,17 @@ describe('TransactionFormModal', () => {
     )
   })
 
-  it('money-in prepaid submits the covered period', async () => {
+  it('money-in prepaid submits the period computed from the date and month count', async () => {
     const onSubmit = renderModal()
 
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Sinh hoạt 5 tháng')
     await userEvent.type(screen.getByLabelText('form.amount'), '25000000')
+    fireEvent.change(screen.getByLabelText('form.date'), { target: { value: '2026-01-01' } })
     await userEvent.click(screen.getByRole('checkbox', { name: 'form.isPrepaid' }))
 
-    const from = screen.getByLabelText('form.prepaidFrom')
-    const to = screen.getByLabelText('form.prepaidTo')
-    fireEvent.change(from, { target: { value: '2026-01-01' } })
-    fireEvent.change(to, { target: { value: '2026-05-31' } })
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.prepaidMonths' }))
+    await userEvent.click(await screen.findByRole('option', { name: /5 common\.months/ }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
     expect(onSubmit).toHaveBeenCalledWith(

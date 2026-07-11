@@ -86,8 +86,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
   const [advanceId, setAdvanceId] = useState<string | null>(null)
   const [advances, setAdvances] = useState<AdvanceResponse[]>([])
   const [isPrepaid, setIsPrepaid] = useState(false)
-  const [prepaidFrom, setPrepaidFrom] = useState('')
-  const [prepaidTo, setPrepaidTo] = useState('')
+  const [prepaidMonths, setPrepaidMonths] = useState(1)
   const [alreadyPrepaid, setAlreadyPrepaid] = useState(false)
   const [prepaidId, setPrepaidId] = useState<string | null>(null)
   const [prepaidCredits, setPrepaidCredits] = useState<PrepaidCreditResponse[]>([])
@@ -112,8 +111,17 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setReimburse(editing.advanceTransactionId !== null)
       setAdvanceId(editing.advanceTransactionId)
       setIsPrepaid(editing.isPrepaid)
-      setPrepaidFrom(editing.prepaidFrom ?? dayjs().format('YYYY-MM-DD'))
-      setPrepaidTo(editing.prepaidTo ?? dayjs().format('YYYY-MM-DD'))
+      setPrepaidMonths(
+        editing.prepaidFrom && editing.prepaidTo
+          ? Math.min(
+              12,
+              Math.max(
+                1,
+                Math.round(dayjs(editing.prepaidTo).add(1, 'day').diff(dayjs(editing.prepaidFrom), 'month', true)),
+              ),
+            )
+          : 1,
+      )
       setAlreadyPrepaid(editing.prepaidTransactionId !== null)
       setPrepaidId(editing.prepaidTransactionId)
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
@@ -131,8 +139,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setReimburse(false)
       setAdvanceId(null)
       setIsPrepaid(false)
-      setPrepaidFrom(dayjs().format('YYYY-MM-DD'))
-      setPrepaidTo(dayjs().format('YYYY-MM-DD'))
+      setPrepaidMonths(1)
       setAlreadyPrepaid(false)
       setPrepaidId(null)
       setNote('')
@@ -178,8 +185,11 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       isAdvance: type === 'out' ? isAdvance : false,
       advanceTransactionId: type === 'in' && reimburse ? advanceId : null,
       isPrepaid: type === 'in' && isPrepaid,
-      prepaidFrom: type === 'in' && isPrepaid ? prepaidFrom : null,
-      prepaidTo: type === 'in' && isPrepaid ? prepaidTo : null,
+      prepaidFrom: type === 'in' && isPrepaid ? date : null,
+      prepaidTo:
+        type === 'in' && isPrepaid
+          ? dayjs(date).add(prepaidMonths, 'month').subtract(1, 'day').format('YYYY-MM-DD')
+          : null,
       prepaidTransactionId: type === 'out' && alreadyPrepaid ? prepaidId : null,
       note: note.trim() || null,
     }
@@ -367,29 +377,26 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                 </span>
               </label>
               {isPrepaid && (
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 items-end gap-2">
                   <div className="grid gap-1.5">
-                    <Label htmlFor="tx-prepaid-from" className="text-xs text-muted-foreground">
-                      {t('form.prepaidFrom')}
-                    </Label>
-                    <Input
-                      id="tx-prepaid-from"
-                      type="date"
-                      value={prepaidFrom}
-                      onChange={(e) => setPrepaidFrom(e.target.value)}
-                    />
+                    <Label className="text-xs text-muted-foreground">{t('form.prepaidMonths')}</Label>
+                    <Select value={String(prepaidMonths)} onValueChange={(v) => setPrepaidMonths(Number(v))}>
+                      <SelectTrigger className="w-full" aria-label={t('form.prepaidMonths')}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                          <SelectItem key={n} value={String(n)}>
+                            {n} {t('common.months')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="tx-prepaid-to" className="text-xs text-muted-foreground">
-                      {t('form.prepaidTo')}
-                    </Label>
-                    <Input
-                      id="tx-prepaid-to"
-                      type="date"
-                      value={prepaidTo}
-                      onChange={(e) => setPrepaidTo(e.target.value)}
-                    />
-                  </div>
+                  <p className="pb-2 text-xs text-muted-foreground">
+                    {dayjs(date).format('DD/MM/YYYY')} →{' '}
+                    {dayjs(date).add(prepaidMonths, 'month').subtract(1, 'day').format('DD/MM/YYYY')}
+                  </p>
                 </div>
               )}
             </div>
