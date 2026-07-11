@@ -18,8 +18,8 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { getOpenAdvances } from '../api/transactionApi'
-import type { AdvanceResponse, TransactionResponse } from '../api/types'
+import { getOpenAdvances, getPrepaidCredits } from '../api/transactionApi'
+import type { AdvanceResponse, PrepaidCreditResponse, TransactionResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
 import { CATEGORY_CODES } from '../utils/categories'
@@ -42,6 +42,10 @@ export interface TransactionFormValues {
   bank: string | null
   isAdvance: boolean
   advanceTransactionId: string | null
+  isPrepaid: boolean
+  prepaidFrom: string | null
+  prepaidTo: string | null
+  prepaidTransactionId: string | null
   note: string | null
 }
 
@@ -81,6 +85,12 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
   const [reimburse, setReimburse] = useState(false)
   const [advanceId, setAdvanceId] = useState<string | null>(null)
   const [advances, setAdvances] = useState<AdvanceResponse[]>([])
+  const [isPrepaid, setIsPrepaid] = useState(false)
+  const [prepaidFrom, setPrepaidFrom] = useState('')
+  const [prepaidTo, setPrepaidTo] = useState('')
+  const [alreadyPrepaid, setAlreadyPrepaid] = useState(false)
+  const [prepaidId, setPrepaidId] = useState<string | null>(null)
+  const [prepaidCredits, setPrepaidCredits] = useState<PrepaidCreditResponse[]>([])
   const [note, setNote] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -101,6 +111,11 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setIsAdvance(editing.isAdvance)
       setReimburse(editing.advanceTransactionId !== null)
       setAdvanceId(editing.advanceTransactionId)
+      setIsPrepaid(editing.isPrepaid)
+      setPrepaidFrom(editing.prepaidFrom ?? dayjs().format('YYYY-MM-DD'))
+      setPrepaidTo(editing.prepaidTo ?? dayjs().format('YYYY-MM-DD'))
+      setAlreadyPrepaid(editing.prepaidTransactionId !== null)
+      setPrepaidId(editing.prepaidTransactionId)
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
       setNote(editing.note ?? '')
     } else {
@@ -115,6 +130,11 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setIsAdvance(false)
       setReimburse(false)
       setAdvanceId(null)
+      setIsPrepaid(false)
+      setPrepaidFrom(dayjs().format('YYYY-MM-DD'))
+      setPrepaidTo(dayjs().format('YYYY-MM-DD'))
+      setAlreadyPrepaid(false)
+      setPrepaidId(null)
       setNote('')
     }
   }, [open, editing])
@@ -126,14 +146,23 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       .catch(() => setAdvances([]))
   }, [open, reimburse, editing])
 
+  useEffect(() => {
+    if (!open || !alreadyPrepaid) return
+    getPrepaidCredits()
+      .then(setPrepaidCredits)
+      .catch(() => setPrepaidCredits([]))
+  }, [open, alreadyPrepaid])
+
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
   const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
     if (!content.trim()) nextErrors.content = t('form.contentRequired')
-    if (amount <= 0) nextErrors.amount = t('form.amountRequired')
+    const amountOptional = type === 'out' && alreadyPrepaid
+    if (amount <= 0 && !amountOptional) nextErrors.amount = t('form.amountRequired')
     if (paymentMethod === 'card' && !cardType) nextErrors.cardType = t('form.cardTypeRequired')
     if (type === 'in' && reimburse && !advanceId) nextErrors.advance = t('form.advanceRequired')
+    if (type === 'out' && alreadyPrepaid && !prepaidId) nextErrors.prepaid = t('form.prepaidRequired')
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return null
 
@@ -148,6 +177,10 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       bank: paymentMethod === 'card' ? (bank?.trim() || null) : null,
       isAdvance: type === 'out' ? isAdvance : false,
       advanceTransactionId: type === 'in' && reimburse ? advanceId : null,
+      isPrepaid: type === 'in' && isPrepaid,
+      prepaidFrom: type === 'in' && isPrepaid ? prepaidFrom : null,
+      prepaidTo: type === 'in' && isPrepaid ? prepaidTo : null,
+      prepaidTransactionId: type === 'out' && alreadyPrepaid ? prepaidId : null,
       note: note.trim() || null,
     }
   }
@@ -178,10 +211,14 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                 type="button"
                 onClick={() => {
                   setType(value)
-                  if (value === 'in') setIsAdvance(false)
-                  else {
+                  if (value === 'in') {
+                    setIsAdvance(false)
+                    setAlreadyPrepaid(false)
+                    setPrepaidId(null)
+                  } else {
                     setReimburse(false)
                     setAdvanceId(null)
+                    setIsPrepaid(false)
                   }
                 }}
                 className={cn(
@@ -228,18 +265,58 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
           </div>
 
           {type === 'out' && (
-            <label className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5">
-              <Checkbox
-                checked={isAdvance}
-                onCheckedChange={(checked) => setIsAdvance(checked === true)}
-                aria-label={t('form.isAdvance')}
-                className="mt-0.5"
-              />
-              <span className="grid gap-0.5 text-sm">
-                <span className="font-medium">{t('form.isAdvance')}</span>
-                <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
-              </span>
-            </label>
+            <>
+              <label className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5">
+                <Checkbox
+                  checked={isAdvance}
+                  onCheckedChange={(checked) => setIsAdvance(checked === true)}
+                  aria-label={t('form.isAdvance')}
+                  className="mt-0.5"
+                />
+                <span className="grid gap-0.5 text-sm">
+                  <span className="font-medium">{t('form.isAdvance')}</span>
+                  <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
+                </span>
+              </label>
+
+              <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+                <label className="flex items-start gap-2.5">
+                  <Checkbox
+                    checked={alreadyPrepaid}
+                    onCheckedChange={(checked) => {
+                      setAlreadyPrepaid(checked === true)
+                      if (checked !== true) setPrepaidId(null)
+                    }}
+                    aria-label={t('form.alreadyPrepaid')}
+                    className="mt-0.5"
+                  />
+                  <span className="grid gap-0.5 text-sm">
+                    <span className="font-medium">{t('form.alreadyPrepaid')}</span>
+                    <span className="text-xs text-muted-foreground">{t('form.alreadyPrepaidHint')}</span>
+                  </span>
+                </label>
+                {alreadyPrepaid && (
+                  <>
+                    <Select value={prepaidId ?? ''} onValueChange={setPrepaidId}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={t('form.selectPrepaid')} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {prepaidCredits.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.prepaidFrom && p.prepaidTo
+                              ? `${dayjs(p.prepaidFrom).format('DD/MM')}–${dayjs(p.prepaidTo).format('DD/MM/YYYY')} · `
+                              : ''}
+                            {p.content} · +{formatMoney(p.credit)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.prepaid && <p className="text-xs text-expense">{errors.prepaid}</p>}
+                  </>
+                )}
+              </div>
+            </>
           )}
 
           {type === 'in' && (
@@ -271,6 +348,49 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                   </Select>
                   {errors.advance && <p className="text-xs text-expense">{errors.advance}</p>}
                 </>
+              )}
+            </div>
+          )}
+
+          {type === 'in' && (
+            <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+              <label className="flex items-start gap-2.5">
+                <Checkbox
+                  checked={isPrepaid}
+                  onCheckedChange={(checked) => setIsPrepaid(checked === true)}
+                  aria-label={t('form.isPrepaid')}
+                  className="mt-0.5"
+                />
+                <span className="grid gap-0.5 text-sm">
+                  <span className="font-medium">{t('form.isPrepaid')}</span>
+                  <span className="text-xs text-muted-foreground">{t('form.isPrepaidHint')}</span>
+                </span>
+              </label>
+              {isPrepaid && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="tx-prepaid-from" className="text-xs text-muted-foreground">
+                      {t('form.prepaidFrom')}
+                    </Label>
+                    <Input
+                      id="tx-prepaid-from"
+                      type="date"
+                      value={prepaidFrom}
+                      onChange={(e) => setPrepaidFrom(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="tx-prepaid-to" className="text-xs text-muted-foreground">
+                      {t('form.prepaidTo')}
+                    </Label>
+                    <Input
+                      id="tx-prepaid-to"
+                      type="date"
+                      value={prepaidTo}
+                      onChange={(e) => setPrepaidTo(e.target.value)}
+                    />
+                  </div>
+                </div>
               )}
             </div>
           )}

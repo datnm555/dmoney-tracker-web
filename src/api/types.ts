@@ -16,6 +16,10 @@ export interface TransactionResponse {
   bank: string | null
   isAdvance: boolean
   advanceTransactionId: string | null
+  isPrepaid: boolean
+  prepaidFrom: string | null
+  prepaidTo: string | null
+  prepaidTransactionId: string | null
 }
 
 export interface AdvanceResponse {
@@ -23,6 +27,15 @@ export interface AdvanceResponse {
   date: string // YYYY-MM-DD
   content: string
   debit: MoneyResponse
+}
+
+export interface PrepaidCreditResponse {
+  id: string
+  date: string // YYYY-MM-DD
+  content: string
+  credit: MoneyResponse
+  prepaidFrom: string | null
+  prepaidTo: string | null
 }
 
 export interface MonthlySummaryResponse {

@@ -61,6 +61,10 @@ export function DashboardPage() {
         bank: values.bank,
         isAdvance: values.isAdvance,
         advanceTransactionId: values.advanceTransactionId,
+      isPrepaid: values.isPrepaid,
+      prepaidFrom: values.prepaidFrom,
+      prepaidTo: values.prepaidTo,
+      prepaidTransactionId: values.prepaidTransactionId,
       })
       if (options?.keepOpen) {
         // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.

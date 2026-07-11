@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
@@ -16,6 +16,16 @@ vi.mock('../api/transactionApi', () => ({
       date: '2026-07-01',
       content: 'Ứng trước tiền xe',
       debit: { amount: 2_000_000, currency: 'VND' },
+    },
+  ]),
+  getPrepaidCredits: vi.fn().mockResolvedValue([
+    {
+      id: 'pre-1',
+      date: '2026-01-05',
+      content: 'Sinh hoạt 5 tháng',
+      credit: { amount: 25_000_000, currency: 'VND' },
+      prepaidFrom: '2026-01-01',
+      prepaidTo: '2026-05-31',
     },
   ]),
 }))
@@ -141,6 +151,52 @@ describe('TransactionFormModal', () => {
     )
   })
 
+  it('money-in prepaid submits the covered period', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
+    await userEvent.type(screen.getByLabelText('form.content'), 'Sinh hoạt 5 tháng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '25000000')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.isPrepaid' }))
+
+    const from = screen.getByLabelText('form.prepaidFrom')
+    const to = screen.getByLabelText('form.prepaidTo')
+    fireEvent.change(from, { target: { value: '2026-01-01' } })
+    fireEvent.change(to, { target: { value: '2026-05-31' } })
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'in',
+        isPrepaid: true,
+        prepaidFrom: '2026-01-01',
+        prepaidTo: '2026-05-31',
+      }),
+    )
+  })
+
+  it('already-prepaid money-out allows an empty amount and links the prepaid credit', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Sinh hoạt tháng 2')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.alreadyPrepaid' }))
+
+    // Without picking the prepaid credit the submit is rejected.
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(await screen.findByText('form.prepaidRequired')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.click(await screen.findByRole('option', { name: /Sinh hoạt 5 tháng/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    // No amount was typed — the linked prepaid covers it.
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'out', amount: 0, prepaidTransactionId: 'pre-1' }),
+    )
+    expect(screen.queryByText('form.amountRequired')).not.toBeInTheDocument()
+  })
+
   it('save-and-continue submits with keepOpen and preserves the form values', async () => {
     const onSubmit = renderModal()
 
@@ -175,6 +231,10 @@ describe('TransactionFormModal', () => {
             bank: null,
             isAdvance: false,
             advanceTransactionId: null,
+            isPrepaid: false,
+            prepaidFrom: null,
+            prepaidTo: null,
+            prepaidTransactionId: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}

@@ -15,6 +15,10 @@ const tx = (id: string, date: string, credit: number, debit: number): Transactio
   bank: null,
   isAdvance: false,
   advanceTransactionId: null,
+  isPrepaid: false,
+  prepaidFrom: null,
+  prepaidTo: null,
+  prepaidTransactionId: null,
 })
 
 describe('groupTransactionsByDay', () => {

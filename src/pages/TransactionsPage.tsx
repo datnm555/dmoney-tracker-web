@@ -79,6 +79,10 @@ export function TransactionsPage() {
       bank: values.bank,
       isAdvance: values.isAdvance,
       advanceTransactionId: values.advanceTransactionId,
+      isPrepaid: values.isPrepaid,
+      prepaidFrom: values.prepaidFrom,
+      prepaidTo: values.prepaidTo,
+      prepaidTransactionId: values.prepaidTransactionId,
     }
     setSubmitting(true)
     try {
