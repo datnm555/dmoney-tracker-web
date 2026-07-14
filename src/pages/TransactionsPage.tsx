@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getApiErrorMessage } from '../api/client'
 import {
   createTransaction,
@@ -25,7 +24,8 @@ import {
   getMonthlySummary,
   updateTransaction,
 } from '../api/transactionApi'
-import type { MonthlySummaryResponse, TransactionResponse } from '../api/types'
+import { getSubCategories } from '../api/subCategoryApi'
+import type { MonthlySummaryResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
@@ -42,7 +42,7 @@ type Filter = 'all' | 'in' | 'out' | 'advance'
 
 export function TransactionsPage() {
   const { t, lang } = useI18n()
-  const { label: categoryLabel, visual: categoryDisplayVisual } = useCategoryDisplay()
+  const { label: categoryLabel, visual: categoryDisplayVisual, options: categoryOptions } = useCategoryDisplay()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
@@ -51,6 +51,9 @@ export function TransactionsPage() {
   const [amountFromDigits, setAmountFromDigits] = useState('')
   const [amountToDigits, setAmountToDigits] = useState('')
   const [searchNote, setSearchNote] = useState('')
+  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterSub, setFilterSub] = useState<string>('all')
+  const [allSubCategories, setAllSubCategories] = useState<SubCategoryResponse[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<TransactionResponse | null>(null)
@@ -68,6 +71,16 @@ export function TransactionsPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // Full sub-category list for the filter dropdown (filtered per chosen category).
+  useEffect(() => {
+    getSubCategories()
+      .then(setAllSubCategories)
+      .catch((error) => {
+        setAllSubCategories([])
+        toast.error(getApiErrorMessage(error, t('error.network')))
+      })
+  }, [t])
 
   const handleSubmit = async (values: TransactionFormValues, options?: SubmitOptions) => {
     const payload = {
@@ -135,8 +148,12 @@ export function TransactionsPage() {
     if (filter === 'advance' && !tx.isAdvance) return false
     if (filter === 'in' && tx.credit.amount <= 0) return false
     if (filter === 'out' && tx.debit.amount <= 0) return false
+    if (filterCategory !== 'all' && tx.categoryId !== filterCategory) return false
+    if (filterCategory !== 'all' && filterSub !== 'all' && tx.subCategoryId !== filterSub) return false
     return matchesSearch(tx, searchCriteria)
   })
+
+  const subOptions = allSubCategories.filter((s) => s.categoryId === filterCategory)
   const groups = groupTransactionsByDay(items)
   const today = dayjs().format('YYYY-MM-DD')
 
@@ -246,21 +263,55 @@ export function TransactionsPage() {
             {t('filters.title')}
           </div>
 
-          <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">{t('form.content')}</span>
+              <Input className="w-56" value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
+            </div>
+
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">
+                {t('form.amount')} ({t('filters.amountFrom')} → {t('filters.amountTo')})
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  inputMode="numeric"
+                  aria-label={t('filters.amountFrom')}
+                  className="w-32"
+                  value={amountFromDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                  onChange={(e) => setAmountFromDigits(e.target.value.replace(/\D/g, ''))}
+                />
+                <span className="text-muted-foreground">→</span>
+                <Input
+                  inputMode="numeric"
+                  aria-label={t('filters.amountTo')}
+                  className="w-32"
+                  value={amountToDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                  onChange={(e) => setAmountToDigits(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">{t('form.note')}</span>
+              <Input className="w-48" value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
             <div className="grid gap-1.5">
               <span className="text-xs text-muted-foreground">{t('filters.type')}</span>
-              <Tabs value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-                <TabsList>
-                  <TabsTrigger value="all">{t('transactions.filterAll')}</TabsTrigger>
-                  <TabsTrigger value="in" className="data-[state=active]:text-income">
-                    ↑ {t('form.moneyIn')}
-                  </TabsTrigger>
-                  <TabsTrigger value="out" className="data-[state=active]:text-expense">
-                    ↓ {t('form.moneyOut')}
-                  </TabsTrigger>
-                  <TabsTrigger value="advance">⏳ {t('form.isAdvance')}</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <Select value={filter} onValueChange={(value) => setFilter(value as Filter)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
+                  <SelectItem value="in">↑ {t('form.moneyIn')}</SelectItem>
+                  <SelectItem value="out">↓ {t('form.moneyOut')}</SelectItem>
+                  <SelectItem value="advance">⏳ {t('form.isAdvance')}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid gap-1.5">
@@ -295,55 +346,69 @@ export function TransactionsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setFilter('all')
-                    setMonthKey(dayjs().format('YYYY-MM'))
-                    setSearchContent('')
-                    setAmountFromDigits('')
-                    setAmountToDigits('')
-                    setSearchNote('')
-                  }}
-                >
-                  {t('filters.reset')}
-                </Button>
               </div>
             </div>
 
             <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">{t('form.content')}</span>
-              <Input className="w-48" value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
+              <span className="text-xs text-muted-foreground">{t('form.category')}</span>
+              <Select
+                value={filterCategory}
+                onValueChange={(value) => {
+                  setFilterCategory(value)
+                  setFilterSub('all')
+                }}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
+                  {categoryOptions.map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">
-                {t('form.amount')} ({t('filters.amountFrom')} → {t('filters.amountTo')})
-              </span>
-              <div className="flex items-center gap-1.5">
-                <Input
-                  inputMode="numeric"
-                  aria-label={t('filters.amountFrom')}
-                  className="w-28"
-                  value={amountFromDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                  onChange={(e) => setAmountFromDigits(e.target.value.replace(/\D/g, ''))}
-                />
-                <span className="text-muted-foreground">→</span>
-                <Input
-                  inputMode="numeric"
-                  aria-label={t('filters.amountTo')}
-                  className="w-28"
-                  value={amountToDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                  onChange={(e) => setAmountToDigits(e.target.value.replace(/\D/g, ''))}
-                />
+            {filterCategory !== 'all' && (
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
+                <Select value={filterSub} onValueChange={setFilterSub}>
+                  <SelectTrigger className="w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
+                    {subOptions.map((sub) => (
+                      <SelectItem key={sub.id} value={sub.id}>
+                        {sub.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
+            )}
+          </div>
 
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">{t('form.note')}</span>
-              <Input className="w-44" value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
-            </div>
+          <div className="flex justify-end border-t pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setFilter('all')
+                setMonthKey(dayjs().format('YYYY-MM'))
+                setSearchContent('')
+                setAmountFromDigits('')
+                setAmountToDigits('')
+                setSearchNote('')
+                setFilterCategory('all')
+                setFilterSub('all')
+              }}
+            >
+              {t('filters.reset')}
+            </Button>
           </div>
         </CardContent>
       </Card>
