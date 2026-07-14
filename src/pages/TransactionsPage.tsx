@@ -482,6 +482,10 @@ export function TransactionsPage() {
               return (
                 <div key={tx.id}>
                   <div className="flex items-center gap-3 px-4 py-3.5">
+                  <span
+                    aria-hidden
+                    className={cn('h-10 w-1 shrink-0 rounded-full', isIncome ? 'bg-income' : 'bg-expense')}
+                  />
                   <CategoryIcon category={tx.categoryId} className="h-11 w-11 rounded-2xl" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-semibold">{tx.content}</div>
