@@ -15,14 +15,15 @@ import { Label } from '@/components/ui/label'
 import { getApiErrorMessage } from '../api/client'
 import { createCategory, deleteCategory } from '../api/categoryApi'
 import { useCategories } from '../categories/CategoriesContext'
+import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { IconPicker } from '../components/IconPicker'
 import { useI18n } from '../i18n/I18nContext'
-import { CATEGORY_CODES } from '../utils/categories'
 
 export function CategorySettingsPage() {
   const { t } = useI18n()
-  const { customCategories, refresh } = useCategories()
+  const { refresh } = useCategories()
+  const { options } = useCategoryDisplay()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
@@ -72,29 +73,26 @@ export function CategorySettingsPage() {
           <CardTitle className="text-base">{t('cat.title')}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-1">
-          {CATEGORY_CODES.map((code) => (
-            <div key={code} className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm">
-              <CategoryIcon category={code} className="h-7 w-7 rounded-lg" />
-              <span className="flex-1">{t(`category.${code}`)}</span>
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                {t('cat.system')}
-              </span>
-            </div>
-          ))}
-          {customCategories.map((category) => (
-            <div key={category.id} className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm">
-              <CategoryIcon category={category.id} className="h-7 w-7 rounded-lg" />
-              <span className="flex-1">{category.name}</span>
-              <button
-                type="button"
-                aria-label={`${t('summary.delete')} ${category.name}`}
-                className="rounded p-1 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                onClick={() => {
-                  if (window.confirm(t('cat.deleteConfirm'))) void handleDelete(category.id)
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+          {options.map((option) => (
+            <div key={option.code} className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm">
+              <CategoryIcon category={option.code} className="h-7 w-7 rounded-lg" />
+              <span className="flex-1">{option.label}</span>
+              {!option.isCustom ? (
+                <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                  {t('cat.system')}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={`${t('summary.delete')} ${option.label}`}
+                  className="rounded p-1 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                  onClick={() => {
+                    if (window.confirm(t('cat.deleteConfirm'))) void handleDelete(option.code)
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </CardContent>

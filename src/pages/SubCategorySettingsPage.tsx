@@ -29,7 +29,7 @@ export function SubCategorySettingsPage() {
   const { options, label } = useCategoryDisplay()
   const [subCategories, setSubCategories] = useState<SubCategoryResponse[]>([])
   const [open, setOpen] = useState(false)
-  const [category, setCategory] = useState<string>('bills')
+  const [category, setCategory] = useState<string>('')
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
   const [isDefault, setIsDefault] = useState(false)
@@ -88,7 +88,15 @@ export function SubCategorySettingsPage() {
           <h1 className="text-xl font-bold">{t('settings.subcategories')}</h1>
           <p className="text-sm text-muted-foreground">{t('subcat.hint')}</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
+        <Button
+          onClick={() => {
+            // Categories come from the db; make sure the select holds a valid one.
+            setCategory((prev) =>
+              options.some((o) => o.code === prev) ? prev : (options[0]?.code ?? ''),
+            )
+            setOpen(true)
+          }}
+        >
           <Plus className="mr-1 h-4 w-4" />
           {t('subcat.create')}
         </Button>

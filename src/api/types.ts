@@ -102,4 +102,6 @@ export interface CategoryResponse {
   id: string
   name: string
   icon: string
+  /** Built-in code for seeded system categories; null for user-created ones. */
+  code: string | null
 }

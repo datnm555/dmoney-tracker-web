@@ -1,60 +1,57 @@
 import { useCallback, useMemo } from 'react'
 import { useI18n } from '../i18n/I18nContext'
-import { CATEGORY_CODES } from '../utils/categories'
 import { categoryVisual, visualForIcon } from '../utils/categoryIcons'
 import type { CategoryVisual } from '../utils/categoryIcons'
 import { useCategories } from './CategoriesContext'
 
 export interface CategoryOption {
+  /** Value stored on transactions/sub-categories: the category's id. */
   code: string
   label: string
   visual: CategoryVisual
+  /** False for the seeded system categories (they carry a built-in code). */
   isCustom: boolean
 }
 
-/** Resolves labels and visuals across built-in and user-defined categories. */
+/**
+ * Resolves labels and visuals for db-backed categories. Seeded system rows
+ * localize through their built-in code; rows on old transactions that still
+ * hold a code string fall back to the i18n label and legacy visual.
+ */
 export function useCategoryDisplay() {
   const { t } = useI18n()
-  const { customCategories } = useCategories()
+  const { customCategories: categories } = useCategories()
 
-  const byId = useMemo(
-    () => new Map(customCategories.map((c) => [c.id, c])),
-    [customCategories],
-  )
+  const byId = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories])
 
   const label = useCallback(
     (code: string | null | undefined): string => {
       if (!code) return ''
-      return byId.get(code)?.name ?? t(`category.${code}`)
+      const category = byId.get(code)
+      if (category) return category.code ? t(`category.${category.code}`) : category.name
+      return t(`category.${code}`)
     },
     [byId, t],
   )
 
   const visual = useCallback(
     (code: string | null | undefined): CategoryVisual => {
-      const custom = code ? byId.get(code) : undefined
-      return custom ? visualForIcon(custom.icon) : categoryVisual(code ?? null)
+      const category = code ? byId.get(code) : undefined
+      return category ? visualForIcon(category.icon) : categoryVisual(code ?? null)
     },
     [byId],
   )
 
   const options = useMemo<CategoryOption[]>(
-    () => [
-      ...CATEGORY_CODES.map((code) => ({
-        code: code as string,
-        label: t(`category.${code}`),
-        visual: categoryVisual(code),
-        isCustom: false,
-      })),
-      ...customCategories.map((c) => ({
+    () =>
+      categories.map((c) => ({
         code: c.id,
-        label: c.name,
+        label: c.code ? t(`category.${c.code}`) : c.name,
         visual: visualForIcon(c.icon),
-        isCustom: true,
+        isCustom: !c.code,
       })),
-    ],
-    [customCategories, t],
+    [categories, t],
   )
 
-  return { label, visual, options, customCategories }
+  return { label, visual, options, customCategories: categories }
 }
