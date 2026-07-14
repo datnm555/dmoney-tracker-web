@@ -68,6 +68,7 @@ export function DashboardPage() {
       prepaidFrom: values.prepaidFrom,
       prepaidTo: values.prepaidTo,
       prepaidTransactionId: values.prepaidTransactionId,
+      subCategoryId: values.subCategoryId,
       })
       if (options?.keepOpen) {
         // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.

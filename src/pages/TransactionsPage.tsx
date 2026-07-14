@@ -83,6 +83,7 @@ export function TransactionsPage() {
       prepaidFrom: values.prepaidFrom,
       prepaidTo: values.prepaidTo,
       prepaidTransactionId: values.prepaidTransactionId,
+      subCategoryId: values.subCategoryId,
     }
     setSubmitting(true)
     try {
@@ -353,6 +354,7 @@ export function TransactionsPage() {
                     <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
                       <span className="truncate">
                         {tx.category ? `${t(`category.${tx.category}`)} · ` : ''}
+                        {tx.subCategoryName ? `${tx.subCategoryName} · ` : ''}
                         {paymentLabel(tx, t)}
                       </span>
                       {tx.isAdvance && (

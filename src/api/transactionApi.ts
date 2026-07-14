@@ -17,6 +17,7 @@ export interface TransactionPayload {
   prepaidFrom: string | null
   prepaidTo: string | null
   prepaidTransactionId: string | null
+  subCategoryId: string | null
 }
 
 export async function getMonthlySummary(month: string): Promise<MonthlySummaryResponse> {

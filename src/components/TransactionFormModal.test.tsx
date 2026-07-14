@@ -9,6 +9,10 @@ vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
 }))
 
+vi.mock('../api/subCategoryApi', () => ({
+  getSubCategories: vi.fn().mockResolvedValue([{ id: 'sub-1', category: 'bills', name: 'Xăng' }]),
+}))
+
 vi.mock('../api/transactionApi', () => ({
   getOpenAdvances: vi.fn().mockResolvedValue([
     {
@@ -234,6 +238,8 @@ describe('TransactionFormModal', () => {
             prepaidFrom: null,
             prepaidTo: null,
             prepaidTransactionId: null,
+            subCategoryId: null,
+            subCategoryName: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}

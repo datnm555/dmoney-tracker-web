@@ -19,6 +19,8 @@ const tx = (id: string, date: string, credit: number, debit: number): Transactio
   prepaidFrom: null,
   prepaidTo: null,
   prepaidTransactionId: null,
+  subCategoryId: null,
+  subCategoryName: null,
 })
 
 describe('groupTransactionsByDay', () => {

@@ -18,8 +18,9 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getSubCategories } from '../api/subCategoryApi'
 import { getOpenAdvances, getPrepaidCredits } from '../api/transactionApi'
-import type { AdvanceResponse, PrepaidCreditResponse, TransactionResponse } from '../api/types'
+import type { AdvanceResponse, PrepaidCreditResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
 import { CATEGORY_CODES } from '../utils/categories'
@@ -46,6 +47,7 @@ export interface TransactionFormValues {
   prepaidFrom: string | null
   prepaidTo: string | null
   prepaidTransactionId: string | null
+  subCategoryId: string | null
   note: string | null
 }
 
@@ -90,6 +92,8 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
   const [alreadyPrepaid, setAlreadyPrepaid] = useState(false)
   const [prepaidId, setPrepaidId] = useState<string | null>(null)
   const [prepaidCredits, setPrepaidCredits] = useState<PrepaidCreditResponse[]>([])
+  const [subCategoryId, setSubCategoryId] = useState<string | null>(null)
+  const [subCategories, setSubCategories] = useState<SubCategoryResponse[]>([])
   const [note, setNote] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -124,6 +128,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       )
       setAlreadyPrepaid(editing.prepaidTransactionId !== null)
       setPrepaidId(editing.prepaidTransactionId)
+      setSubCategoryId(editing.subCategoryId)
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
       setNote(editing.note ?? '')
     } else {
@@ -142,6 +147,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setPrepaidMonths(1)
       setAlreadyPrepaid(false)
       setPrepaidId(null)
+      setSubCategoryId(null)
       setNote('')
     }
   }, [open, editing])
@@ -159,6 +165,13 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       .then(setPrepaidCredits)
       .catch(() => setPrepaidCredits([]))
   }, [open, alreadyPrepaid])
+
+  useEffect(() => {
+    if (!open) return
+    getSubCategories()
+      .then(setSubCategories)
+      .catch(() => setSubCategories([]))
+  }, [open])
 
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
@@ -191,6 +204,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
           ? dayjs(date).add(prepaidMonths, 'month').subtract(1, 'day').format('YYYY-MM-DD')
           : null,
       prepaidTransactionId: type === 'out' && alreadyPrepaid ? prepaidId : null,
+      subCategoryId: category !== null ? subCategoryId : null,
       note: note.trim() || null,
     }
   }
@@ -412,7 +426,10 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                   <button
                     key={code}
                     type="button"
-                    onClick={() => setCategory(selected ? null : code)}
+                    onClick={() => {
+                      setCategory(selected ? null : code)
+                      setSubCategoryId(null)
+                    }}
                     className={cn(
                       'flex flex-col items-center gap-1 rounded-lg border px-1.5 py-2.5 text-xs',
                       selected
@@ -426,6 +443,30 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                 )
               })}
             </div>
+            {category !== null && subCategories.some((s) => s.category === category) && (
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {subCategories
+                    .filter((s) => s.category === category)
+                    .map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setSubCategoryId(subCategoryId === s.id ? null : s.id)}
+                        className={cn(
+                          'rounded-lg border px-2.5 py-1 text-xs font-medium',
+                          subCategoryId === s.id
+                            ? 'border-primary bg-primary/5 text-primary'
+                            : 'text-muted-foreground hover:border-zinc-300',
+                        )}
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-2">

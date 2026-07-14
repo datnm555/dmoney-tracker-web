@@ -21,6 +21,8 @@ const tx = (paymentMethod: string, cardType: string | null = null, bank: string 
   prepaidFrom: null,
   prepaidTo: null,
   prepaidTransactionId: null,
+  subCategoryId: null,
+  subCategoryName: null,
 })
 
 describe('paymentLabel', () => {

@@ -23,12 +23,10 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/app/dashboard', key: 'menu.dashboard', icon: LayoutDashboard },
   { to: '/app/transactions', key: 'menu.transactions', icon: List },
+  { to: '/app/settings', key: 'menu.settings', icon: Settings },
 ]
 
-const COMING_SOON: { key: string; icon: LucideIcon }[] = [
-  { key: 'menu.reports', icon: PieChart },
-  { key: 'menu.settings', icon: Settings },
-]
+const COMING_SOON: { key: string; icon: LucideIcon }[] = [{ key: 'menu.reports', icon: PieChart }]
 
 export function AppLayout() {
   const { t, lang, setLang } = useI18n()

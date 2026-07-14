@@ -20,6 +20,8 @@ export interface TransactionResponse {
   prepaidFrom: string | null
   prepaidTo: string | null
   prepaidTransactionId: string | null
+  subCategoryId: string | null
+  subCategoryName: string | null
 }
 
 export interface AdvanceResponse {
@@ -74,4 +76,10 @@ export interface DashboardStatsResponse {
   monthly: MonthlyStat[]
   daily: DailyStat[]
   byCategory: CategoryStat[]
+}
+
+export interface SubCategoryResponse {
+  id: string
+  category: string
+  name: string
 }
