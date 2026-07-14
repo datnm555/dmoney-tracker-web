@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { getApiErrorMessage } from '../api/client'
-import { createCategory, deleteCategory } from '../api/categoryApi'
+import { createCategory, deleteCategory, updateCategory } from '../api/categoryApi'
 import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -22,22 +22,28 @@ import { useI18n } from '../i18n/I18nContext'
 
 export function CategorySettingsPage() {
   const { t } = useI18n()
-  const { refresh } = useCategories()
+  const { customCategories, refresh } = useCategories()
   const { options } = useCategoryDisplay()
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const handleCreate = async (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     if (!name.trim() || !icon) return
     setSubmitting(true)
     try {
-      await createCategory(name.trim(), icon)
+      if (editingId) {
+        await updateCategory(editingId, name.trim(), icon)
+      } else {
+        await createCategory(name.trim(), icon)
+      }
       setName('')
       setIcon(null)
       setOpen(false)
+      setEditingId(null)
       await refresh()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
@@ -62,7 +68,14 @@ export function CategorySettingsPage() {
           <h1 className="text-xl font-bold">{t('cat.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('cat.hint')}</p>
         </div>
-        <Button onClick={() => setOpen(true)}>
+        <Button
+          onClick={() => {
+            setEditingId(null)
+            setName('')
+            setIcon(null)
+            setOpen(true)
+          }}
+        >
           <Plus className="mr-1 h-4 w-4" />
           {t('cat.create')}
         </Button>
@@ -77,22 +90,34 @@ export function CategorySettingsPage() {
             <div key={option.code} className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm">
               <CategoryIcon category={option.code} className="h-7 w-7 rounded-lg" />
               <span className="flex-1">{option.label}</span>
-              {!option.isCustom ? (
+              {!option.isCustom && (
                 <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
                   {t('cat.system')}
                 </span>
-              ) : (
-                <button
-                  type="button"
-                  aria-label={`${t('summary.delete')} ${option.label}`}
-                  className="rounded p-1 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                  onClick={() => {
-                    if (window.confirm(t('cat.deleteConfirm'))) void handleDelete(option.code)
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
               )}
+              <button
+                type="button"
+                aria-label={`${t('summary.edit')} ${option.label}`}
+                className="rounded p-1 text-muted-foreground hover:bg-zinc-100 hover:text-foreground"
+                onClick={() => {
+                  setEditingId(option.code)
+                  setName(option.label)
+                  setIcon(customCategories.find((c) => c.id === option.code)?.icon ?? null)
+                  setOpen(true)
+                }}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                aria-label={`${t('summary.delete')} ${option.label}`}
+                className="rounded p-1 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                onClick={() => {
+                  if (window.confirm(t('cat.deleteConfirm'))) void handleDelete(option.code)
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           ))}
         </CardContent>
@@ -101,9 +126,9 @@ export function CategorySettingsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('cat.create')}</DialogTitle>
+            <DialogTitle>{editingId ? t('cat.edit') : t('cat.create')}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="grid gap-4">
+          <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-1.5">
               <Label htmlFor="cat-name">{t('cat.name')}</Label>
               <Input

@@ -27,9 +27,9 @@ export function useCategoryDisplay() {
   const label = useCallback(
     (code: string | null | undefined): string => {
       if (!code) return ''
-      const category = byId.get(code)
-      if (category) return category.code ? t(`category.${category.code}`) : category.name
-      return t(`category.${code}`)
+      // Stored name wins (categories are editable data); legacy code strings
+      // on old rows still localize through resx.
+      return byId.get(code)?.name ?? t(`category.${code}`)
     },
     [byId, t],
   )
@@ -46,11 +46,11 @@ export function useCategoryDisplay() {
     () =>
       categories.map((c) => ({
         code: c.id,
-        label: c.code ? t(`category.${c.code}`) : c.name,
+        label: c.name,
         visual: visualForIcon(c.icon),
         isCustom: !c.code,
       })),
-    [categories, t],
+    [categories],
   )
 
   return { label, visual, options, customCategories: categories }
