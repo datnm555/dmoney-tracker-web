@@ -9,6 +9,14 @@ vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
 }))
 
+vi.mock('../categories/CategoriesContext', () => ({
+  CategoriesProvider: ({ children }: { children: ReactNode }) => children,
+  useCategories: () => ({
+    customCategories: [{ id: 'cat-bills', name: 'Hóa đơn', icon: 'zap', code: 'bills' }],
+    refresh: vi.fn().mockResolvedValue(undefined),
+  }),
+}))
+
 vi.mock('../api/subCategoryApi', () => ({
   getSubCategories: vi.fn().mockResolvedValue([{ id: 'sub-1', categoryId: 'cat-bills', name: 'Xăng', isDefault: true }]),
 }))
@@ -36,6 +44,10 @@ vi.mock('../api/transactionApi', () => ({
 
 function Wrapper({ children }: { children: ReactNode }) {
   return <I18nProvider>{children}</I18nProvider>
+}
+
+async function pickCategory() {
+  await userEvent.click(await screen.findByRole('button', { name: /Hóa đơn/ }))
 }
 
 function renderModal(onSubmit = vi.fn()) {
@@ -75,6 +87,7 @@ describe('TransactionFormModal', () => {
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
     await userEvent.type(screen.getByLabelText('form.amount'), '260000')
+    await pickCategory()
     await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
     await userEvent.click(await screen.findByRole('radio', { name: 'payment.cardType.visa' }))
     await userEvent.click(screen.getByRole('button', { name: 'Techcombank' }))
@@ -97,6 +110,7 @@ describe('TransactionFormModal', () => {
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
     await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
     expect(onSubmit).toHaveBeenCalledWith(
@@ -115,6 +129,7 @@ describe('TransactionFormModal', () => {
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Tiền xe bus ứng trước')
     await userEvent.type(screen.getByLabelText('form.amount'), '2000000')
+    await pickCategory()
     await userEvent.click(screen.getByRole('checkbox', { name: 'form.isAdvance' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
@@ -139,6 +154,7 @@ describe('TransactionFormModal', () => {
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Nhận hoàn ứng')
     await userEvent.type(screen.getByLabelText('form.amount'), '2000000')
+    await pickCategory()
     await userEvent.click(screen.getByRole('checkbox', { name: 'form.reimburseAdvance' }))
 
     // Submitting without picking an advance is rejected.
@@ -160,6 +176,7 @@ describe('TransactionFormModal', () => {
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Sinh hoạt 5 tháng')
     await userEvent.type(screen.getByLabelText('form.amount'), '25000000')
+    await pickCategory()
     fireEvent.change(screen.getByLabelText('form.date'), { target: { value: '2026-01-01' } })
     await userEvent.click(screen.getByRole('checkbox', { name: 'form.isPrepaid' }))
 
@@ -181,6 +198,7 @@ describe('TransactionFormModal', () => {
     const onSubmit = renderModal()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Sinh hoạt tháng 2')
+    await pickCategory()
     await userEvent.click(screen.getByRole('checkbox', { name: 'form.alreadyPrepaid' }))
 
     // Without picking the prepaid credit the submit is rejected.
@@ -205,6 +223,7 @@ describe('TransactionFormModal', () => {
     fireEvent.change(await screen.findByLabelText('form.date'), { target: { value: '2026-07-10' } })
     await userEvent.type(screen.getByLabelText('form.content'), 'Ăn trưa')
     await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
     await userEvent.click(screen.getByRole('checkbox', { name: 'form.isAdvance' }))
     await userEvent.click(screen.getByRole('button', { name: 'form.saveAndContinue' }))
 

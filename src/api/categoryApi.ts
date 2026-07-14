@@ -11,6 +11,10 @@ export async function createCategory(name: string, icon: string): Promise<{ id: 
   return data
 }
 
+export async function updateCategory(id: string, name: string, icon: string): Promise<void> {
+  await apiClient.put(`/categories/${id}`, { name, icon })
+}
+
 export async function deleteCategory(id: string): Promise<void> {
   await apiClient.delete(`/categories/${id}`)
 }

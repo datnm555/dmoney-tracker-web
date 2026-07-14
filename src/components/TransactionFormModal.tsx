@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import dayjs from 'dayjs'
+import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, Banknote, CircleCheck, CreditCard, Landmark } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getApiErrorMessage } from '../api/client'
 import { getSubCategories } from '../api/subCategoryApi'
 import { getCredits, getOpenAdvances, getPrepaidCredits } from '../api/transactionApi'
 import type { AdvanceResponse, CreditResponse, PrepaidCreditResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
@@ -165,7 +167,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     if (!open || !reimburse) return
     getOpenAdvances(editing?.id)
       .then(setAdvances)
-      .catch(() => setAdvances([]))
+      .catch((error) => {
+        setAdvances([])
+        toast.error(getApiErrorMessage(error, t('error.network')))
+      })
   }, [open, reimburse, editing])
 
   // Credits offered as "reimbursed by" for an advance being edited.
@@ -173,14 +178,20 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     if (!open || !editing || !isAdvance) return
     getCredits()
       .then((list) => setCredits(list.filter((c) => c.id !== editing.id)))
-      .catch(() => setCredits([]))
+      .catch((error) => {
+        setCredits([])
+        toast.error(getApiErrorMessage(error, t('error.network')))
+      })
   }, [open, editing, isAdvance])
 
   useEffect(() => {
     if (!open || !alreadyPrepaid) return
     getPrepaidCredits()
       .then(setPrepaidCredits)
-      .catch(() => setPrepaidCredits([]))
+      .catch((error) => {
+        setPrepaidCredits([])
+        toast.error(getApiErrorMessage(error, t('error.network')))
+      })
   }, [open, alreadyPrepaid])
 
   // Every time the dialog opens (create or edit), pull fresh category and
@@ -190,7 +201,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     void refreshCategories()
     getSubCategories()
       .then(setSubCategories)
-      .catch(() => setSubCategories([]))
+      .catch((error) => {
+        setSubCategories([])
+        toast.error(getApiErrorMessage(error, t('error.network')))
+      })
   }, [open, refreshCategories])
 
   // When creating and a category is already chosen with nothing picked yet,
@@ -208,7 +222,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
   const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
+    if (!date) nextErrors.date = t('form.dateRequired')
     if (!content.trim()) nextErrors.content = t('form.contentRequired')
+    if (category === null) nextErrors.category = t('form.categoryRequired')
     const amountOptional = type === 'out' && alreadyPrepaid
     if (amount <= 0 && !amountOptional) nextErrors.amount = t('form.amountRequired')
     if (paymentMethod === 'card' && !cardType) nextErrors.cardType = t('form.cardTypeRequired')
@@ -305,9 +321,12 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
             ))}
           </div>
 
-          <div className="grid grid-cols-2 items-center gap-2">
-            <Label htmlFor="tx-date">{t('form.date')}</Label>
-            <Input id="tx-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+          <div className="grid gap-1">
+            <div className="grid grid-cols-2 items-center gap-2">
+              <Label htmlFor="tx-date">{t('form.date')}</Label>
+              <Input id="tx-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            {errors.date && <p className="text-xs text-expense">{errors.date}</p>}
           </div>
 
           <div className="grid gap-2">
@@ -500,6 +519,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
           <div className="grid gap-2">
             <Label>{t('form.category')}</Label>
+            {errors.category && <p className="text-xs text-expense">{errors.category}</p>}
             <div className="grid grid-cols-4 gap-2">
               {categoryOptions.map((option) => {
                 const { code, visual } = option

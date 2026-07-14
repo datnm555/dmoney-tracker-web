@@ -77,6 +77,7 @@ export function DashboardPage() {
         // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.
         toast.success(t('form.saved'))
       } else {
+        toast.success(t('toast.created'))
         setModalOpen(false)
       }
       await load()
@@ -320,7 +321,7 @@ export function DashboardPage() {
                     <Tooltip
                       formatter={(value, _name, entry) => [
                         vnd(Number(value)),
-                        categoryLabel((entry?.payload as { category?: string })?.category ?? 'other'),
+                        categoryLabel((entry?.payload as { category?: string })?.category ?? 'uncategorized'),
                       ]}
                     />
                   </PieChart>

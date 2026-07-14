@@ -18,6 +18,15 @@ export async function createSubCategory(
   return data
 }
 
+export async function updateSubCategory(
+  id: string,
+  name: string,
+  isDefault = false,
+  icon: string | null = null,
+): Promise<void> {
+  await apiClient.put(`/subcategories/${id}`, { name, isDefault, icon })
+}
+
 export async function deleteSubCategory(id: string): Promise<void> {
   await apiClient.delete(`/subcategories/${id}`)
 }
