@@ -21,6 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getApiErrorMessage } from '../api/client'
@@ -39,6 +40,7 @@ import { useI18n } from '../i18n/I18nContext'
 import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
+import { matchesSearch } from '../utils/transactionSearch'
 
 type Filter = 'all' | 'in' | 'out' | 'advance'
 
@@ -48,6 +50,10 @@ export function TransactionsPage() {
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
+  const [searchContent, setSearchContent] = useState('')
+  const [amountFromDigits, setAmountFromDigits] = useState('')
+  const [amountToDigits, setAmountToDigits] = useState('')
+  const [searchNote, setSearchNote] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<TransactionResponse | null>(null)
@@ -118,10 +124,18 @@ export function TransactionsPage() {
     }
   }
 
+  const searchCriteria = {
+    content: searchContent,
+    amountFrom: amountFromDigits ? Number(amountFromDigits) : null,
+    amountTo: amountToDigits ? Number(amountToDigits) : null,
+    note: searchNote,
+  }
+
   const items = (summary?.items ?? []).filter((tx) => {
-    if (filter === 'all') return true
-    if (filter === 'advance') return tx.isAdvance
-    return filter === 'in' ? tx.credit.amount > 0 : tx.debit.amount > 0
+    if (filter === 'advance' && !tx.isAdvance) return false
+    if (filter === 'in' && tx.credit.amount <= 0) return false
+    if (filter === 'out' && tx.debit.amount <= 0) return false
+    return matchesSearch(tx, searchCriteria)
   })
   const groups = groupTransactionsByDay(items)
   const today = dayjs().format('YYYY-MM-DD')
@@ -278,14 +292,50 @@ export function TransactionsPage() {
                   onClick={() => {
                     setFilter('all')
                     setMonthKey(dayjs().format('YYYY-MM'))
+                    setSearchContent('')
+                    setAmountFromDigits('')
+                    setAmountToDigits('')
+                    setSearchNote('')
                   }}
                 >
                   {t('filters.reset')}
                 </Button>
               </div>
             </div>
-          </div>
 
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">{t('form.content')}</span>
+              <Input className="w-48" value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
+            </div>
+
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">
+                {t('form.amount')} ({t('filters.amountFrom')} → {t('filters.amountTo')})
+              </span>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  inputMode="numeric"
+                  aria-label={t('filters.amountFrom')}
+                  className="w-28"
+                  value={amountFromDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                  onChange={(e) => setAmountFromDigits(e.target.value.replace(/\D/g, ''))}
+                />
+                <span className="text-muted-foreground">→</span>
+                <Input
+                  inputMode="numeric"
+                  aria-label={t('filters.amountTo')}
+                  className="w-28"
+                  value={amountToDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                  onChange={(e) => setAmountToDigits(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">{t('form.note')}</span>
+              <Input className="w-44" value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
