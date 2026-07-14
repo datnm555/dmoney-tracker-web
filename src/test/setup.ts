@@ -7,6 +7,12 @@ window.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
+// jsdom lacks pointer-capture and scrollIntoView; Radix Select needs them.
+Element.prototype.hasPointerCapture = Element.prototype.hasPointerCapture ?? (() => false)
+Element.prototype.setPointerCapture = Element.prototype.setPointerCapture ?? (() => {})
+Element.prototype.releasePointerCapture = Element.prototype.releasePointerCapture ?? (() => {})
+Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {})
+
 // jsdom does not implement window.matchMedia; some libraries still probe it.
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

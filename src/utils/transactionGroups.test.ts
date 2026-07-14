@@ -9,10 +9,20 @@ const tx = (id: string, date: string, credit: number, debit: number): Transactio
   credit: { amount: credit, currency: 'VND' },
   debit: { amount: debit, currency: 'VND' },
   note: null,
-  category: null,
+  categoryId: null,
   paymentMethod: 'transfer',
   cardType: null,
   bank: null,
+  isAdvance: false,
+  advanceTransactionIds: [],
+  isPrepaid: false,
+  prepaidFrom: null,
+  prepaidTo: null,
+  prepaidTransactionId: null,
+  subCategoryId: null,
+  subCategoryName: null,
+  reimbursedByTransactionId: null,
+  links: null,
 })
 
 describe('groupTransactionsByDay', () => {
@@ -25,8 +35,12 @@ describe('groupTransactionsByDay', () => {
 
     expect(groups.map((g) => g.date)).toEqual(['2026-07-07', '2026-07-05'])
     expect(groups[0].net).toBe(-1_265_000)
+    expect(groups[0].credit).toBe(0)
+    expect(groups[0].debit).toBe(1_265_000)
     expect(groups[0].items.map((i) => i.id)).toEqual(['a', 'c'])
     expect(groups[1].net).toBe(28_000_000)
+    expect(groups[1].credit).toBe(28_000_000)
+    expect(groups[1].debit).toBe(0)
   })
 
   it('returns empty for no items', () => {
