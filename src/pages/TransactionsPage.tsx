@@ -163,6 +163,15 @@ export function TransactionsPage() {
     setMonthKey(`${year}-${clamped}`)
   }
 
+  // New records default to the 1st of the filtered period; the current month keeps today.
+  const defaultDate = isWholeYear
+    ? monthKey === String(currentYear)
+      ? dayjs().format('YYYY-MM-DD')
+      : `${monthKey}-01-01`
+    : monthKey === dayjs().format('YYYY-MM')
+      ? dayjs().format('YYYY-MM-DD')
+      : `${monthKey}-01`
+
   const rangeStart = isWholeYear ? dayjs(`${monthKey}-01-01`) : dayjs(`${monthKey}-01`).startOf('month')
   const rangeEnd = isWholeYear
     ? dayjs()
@@ -403,6 +412,7 @@ export function TransactionsPage() {
         open={modalOpen}
         editing={editing}
         submitting={submitting}
+        defaultDate={defaultDate}
         onSubmit={handleSubmit}
         onCancel={() => {
           setModalOpen(false)

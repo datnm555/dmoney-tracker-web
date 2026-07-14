@@ -220,6 +220,23 @@ describe('TransactionFormModal', () => {
     expect(screen.getByLabelText('form.date')).toHaveValue('2026-07-10')
   })
 
+  it('uses the provided default date in create mode', async () => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={null}
+          submitting={false}
+          defaultDate="2026-03-01"
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+
+    expect(await screen.findByLabelText('form.date')).toHaveValue('2026-03-01')
+  })
+
   it('hides save-and-continue when editing', async () => {
     render(
       <Wrapper>

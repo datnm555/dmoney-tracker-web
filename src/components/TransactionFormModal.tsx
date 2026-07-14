@@ -60,6 +60,8 @@ interface Props {
   open: boolean
   editing: TransactionResponse | null
   submitting: boolean
+  /** Initial date for create mode (YYYY-MM-DD); defaults to today. */
+  defaultDate?: string
   onSubmit: (values: TransactionFormValues, options?: SubmitOptions) => void
   onCancel: () => void
 }
@@ -72,7 +74,7 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
   card: CreditCard,
 }
 
-export function TransactionFormModal({ open, editing, submitting, onSubmit, onCancel }: Props) {
+export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
   const [type, setType] = useState<'in' | 'out'>('out')
   const [date, setDate] = useState('')
@@ -133,7 +135,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setNote(editing.note ?? '')
     } else {
       setType('out')
-      setDate(dayjs().format('YYYY-MM-DD'))
+      setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
       setContent('')
       setAmountDigits('')
       setCategory(null)
@@ -150,7 +152,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
       setSubCategoryId(null)
       setNote('')
     }
-  }, [open, editing])
+  }, [open, editing, defaultDate])
 
   useEffect(() => {
     if (!open || !reimburse) return
