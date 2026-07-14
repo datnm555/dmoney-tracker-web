@@ -22,6 +22,17 @@ export interface TransactionResponse {
   prepaidTransactionId: string | null
   subCategoryId: string | null
   subCategoryName: string | null
+  reimbursedByTransactionId: string | null
+  links: LinkedTransactionResponse[] | null
+}
+
+export interface LinkedTransactionResponse {
+  id: string
+  date: string // YYYY-MM-DD
+  content: string
+  credit: MoneyResponse
+  debit: MoneyResponse
+  relation: 'reimburses' | 'reimbursedBy' | 'covers' | 'coveredBy'
 }
 
 export interface AdvanceResponse {

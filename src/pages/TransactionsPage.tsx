@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
-import { CalendarDays, Funnel, MoreHorizontal, Plus, Upload } from 'lucide-react'
+import { CalendarDays, CornerDownRight, Download, Funnel, MoreHorizontal, Plus, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -41,6 +41,7 @@ import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
 import { matchesSearch } from '../utils/transactionSearch'
+import { exportTransactionsToExcel } from '../utils/exportExcel'
 
 type Filter = 'all' | 'in' | 'out' | 'advance'
 
@@ -214,6 +215,15 @@ export function TransactionsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!summary || summary.items.length === 0}
+            onClick={() => summary && exportTransactionsToExcel(summary.items, t, monthKey)}
+          >
+            <Download className="mr-1 h-4 w-4" />
+            {t('export.button')}
+          </Button>
           <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
             <Upload className="mr-1 h-4 w-4" />
             {t('import.button')}
@@ -406,7 +416,8 @@ export function TransactionsPage() {
             {group.items.map((tx) => {
               const isIncome = tx.credit.amount > 0
               return (
-                <div key={tx.id} className="flex items-center gap-3 px-4 py-3.5">
+                <div key={tx.id}>
+                  <div className="flex items-center gap-3 px-4 py-3.5">
                   <CategoryIcon category={tx.category} className="h-11 w-11 rounded-2xl" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-semibold">{tx.content}</div>
@@ -451,9 +462,34 @@ export function TransactionsPage() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  </div>
+                  {tx.links && tx.links.length > 0 && (
+                    <div className="grid gap-1 px-4 pb-3 pl-16">
+                      {tx.links.map((l) => (
+                        <div
+                          key={`${l.relation}-${l.id}`}
+                          className="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs"
+                        >
+                          <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+                            {t(`links.${l.relation}`)}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                            {dayjs(l.date).format('DD/MM/YYYY')} · {l.content}
+                          </span>
+                          <span
+                            className={l.credit.amount > 0 ? 'font-medium text-income' : 'font-medium text-expense'}
+                          >
+                            {l.credit.amount > 0 ? `+${formatMoney(l.credit)}` : `−${formatMoney(l.debit)}`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
+
           </CardContent>
         </Card>
       ))}

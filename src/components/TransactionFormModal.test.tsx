@@ -260,6 +260,8 @@ describe('TransactionFormModal', () => {
             prepaidTransactionId: null,
             subCategoryId: null,
             subCategoryName: null,
+            reimbursedByTransactionId: null,
+            links: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}
