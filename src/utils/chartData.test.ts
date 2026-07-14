@@ -54,9 +54,29 @@ describe('chartData', () => {
       { category: 'salary', debit: { amount: 0 } },
     ]
     expect(toCategorySpending(items)).toEqual([
-      { category: 'food', amount: 2_000_000 },
-      { category: 'bills', amount: 1_500_000 },
-      { category: 'other', amount: 50_000 },
+      { category: 'food', amount: 2_000_000, subs: [{ name: null, amount: 2_000_000 }] },
+      { category: 'bills', amount: 1_500_000, subs: [{ name: null, amount: 1_500_000 }] },
+      { category: 'other', amount: 50_000, subs: [{ name: null, amount: 50_000 }] },
+    ])
+  })
+
+  it('toCategorySpending breaks each category down by sub-category, unnamed rows last', () => {
+    const items = [
+      { category: 'bills', debit: { amount: 400_000 }, subCategoryName: 'Điện' },
+      { category: 'bills', debit: { amount: 900_000 }, subCategoryName: 'Nước' },
+      { category: 'bills', debit: { amount: 100_000 }, subCategoryName: 'Điện' },
+      { category: 'bills', debit: { amount: 250_000 }, subCategoryName: null },
+    ]
+    expect(toCategorySpending(items)).toEqual([
+      {
+        category: 'bills',
+        amount: 1_650_000,
+        subs: [
+          { name: 'Nước', amount: 900_000 },
+          { name: 'Điện', amount: 500_000 },
+          { name: null, amount: 250_000 },
+        ],
+      },
     ])
   })
 })

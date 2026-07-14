@@ -56,22 +56,44 @@ export function toCategoryPie(
   return byCategory.map((c) => ({ label: t(`category.${c.category}`), amount: c.debit.amount }))
 }
 
-export interface CategorySpendingDatum {
-  category: string
+export interface SubCategorySpendingDatum {
+  name: string | null
   amount: number
 }
 
-/** Aggregates debit totals per category (uncategorised rows land in "other"), largest first. */
+export interface CategorySpendingDatum {
+  category: string
+  amount: number
+  subs: SubCategorySpendingDatum[]
+}
+
+/**
+ * Aggregates debit totals per category (uncategorised rows land in "other"), largest
+ * first, with a per-sub-category breakdown inside each (rows without a sub-category
+ * grouped under name null, listed last).
+ */
 export function toCategorySpending(
-  items: { category: string | null; debit: { amount: number } }[],
+  items: { category: string | null; debit: { amount: number }; subCategoryName?: string | null }[],
 ): CategorySpendingDatum[] {
-  const byCategory = new Map<string, number>()
+  const byCategory = new Map<string, Map<string | null, number>>()
   for (const item of items) {
     if (item.debit.amount <= 0) continue
     const key = item.category ?? 'other'
-    byCategory.set(key, (byCategory.get(key) ?? 0) + item.debit.amount)
+    const subs = byCategory.get(key) ?? new Map<string | null, number>()
+    const subKey = item.subCategoryName ?? null
+    subs.set(subKey, (subs.get(subKey) ?? 0) + item.debit.amount)
+    byCategory.set(key, subs)
   }
   return [...byCategory.entries()]
-    .map(([category, amount]) => ({ category, amount }))
+    .map(([category, subMap]) => {
+      const subs = [...subMap.entries()]
+        .map(([name, amount]) => ({ name, amount }))
+        .sort((a, b) => {
+          if ((a.name === null) !== (b.name === null)) return a.name === null ? 1 : -1
+          return b.amount - a.amount
+        })
+      const amount = subs.reduce((total, s) => total + s.amount, 0)
+      return { category, amount, subs }
+    })
     .sort((a, b) => b.amount - a.amount)
 }

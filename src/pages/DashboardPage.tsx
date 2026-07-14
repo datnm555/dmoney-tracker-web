@@ -326,25 +326,48 @@ export function DashboardPage() {
                 </ResponsiveContainer>
               </div>
               <div className="grid gap-2">
-                {categorySpending.map((d) => (
-                  <div key={d.category} className="flex items-center gap-2.5 text-sm">
-                    <CategoryIcon category={d.category} className="h-7 w-7 rounded-lg" />
-                    <span className="w-28 truncate">{t(`category.${d.category}`)}</span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${spendingTotal > 0 ? (d.amount / spendingTotal) * 100 : 0}%`,
-                          backgroundColor: categoryVisual(d.category).hex,
-                        }}
-                      />
+                {categorySpending.map((d) => {
+                  const hasSubs = d.subs.some((s) => s.name !== null)
+                  return (
+                    <div key={d.category} className="grid gap-1">
+                      <div className="flex items-center gap-2.5 text-sm">
+                        <CategoryIcon category={d.category} className="h-7 w-7 rounded-lg" />
+                        <span className="w-28 truncate">{t(`category.${d.category}`)}</span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${spendingTotal > 0 ? (d.amount / spendingTotal) * 100 : 0}%`,
+                              backgroundColor: categoryVisual(d.category).hex,
+                            }}
+                          />
+                        </div>
+                        <span className="w-28 text-right font-medium text-expense">−{vnd(d.amount)}</span>
+                        <span className="w-12 text-right text-xs text-muted-foreground">
+                          {spendingTotal > 0 ? ((d.amount / spendingTotal) * 100).toFixed(1) : 0}%
+                        </span>
+                      </div>
+                      {hasSubs && (
+                        <div className="mb-1 ml-3.5 grid gap-1 border-l-2 border-zinc-100 pl-6">
+                          {d.subs.map((s) => (
+                            <div
+                              key={s.name ?? '__none'}
+                              className="flex items-center gap-2 text-xs text-muted-foreground"
+                            >
+                              <span className="flex-1 truncate">
+                                {s.name ?? t('dashboard.noSubCategory')}
+                              </span>
+                              <span className="w-28 text-right">−{vnd(s.amount)}</span>
+                              <span className="w-12 text-right">
+                                {d.amount > 0 ? ((s.amount / d.amount) * 100).toFixed(1) : 0}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <span className="w-28 text-right font-medium text-expense">−{vnd(d.amount)}</span>
-                    <span className="w-12 text-right text-xs text-muted-foreground">
-                      {spendingTotal > 0 ? ((d.amount / spendingTotal) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
