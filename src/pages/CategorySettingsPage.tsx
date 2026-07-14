@@ -4,6 +4,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -87,41 +88,57 @@ export function CategorySettingsPage() {
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t('cat.title')}</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-1">
-          {options.map((option) => (
-            <div key={option.code} className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm">
-              <CategoryIcon category={option.code} className="h-7 w-7 rounded-lg" />
-              <span className="flex-1">{option.label}</span>
-              {!option.isCustom && (
-                <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                  {t('cat.system')}
-                </span>
-              )}
-              <button
-                type="button"
-                aria-label={`${t('summary.edit')} ${option.label}`}
-                className="rounded p-1 text-muted-foreground hover:bg-zinc-100 hover:text-foreground"
-                onClick={() => {
-                  setEditingId(option.code)
-                  setName(option.label)
-                  setIcon(customCategories.find((c) => c.id === option.code)?.icon ?? null)
-                  setOpen(true)
-                }}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                aria-label={`${t('summary.delete')} ${option.label}`}
-                className="rounded p-1 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                onClick={() => {
-                  if (window.confirm(t('cat.deleteConfirm'))) void handleDelete(option.code)
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('cat.name')}</TableHead>
+                <TableHead className="w-32 text-right">{t('table.actions')}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {options.map((option) => (
+                <TableRow key={option.code}>
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      <CategoryIcon category={option.code} className="h-7 w-7 rounded-lg" />
+                      <span>{option.label}</span>
+                      {!option.isCustom && (
+                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                          {t('cat.system')}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <button
+                      type="button"
+                      aria-label={`${t('summary.edit')} ${option.label}`}
+                      className="rounded p-1.5 text-muted-foreground hover:bg-zinc-100 hover:text-foreground"
+                      onClick={() => {
+                        setEditingId(option.code)
+                        setName(option.label)
+                        setIcon(customCategories.find((c) => c.id === option.code)?.icon ?? null)
+                        setOpen(true)
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${t('summary.delete')} ${option.label}`}
+                      className="ml-1 rounded p-1.5 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                      onClick={() => {
+                        if (window.confirm(t('cat.deleteConfirm'))) void handleDelete(option.code)
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
