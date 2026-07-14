@@ -39,7 +39,7 @@ describe('chartData', () => {
     ])
   })
 
-  it('toCategorySpending sums debits per category, null as other, sorted desc', () => {
+  it('toCategorySpending sums debits per category, null in its own bucket, sorted desc', () => {
     const items = [
       { categoryId: 'cat-bills', debit: { amount: 1_200_000 } },
       { categoryId: 'cat-bills', debit: { amount: 300_000 } },
@@ -50,7 +50,7 @@ describe('chartData', () => {
     expect(toCategorySpending(items)).toEqual([
       { category: 'cat-food', amount: 2_000_000, subs: [{ name: null, amount: 2_000_000 }] },
       { category: 'cat-bills', amount: 1_500_000, subs: [{ name: null, amount: 1_500_000 }] },
-      { category: 'other', amount: 50_000, subs: [{ name: null, amount: 50_000 }] },
+      { category: 'uncategorized', amount: 50_000, subs: [{ name: null, amount: 50_000 }] },
     ])
   })
 

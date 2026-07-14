@@ -321,7 +321,7 @@ export function DashboardPage() {
                     <Tooltip
                       formatter={(value, _name, entry) => [
                         vnd(Number(value)),
-                        categoryLabel((entry?.payload as { category?: string })?.category ?? 'other'),
+                        categoryLabel((entry?.payload as { category?: string })?.category ?? 'uncategorized'),
                       ]}
                     />
                   </PieChart>

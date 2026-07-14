@@ -56,7 +56,7 @@ export interface CategorySpendingDatum {
 }
 
 /**
- * Aggregates debit totals per category (uncategorised rows land in "other"), largest
+ * Aggregates debit totals per category (uncategorised rows get their own bucket), largest
  * first, with a per-sub-category breakdown inside each (rows without a sub-category
  * grouped under name null, listed last).
  */
@@ -66,7 +66,7 @@ export function toCategorySpending(
   const byCategory = new Map<string, Map<string | null, number>>()
   for (const item of items) {
     if (item.debit.amount <= 0) continue
-    const key = item.categoryId ?? 'other'
+    const key = item.categoryId ?? 'uncategorized'
     const subs = byCategory.get(key) ?? new Map<string | null, number>()
     const subKey = item.subCategoryName ?? null
     subs.set(subKey, (subs.get(subKey) ?? 0) + item.debit.amount)
