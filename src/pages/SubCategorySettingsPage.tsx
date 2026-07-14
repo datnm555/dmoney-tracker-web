@@ -58,6 +58,7 @@ export function SubCategorySettingsPage() {
       } else {
         await createSubCategory(category, name.trim(), isDefault, icon)
       }
+      toast.success(t(editingSub ? 'toast.updated' : 'toast.created'))
       setName('')
       setIcon(null)
       setIsDefault(false)
@@ -83,6 +84,7 @@ export function SubCategorySettingsPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteSubCategory(id)
+      toast.success(t('toast.deleted'))
       await load()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))

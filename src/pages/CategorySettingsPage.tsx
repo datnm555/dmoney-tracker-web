@@ -40,6 +40,7 @@ export function CategorySettingsPage() {
       } else {
         await createCategory(name.trim(), icon)
       }
+      toast.success(t(editingId ? 'toast.updated' : 'toast.created'))
       setName('')
       setIcon(null)
       setOpen(false)
@@ -55,6 +56,7 @@ export function CategorySettingsPage() {
   const handleDelete = async (id: string) => {
     try {
       await deleteCategory(id)
+      toast.success(t('toast.deleted'))
       await refresh()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))

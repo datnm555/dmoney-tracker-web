@@ -100,6 +100,7 @@ export function TransactionsPage() {
         // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.
         toast.success(t('form.saved'))
       } else {
+        toast.success(t(editing ? 'toast.updated' : 'toast.created'))
         setModalOpen(false)
         setEditing(null)
       }
@@ -115,6 +116,7 @@ export function TransactionsPage() {
     if (!deleting) return
     try {
       await deleteTransaction(deleting.id)
+      toast.success(t('toast.deleted'))
       setDeleting(null)
       await load()
     } catch (error) {

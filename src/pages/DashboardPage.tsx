@@ -77,6 +77,7 @@ export function DashboardPage() {
         // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.
         toast.success(t('form.saved'))
       } else {
+        toast.success(t('toast.created'))
         setModalOpen(false)
       }
       await load()
