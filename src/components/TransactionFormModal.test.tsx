@@ -146,12 +146,11 @@ describe('TransactionFormModal', () => {
     expect(await screen.findByText('form.advanceRequired')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByRole('combobox'))
-    await userEvent.click(await screen.findByRole('option', { name: /Ứng trước tiền xe/ }))
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Ứng trước tiền xe' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'in', advanceTransactionId: 'adv-1', isAdvance: false }),
+      expect.objectContaining({ type: 'in', advanceTransactionIds: ['adv-1'], isAdvance: false }),
     )
   })
 
@@ -254,7 +253,7 @@ describe('TransactionFormModal', () => {
             cardType: null,
             bank: null,
             isAdvance: false,
-            advanceTransactionId: null,
+            advanceTransactionIds: [],
             isPrepaid: false,
             prepaidFrom: null,
             prepaidTo: null,

@@ -42,7 +42,7 @@ export interface TransactionFormValues {
   cardType: CardTypeCode | null
   bank: string | null
   isAdvance: boolean
-  advanceTransactionId: string | null
+  advanceTransactionIds: string[]
   isPrepaid: boolean
   prepaidFrom: string | null
   prepaidTo: string | null
@@ -87,7 +87,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [customBank, setCustomBank] = useState(false)
   const [isAdvance, setIsAdvance] = useState(false)
   const [reimburse, setReimburse] = useState(false)
-  const [advanceId, setAdvanceId] = useState<string | null>(null)
+  const [advanceIds, setAdvanceIds] = useState<string[]>([])
   const [advances, setAdvances] = useState<AdvanceResponse[]>([])
   const [isPrepaid, setIsPrepaid] = useState(false)
   const [prepaidMonths, setPrepaidMonths] = useState(1)
@@ -114,8 +114,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setCardType((editing.cardType as CardTypeCode) ?? null)
       setBank(editing.bank)
       setIsAdvance(editing.isAdvance)
-      setReimburse(editing.advanceTransactionId !== null)
-      setAdvanceId(editing.advanceTransactionId)
+      setReimburse(editing.advanceTransactionIds.length > 0)
+      setAdvanceIds(editing.advanceTransactionIds)
       setIsPrepaid(editing.isPrepaid)
       setPrepaidMonths(
         editing.prepaidFrom && editing.prepaidTo
@@ -144,7 +144,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setBank(null)
       setIsAdvance(false)
       setReimburse(false)
-      setAdvanceId(null)
+      setAdvanceIds([])
       setIsPrepaid(false)
       setPrepaidMonths(1)
       setAlreadyPrepaid(false)
@@ -183,7 +183,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     const amountOptional = type === 'out' && alreadyPrepaid
     if (amount <= 0 && !amountOptional) nextErrors.amount = t('form.amountRequired')
     if (paymentMethod === 'card' && !cardType) nextErrors.cardType = t('form.cardTypeRequired')
-    if (type === 'in' && reimburse && !advanceId) nextErrors.advance = t('form.advanceRequired')
+    if (type === 'in' && reimburse && advanceIds.length === 0) nextErrors.advance = t('form.advanceRequired')
     if (type === 'out' && alreadyPrepaid && !prepaidId) nextErrors.prepaid = t('form.prepaidRequired')
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return null
@@ -198,7 +198,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       cardType: paymentMethod === 'card' ? cardType : null,
       bank: paymentMethod === 'card' ? (bank?.trim() || null) : null,
       isAdvance: type === 'out' ? isAdvance : false,
-      advanceTransactionId: type === 'in' && reimburse ? advanceId : null,
+      advanceTransactionIds: type === 'in' && reimburse ? advanceIds : [],
       isPrepaid: type === 'in' && isPrepaid,
       prepaidFrom: type === 'in' && isPrepaid ? date : null,
       prepaidTo:
@@ -229,7 +229,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     setSubCategoryId(null)
     setIsAdvance(false)
     setReimburse(false)
-    setAdvanceId(null)
+    setAdvanceIds([])
     setAlreadyPrepaid(false)
     setPrepaidId(null)
     setErrors({})
@@ -256,7 +256,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                     setPrepaidId(null)
                   } else {
                     setReimburse(false)
-                    setAdvanceId(null)
+                    setAdvanceIds([])
                     setIsPrepaid(false)
                   }
                 }}
@@ -365,7 +365,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                   checked={reimburse}
                   onCheckedChange={(checked) => {
                     setReimburse(checked === true)
-                    if (checked !== true) setAdvanceId(null)
+                    if (checked !== true) setAdvanceIds([])
                   }}
                   aria-label={t('form.reimburseAdvance')}
                 />
@@ -373,18 +373,28 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
               </label>
               {reimburse && (
                 <>
-                  <Select value={advanceId ?? ''} onValueChange={setAdvanceId}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder={t('form.selectAdvance')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {advances.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {dayjs(a.date).format('DD/MM/YYYY')} · {a.content} · −{formatMoney(a.debit)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="grid max-h-44 gap-1 overflow-y-auto rounded-lg border p-2">
+                    {advances.length === 0 && (
+                      <p className="py-2 text-center text-xs text-muted-foreground">{t('form.selectAdvance')}</p>
+                    )}
+                    {advances.map((a) => (
+                      <label key={a.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1 text-sm hover:bg-zinc-50">
+                        <Checkbox
+                          checked={advanceIds.includes(a.id)}
+                          onCheckedChange={(checked) =>
+                            setAdvanceIds((prev) =>
+                              checked === true ? [...prev, a.id] : prev.filter((id) => id !== a.id),
+                            )
+                          }
+                          aria-label={a.content}
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {dayjs(a.date).format('DD/MM/YYYY')} · {a.content}
+                        </span>
+                        <span className="shrink-0 font-medium text-expense">−{formatMoney(a.debit)}</span>
+                      </label>
+                    ))}
+                  </div>
                   {errors.advance && <p className="text-xs text-expense">{errors.advance}</p>}
                 </>
               )}

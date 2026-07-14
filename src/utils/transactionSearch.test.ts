@@ -14,7 +14,7 @@ const tx = (content: string, debit: number, note: string | null = null): Transac
   cardType: null,
   bank: null,
   isAdvance: false,
-  advanceTransactionId: null,
+  advanceTransactionIds: [],
   isPrepaid: false,
   prepaidFrom: null,
   prepaidTo: null,

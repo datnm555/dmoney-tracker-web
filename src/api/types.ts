@@ -15,7 +15,7 @@ export interface TransactionResponse {
   cardType: string | null
   bank: string | null
   isAdvance: boolean
-  advanceTransactionId: string | null
+  advanceTransactionIds: string[]
   isPrepaid: boolean
   prepaidFrom: string | null
   prepaidTo: string | null

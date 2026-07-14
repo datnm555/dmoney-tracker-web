@@ -16,7 +16,7 @@ const tx = (paymentMethod: string, cardType: string | null = null, bank: string 
   cardType,
   bank,
   isAdvance: false,
-  advanceTransactionId: null,
+  advanceTransactionIds: [],
   isPrepaid: false,
   prepaidFrom: null,
   prepaidTo: null,

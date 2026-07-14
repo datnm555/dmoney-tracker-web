@@ -63,7 +63,7 @@ export function DashboardPage() {
         cardType: values.cardType,
         bank: values.bank,
         isAdvance: values.isAdvance,
-        advanceTransactionId: values.advanceTransactionId,
+        advanceTransactionIds: values.advanceTransactionIds,
       isPrepaid: values.isPrepaid,
       prepaidFrom: values.prepaidFrom,
       prepaidTo: values.prepaidTo,
