@@ -19,8 +19,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getSubCategories } from '../api/subCategoryApi'
-import { getOpenAdvances, getPrepaidCredits } from '../api/transactionApi'
-import type { AdvanceResponse, PrepaidCreditResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
+import { getCredits, getOpenAdvances, getPrepaidCredits } from '../api/transactionApi'
+import type { AdvanceResponse, CreditResponse, PrepaidCreditResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
 import { useCategories } from '../categories/CategoriesContext'
@@ -48,6 +48,7 @@ export interface TransactionFormValues {
   prepaidTo: string | null
   prepaidTransactionId: string | null
   subCategoryId: string | null
+  reimbursedByTransactionId: string | null
   note: string | null
 }
 
@@ -91,6 +92,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [reimburse, setReimburse] = useState(false)
   const [advanceIds, setAdvanceIds] = useState<string[]>([])
   const [advances, setAdvances] = useState<AdvanceResponse[]>([])
+  const [reimbursedById, setReimbursedById] = useState<string | null>(null)
+  const [credits, setCredits] = useState<CreditResponse[]>([])
   const [isPrepaid, setIsPrepaid] = useState(false)
   const [prepaidMonths, setPrepaidMonths] = useState(1)
   const [alreadyPrepaid, setAlreadyPrepaid] = useState(false)
@@ -116,6 +119,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setCardType((editing.cardType as CardTypeCode) ?? null)
       setBank(editing.bank)
       setIsAdvance(editing.isAdvance)
+      setReimbursedById(editing.reimbursedByTransactionId)
       setReimburse(editing.advanceTransactionIds.length > 0)
       setAdvanceIds(editing.advanceTransactionIds)
       setIsPrepaid(editing.isPrepaid)
@@ -145,6 +149,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setCardType(null)
       setBank(null)
       setIsAdvance(false)
+      setReimbursedById(null)
       setReimburse(false)
       setAdvanceIds([])
       setIsPrepaid(false)
@@ -162,6 +167,14 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       .then(setAdvances)
       .catch(() => setAdvances([]))
   }, [open, reimburse, editing])
+
+  // Credits offered as "reimbursed by" for an advance being edited.
+  useEffect(() => {
+    if (!open || !editing || !isAdvance) return
+    getCredits()
+      .then((list) => setCredits(list.filter((c) => c.id !== editing.id)))
+      .catch(() => setCredits([]))
+  }, [open, editing, isAdvance])
 
   useEffect(() => {
     if (!open || !alreadyPrepaid) return
@@ -223,6 +236,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
           : null,
       prepaidTransactionId: type === 'out' && alreadyPrepaid ? prepaidId : null,
       subCategoryId: category !== null ? subCategoryId : null,
+      reimbursedByTransactionId: type === 'out' && isAdvance ? reimbursedById : null,
       note: note.trim() || null,
     }
   }
@@ -321,18 +335,45 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
           {type === 'out' && (
             <>
-              <label className="flex items-start gap-2.5 rounded-lg border px-3 py-2.5">
-                <Checkbox
-                  checked={isAdvance}
-                  onCheckedChange={(checked) => setIsAdvance(checked === true)}
-                  aria-label={t('form.isAdvance')}
-                  className="mt-0.5"
-                />
-                <span className="grid gap-0.5 text-sm">
-                  <span className="font-medium">{t('form.isAdvance')}</span>
-                  <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
-                </span>
-              </label>
+              <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+                <label className="flex items-start gap-2.5">
+                  <Checkbox
+                    checked={isAdvance}
+                    onCheckedChange={(checked) => {
+                      setIsAdvance(checked === true)
+                      if (checked !== true) setReimbursedById(null)
+                    }}
+                    aria-label={t('form.isAdvance')}
+                    className="mt-0.5"
+                  />
+                  <span className="grid gap-0.5 text-sm">
+                    <span className="font-medium">{t('form.isAdvance')}</span>
+                    <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
+                  </span>
+                </label>
+                {editing && isAdvance && (
+                  <div className="grid gap-1.5">
+                    <span className="text-xs text-muted-foreground">{t('form.reimbursedBy')}</span>
+                    <Select
+                      value={reimbursedById ?? 'none'}
+                      onValueChange={(value) => setReimbursedById(value === 'none' ? null : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">{t('form.reimbursedByNone')}</SelectItem>
+                        {credits.map((credit) => (
+                          <SelectItem key={credit.id} value={credit.id}>
+                            {dayjs(credit.date).format('DD/MM/YYYY')} · {credit.content} ·{' '}
+                            {formatMoney(credit.credit)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
 
               <div className="grid gap-2 rounded-lg border px-3 py-2.5">
                 <label className="flex items-start gap-2.5">

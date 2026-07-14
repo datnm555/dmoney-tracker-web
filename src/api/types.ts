@@ -97,6 +97,14 @@ export interface SubCategoryResponse {
   icon: string | null
 }
 
+// Mirrors Application/Transactions/Data/CreditResponse.cs on the backend.
+export interface CreditResponse {
+  id: string
+  date: string
+  content: string
+  credit: MoneyResponse
+}
+
 // Mirrors Application/Categories/Data/CategoryResponse.cs on the backend.
 export interface CategoryResponse {
   id: string

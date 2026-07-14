@@ -93,6 +93,7 @@ export function TransactionsPage() {
       prepaidTo: values.prepaidTo,
       prepaidTransactionId: values.prepaidTransactionId,
       subCategoryId: values.subCategoryId,
+      reimbursedByTransactionId: values.reimbursedByTransactionId,
     }
     setSubmitting(true)
     try {
