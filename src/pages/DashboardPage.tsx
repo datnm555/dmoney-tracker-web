@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
-import type { Dayjs } from 'dayjs'
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Plus, TrendingUp, WalletCards } from 'lucide-react'
 import { toast } from 'sonner'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -25,7 +24,8 @@ const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 
 export function DashboardPage() {
   const { t, lang } = useI18n()
-  const [month, setMonth] = useState<Dayjs>(dayjs())
+  // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
+  const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [stats, setStats] = useState<DashboardStatsResponse | null>(null)
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -33,14 +33,17 @@ export function DashboardPage() {
 
   const load = useCallback(async () => {
     try {
-      const key = month.format('YYYY-MM')
-      const [nextStats, nextSummary] = await Promise.all([getDashboardStats(key), getMonthlySummary(key)])
+      const statsKey = /^\d{4}$/.test(monthKey) ? dayjs().format('YYYY-MM') : monthKey
+      const [nextStats, nextSummary] = await Promise.all([
+        getDashboardStats(statsKey),
+        getMonthlySummary(monthKey),
+      ])
       setStats(nextStats)
       setSummary(nextSummary)
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
     }
-  }, [month, t])
+  }, [monthKey, t])
 
   useEffect(() => {
     void load()
@@ -80,6 +83,7 @@ export function DashboardPage() {
     }
   }
 
+  const isWholeYear = /^\d{4}$/.test(monthKey)
   const monthTabs = [2, 1, 0].map((offset) => dayjs().subtract(offset, 'month'))
   const bars = stats ? toIncomeExpenseBars(stats.monthly.slice(-6)) : []
   const current = stats?.monthly.at(-1)
@@ -107,7 +111,7 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={month.format('YYYY-MM')} onValueChange={(value) => setMonth(dayjs(`${value}-01`))}>
+          <Tabs value={monthKey} onValueChange={setMonthKey}>
             <TabsList>
               {monthTabs.map((m, i) => (
                 <TabsTrigger key={m.format('YYYY-MM')} value={m.format('YYYY-MM')}>
@@ -118,6 +122,9 @@ export function DashboardPage() {
                     : `T${m.month() + 1}`}
                 </TabsTrigger>
               ))}
+              <TabsTrigger value={String(dayjs().year())}>
+                {t('filters.allYear')} {dayjs().year()}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="flex h-9 items-center gap-1.5 rounded-lg border bg-background px-3 text-sm shadow-xs">
@@ -141,7 +148,7 @@ export function DashboardPage() {
             <div className="text-2xl font-bold underline decoration-zinc-200 underline-offset-4">
               {summary ? formatMoney(summary.balance) : '—'}
             </div>
-            {balanceDelta !== null && (
+            {!isWholeYear && balanceDelta !== null && (
               <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <span
                   className={
@@ -169,7 +176,7 @@ export function DashboardPage() {
               +{summary ? formatMoney(summary.totalCredit) : '—'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {creditCount} {t('dashboard.txThisMonth')}
+              {creditCount} {t(isWholeYear ? 'dashboard.txThisYear' : 'dashboard.txThisMonth')}
             </p>
           </CardContent>
         </Card>
@@ -183,7 +190,7 @@ export function DashboardPage() {
               −{summary ? formatMoney(summary.totalDebit) : '—'}
             </div>
             <p className="text-xs text-muted-foreground">
-              {debitCount} {t('dashboard.txThisMonth')}
+              {debitCount} {t(isWholeYear ? 'dashboard.txThisYear' : 'dashboard.txThisMonth')}
             </p>
           </CardContent>
         </Card>
@@ -196,7 +203,7 @@ export function DashboardPage() {
           {bars.length > 0 && (
             <p className="text-xs text-muted-foreground">
               {t('dashboard.cashflowSub')} — {bars[0].month} {t('common.to')} {bars[bars.length - 1].month}{' '}
-              {month.year()}
+              {dayjs().year()}
             </p>
           )}
         </CardHeader>
