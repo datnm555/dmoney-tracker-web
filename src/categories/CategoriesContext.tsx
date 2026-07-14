@@ -1,6 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
 import type { ReactNode } from 'react'
+import { getApiErrorMessage } from '../api/client'
 import { getCategories } from '../api/categoryApi'
+import { useI18n } from '../i18n/I18nContext'
 import type { CategoryResponse } from '../api/types'
 
 interface CategoriesValue {
@@ -16,15 +19,17 @@ const CategoriesContext = createContext<CategoriesValue>({
 })
 
 export function CategoriesProvider({ children }: { children: ReactNode }) {
+  const { t } = useI18n()
   const [customCategories, setCustomCategories] = useState<CategoryResponse[]>([])
 
   const refresh = useCallback(async () => {
     try {
       setCustomCategories(await getCategories())
-    } catch {
-      // Keep the last known list; pages surface their own load errors.
+    } catch (error) {
+      // Keep the last known list, but tell the user the reload failed.
+      toast.error(getApiErrorMessage(error, t('error.network')))
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void refresh()

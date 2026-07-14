@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -30,6 +39,7 @@ export function SubCategorySettingsPage() {
   const [subCategories, setSubCategories] = useState<SubCategoryResponse[]>([])
   const [open, setOpen] = useState(false)
   const [editingSub, setEditingSub] = useState<SubCategoryResponse | null>(null)
+  const [deleting, setDeleting] = useState<SubCategoryResponse | null>(null)
   const [category, setCategory] = useState<string>('')
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
@@ -81,13 +91,16 @@ export function SubCategorySettingsPage() {
     setOpen(true)
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!deleting) return
     try {
-      await deleteSubCategory(id)
+      await deleteSubCategory(deleting.id)
       toast.success(t('toast.deleted'))
       await load()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -175,9 +188,7 @@ export function SubCategorySettingsPage() {
                         type="button"
                         aria-label={`${t('summary.delete')} ${sub.name}`}
                         className="rounded p-1 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                        onClick={() => {
-                          if (window.confirm(t('subcat.deleteConfirm'))) void handleDelete(sub.id)
-                        }}
+                        onClick={() => setDeleting(sub)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -189,6 +200,19 @@ export function SubCategorySettingsPage() {
           ))}
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleting !== null} onOpenChange={(next) => !next && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('subcat.deleteConfirm')}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <p className="text-sm text-muted-foreground">{deleting?.name}</p>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('summary.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>{t('summary.delete')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">

@@ -2,6 +2,15 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -27,6 +36,7 @@ export function CategorySettingsPage() {
   const { options } = useCategoryDisplay()
   const [open, setOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -54,13 +64,16 @@ export function CategorySettingsPage() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async () => {
+    if (!deleting) return
     try {
-      await deleteCategory(id)
+      await deleteCategory(deleting.id)
       toast.success(t('toast.deleted'))
       await refresh()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -128,9 +141,7 @@ export function CategorySettingsPage() {
                       type="button"
                       aria-label={`${t('summary.delete')} ${option.label}`}
                       className="ml-1 rounded p-1.5 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                      onClick={() => {
-                        if (window.confirm(t('cat.deleteConfirm'))) void handleDelete(option.code)
-                      }}
+                      onClick={() => setDeleting({ id: option.code, label: option.label })}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -141,6 +152,19 @@ export function CategorySettingsPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleting !== null} onOpenChange={(next) => !next && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('cat.deleteConfirm')}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <p className="text-sm text-muted-foreground">{deleting?.label}</p>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('summary.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>{t('summary.delete')}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
