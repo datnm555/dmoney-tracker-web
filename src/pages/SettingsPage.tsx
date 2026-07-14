@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +20,7 @@ export function SettingsPage() {
   const [subCategories, setSubCategories] = useState<SubCategoryResponse[]>([])
   const [category, setCategory] = useState<string>('bills')
   const [name, setName] = useState('')
+  const [isDefault, setIsDefault] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
@@ -38,8 +40,9 @@ export function SettingsPage() {
     if (!name.trim()) return
     setSubmitting(true)
     try {
-      await createSubCategory(category, name.trim())
+      await createSubCategory(category, name.trim(), isDefault)
       setName('')
+      setIsDefault(false)
       await load()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
@@ -103,6 +106,14 @@ export function SettingsPage() {
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
+            <label className="flex h-9 items-center gap-2 text-sm">
+              <Checkbox
+                checked={isDefault}
+                onCheckedChange={(checked) => setIsDefault(checked === true)}
+                aria-label={t('subcat.default')}
+              />
+              {t('subcat.default')}
+            </label>
             <Button type="submit" disabled={submitting || !name.trim()}>
               <Plus className="mr-1 h-4 w-4" />
               {t('subcat.add')}
@@ -126,6 +137,11 @@ export function SettingsPage() {
                     className="flex items-center gap-1 rounded-lg border bg-zinc-50 py-1 pl-2.5 pr-1 text-sm"
                   >
                     {sub.name}
+                    {sub.isDefault && (
+                      <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                        {t('subcat.default')}
+                      </span>
+                    )}
                     <button
                       type="button"
                       aria-label={`${t('summary.delete')} ${sub.name}`}

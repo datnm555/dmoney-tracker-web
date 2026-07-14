@@ -10,7 +10,7 @@ vi.mock('../api/resourceApi', () => ({
 }))
 
 vi.mock('../api/subCategoryApi', () => ({
-  getSubCategories: vi.fn().mockResolvedValue([{ id: 'sub-1', category: 'bills', name: 'Xăng' }]),
+  getSubCategories: vi.fn().mockResolvedValue([{ id: 'sub-1', category: 'bills', name: 'Xăng', isDefault: true }]),
 }))
 
 vi.mock('../api/transactionApi', () => ({
@@ -200,20 +200,24 @@ describe('TransactionFormModal', () => {
     expect(screen.queryByText('form.amountRequired')).not.toBeInTheDocument()
   })
 
-  it('save-and-continue submits with keepOpen and preserves the form values', async () => {
+  it('save-and-continue submits with keepOpen and clears the per-record fields', async () => {
     const onSubmit = renderModal()
 
-    await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
+    fireEvent.change(await screen.findByLabelText('form.date'), { target: { value: '2026-07-10' } })
+    await userEvent.type(screen.getByLabelText('form.content'), 'Ăn trưa')
     await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.isAdvance' }))
     await userEvent.click(screen.getByRole('button', { name: 'form.saveAndContinue' }))
 
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ content: 'Ăn trưa', amount: 50000 }),
+      expect.objectContaining({ content: 'Ăn trưa', amount: 50000, isAdvance: true }),
       { keepOpen: true },
     )
-    // Dialog stays open (parent decides) and the fields keep their values for cloning.
-    expect(screen.getByLabelText('form.content')).toHaveValue('Ăn trưa')
-    expect(screen.getByLabelText('form.amount')).toHaveValue('50.000')
+    // Per-record fields reset for the next entry; date and type survive.
+    expect(screen.getByLabelText('form.content')).toHaveValue('')
+    expect(screen.getByLabelText('form.amount')).toHaveValue('')
+    expect(screen.getByRole('checkbox', { name: 'form.isAdvance' })).not.toBeChecked()
+    expect(screen.getByLabelText('form.date')).toHaveValue('2026-07-10')
   })
 
   it('hides save-and-continue when editing', async () => {

@@ -82,4 +82,5 @@ export interface SubCategoryResponse {
   id: string
   category: string
   name: string
+  isDefault: boolean
 }

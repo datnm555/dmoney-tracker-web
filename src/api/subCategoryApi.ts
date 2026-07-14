@@ -8,8 +8,12 @@ export async function getSubCategories(category?: string): Promise<SubCategoryRe
   return data
 }
 
-export async function createSubCategory(category: string, name: string): Promise<{ id: string }> {
-  const { data } = await apiClient.post<{ id: string }>('/subcategories', { category, name })
+export async function createSubCategory(
+  category: string,
+  name: string,
+  isDefault = false,
+): Promise<{ id: string }> {
+  const { data } = await apiClient.post<{ id: string }>('/subcategories', { category, name, isDefault })
   return data
 }
 

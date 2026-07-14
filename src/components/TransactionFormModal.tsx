@@ -217,7 +217,20 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
 
   const handleSaveAndContinue = () => {
     const values = validateAndBuild()
-    if (values) onSubmit(values, { keepOpen: true })
+    if (!values) return
+    onSubmit(values, { keepOpen: true })
+    // Clone flow: keep date/type/payment method, clear the per-record fields.
+    setContent('')
+    setAmountDigits('')
+    setNote('')
+    setCategory(null)
+    setSubCategoryId(null)
+    setIsAdvance(false)
+    setReimburse(false)
+    setAdvanceId(null)
+    setAlreadyPrepaid(false)
+    setPrepaidId(null)
+    setErrors({})
   }
 
   return (
@@ -427,8 +440,14 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                     key={code}
                     type="button"
                     onClick={() => {
-                      setCategory(selected ? null : code)
-                      setSubCategoryId(null)
+                      const next = selected ? null : code
+                      setCategory(next)
+                      // Auto-pick the default sub-category of the chosen parent, if any.
+                      setSubCategoryId(
+                        next !== null
+                          ? (subCategories.find((s) => s.category === next && s.isDefault)?.id ?? null)
+                          : null,
+                      )
                     }}
                     className={cn(
                       'flex flex-col items-center gap-1 rounded-lg border px-1.5 py-2.5 text-xs',
