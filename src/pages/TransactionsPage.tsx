@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
-import { CalendarDays, CornerDownRight, Download, Funnel, MoreHorizontal, Plus, Upload } from 'lucide-react'
+import { CalendarDays, CornerDownRight, Download, Funnel, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -15,12 +15,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -470,26 +464,29 @@ export function TransactionsPage() {
                   <span className={isIncome ? 'font-semibold text-income' : 'font-semibold text-expense'}>
                     {isIncome ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
                   </span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() => {
-                          setEditing(tx)
-                          setModalOpen(true)
-                        }}
-                      >
-                        {t('summary.edit')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-expense" onClick={() => setDeleting(tx)}>
-                        {t('summary.delete')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      aria-label={`${t('summary.edit')} ${tx.content}`}
+                      onClick={() => {
+                        setEditing(tx)
+                        setModalOpen(true)
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                      aria-label={`${t('summary.delete')} ${tx.content}`}
+                      onClick={() => setDeleting(tx)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                   </div>
                   {tx.links && tx.links.length > 0 && (
                     <div className="grid gap-1 px-4 pb-3 pl-16">
