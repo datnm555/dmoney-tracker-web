@@ -19,13 +19,14 @@ import { toCategorySpending } from '../utils/chartData'
 import { toIncomeExpenseBars } from '../utils/chartData'
 import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
-import { categoryVisual } from '../utils/categoryIcons'
+import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 
 export function DashboardPage() {
   const { t, lang } = useI18n()
+  const { label: categoryLabel, visual: categoryDisplayVisual } = useCategoryDisplay()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [stats, setStats] = useState<DashboardStatsResponse | null>(null)
@@ -313,13 +314,13 @@ export function DashboardPage() {
                       strokeWidth={0}
                     >
                       {categorySpending.map((d) => (
-                        <Cell key={d.category} fill={categoryVisual(d.category).hex} />
+                        <Cell key={d.category} fill={categoryDisplayVisual(d.category).hex} />
                       ))}
                     </Pie>
                     <Tooltip
                       formatter={(value, _name, entry) => [
                         vnd(Number(value)),
-                        t(`category.${(entry?.payload as { category?: string })?.category ?? 'other'}`),
+                        categoryLabel((entry?.payload as { category?: string })?.category ?? 'other'),
                       ]}
                     />
                   </PieChart>
@@ -332,13 +333,13 @@ export function DashboardPage() {
                     <div key={d.category} className="grid gap-1">
                       <div className="flex items-center gap-2.5 text-sm">
                         <CategoryIcon category={d.category} className="h-7 w-7 rounded-lg" />
-                        <span className="w-28 truncate">{t(`category.${d.category}`)}</span>
+                        <span className="w-28 truncate">{categoryLabel(d.category)}</span>
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
                           <div
                             className="h-full rounded-full"
                             style={{
                               width: `${spendingTotal > 0 ? (d.amount / spendingTotal) * 100 : 0}%`,
-                              backgroundColor: categoryVisual(d.category).hex,
+                              backgroundColor: categoryDisplayVisual(d.category).hex,
                             }}
                           />
                         </div>

@@ -23,8 +23,7 @@ import { getOpenAdvances, getPrepaidCredits } from '../api/transactionApi'
 import type { AdvanceResponse, PrepaidCreditResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
-import { CATEGORY_CODES } from '../utils/categories'
-import { categoryVisual } from '../utils/categoryIcons'
+import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
   BANK_PRESETS,
   CARD_TYPE_CODES,
@@ -76,6 +75,7 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
 
 export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
+  const { options: categoryOptions } = useCategoryDisplay()
   const [type, setType] = useState<'in' | 'out'>('out')
   const [date, setDate] = useState('')
   const [content, setContent] = useState('')
@@ -444,8 +444,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
           <div className="grid gap-2">
             <Label>{t('form.category')}</Label>
             <div className="grid grid-cols-4 gap-2">
-              {CATEGORY_CODES.map((code) => {
-                const visual = categoryVisual(code)
+              {categoryOptions.map((option) => {
+                const { code, visual } = option
                 const selected = category === code
                 return (
                   <button
@@ -469,7 +469,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                     )}
                   >
                     <visual.icon className={cn('h-4 w-4', selected ? 'text-primary' : visual.iconClass)} />
-                    <span className="truncate">{t(`category.${code}`)}</span>
+                    <span className="max-w-full truncate">{option.label}</span>
                   </button>
                 )
               })}

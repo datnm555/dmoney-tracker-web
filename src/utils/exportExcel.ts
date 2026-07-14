@@ -6,11 +6,13 @@ export function exportTransactionsToExcel(
   items: TransactionResponse[],
   t: (key: string) => string,
   periodLabel: string,
+  categoryLabel?: (code: string | null) => string,
 ): void {
+  const labelFor = categoryLabel ?? ((code: string | null) => (code ? t(`category.${code}`) : ''))
   const rows = items.map((tx) => ({
     [t('form.date')]: tx.date,
     [t('form.content')]: tx.content,
-    [t('form.category')]: tx.category ? t(`category.${tx.category}`) : '',
+    [t('form.category')]: labelFor(tx.category),
     [t('form.subCategory')]: tx.subCategoryName ?? '',
     [t('payment.method')]: t(`payment.${tx.paymentMethod}`),
     [t('summary.colCredit')]: tx.credit.amount || '',

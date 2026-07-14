@@ -94,4 +94,12 @@ export interface SubCategoryResponse {
   category: string
   name: string
   isDefault: boolean
+  icon: string | null
+}
+
+// Mirrors Application/Categories/Data/CategoryResponse.cs on the backend.
+export interface CategoryResponse {
+  id: string
+  name: string
+  icon: string
 }

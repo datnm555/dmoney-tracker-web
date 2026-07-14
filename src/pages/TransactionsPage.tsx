@@ -42,11 +42,13 @@ import { paymentLabel } from '../utils/paymentLabel'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
 import { matchesSearch } from '../utils/transactionSearch'
 import { exportTransactionsToExcel } from '../utils/exportExcel'
+import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 
 type Filter = 'all' | 'in' | 'out' | 'advance'
 
 export function TransactionsPage() {
   const { t, lang } = useI18n()
+  const { label: categoryLabel } = useCategoryDisplay()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
@@ -219,7 +221,7 @@ export function TransactionsPage() {
             type="button"
             variant="outline"
             disabled={!summary || summary.items.length === 0}
-            onClick={() => summary && exportTransactionsToExcel(summary.items, t, monthKey)}
+            onClick={() => summary && exportTransactionsToExcel(summary.items, t, monthKey, categoryLabel)}
           >
             <Download className="mr-1 h-4 w-4" />
             {t('export.button')}
@@ -423,7 +425,7 @@ export function TransactionsPage() {
                     <div className="truncate font-semibold">{tx.content}</div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
                       <span className="truncate">
-                        {tx.category ? `${t(`category.${tx.category}`)} · ` : ''}
+                        {tx.category ? `${categoryLabel(tx.category)} · ` : ''}
                         {tx.subCategoryName ? `${tx.subCategoryName} · ` : ''}
                         {paymentLabel(tx, t)}
                       </span>

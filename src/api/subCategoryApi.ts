@@ -12,8 +12,9 @@ export async function createSubCategory(
   category: string,
   name: string,
   isDefault = false,
+  icon: string | null = null,
 ): Promise<{ id: string }> {
-  const { data } = await apiClient.post<{ id: string }>('/subcategories', { category, name, isDefault })
+  const { data } = await apiClient.post<{ id: string }>('/subcategories', { category, name, isDefault, icon })
   return data
 }
 

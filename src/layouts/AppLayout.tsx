@@ -1,6 +1,19 @@
+import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, ChevronDown, LayoutDashboard, List, LogOut, PieChart, Settings } from 'lucide-react'
+import {
+  Bell,
+  ChevronDown,
+  ChevronRight,
+  LayoutDashboard,
+  List,
+  ListTree,
+  LogOut,
+  PieChart,
+  Settings,
+  Tags,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { CategoriesProvider } from '../categories/CategoriesContext'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,7 +36,12 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/app/dashboard', key: 'menu.dashboard', icon: LayoutDashboard },
   { to: '/app/transactions', key: 'menu.transactions', icon: List },
-  { to: '/app/settings', key: 'menu.settings', icon: Settings },
+]
+
+// Children of the "Settings" tree node in the sidebar.
+const SETTINGS_ITEMS: NavItem[] = [
+  { to: '/app/settings/categories', key: 'menu.categories', icon: Tags },
+  { to: '/app/settings/subcategories', key: 'menu.subcategories', icon: ListTree },
 ]
 
 const COMING_SOON: { key: string; icon: LucideIcon }[] = [{ key: 'menu.reports', icon: PieChart }]
@@ -34,7 +52,12 @@ export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  const inSettings = location.pathname.startsWith('/app/settings')
+  const [settingsToggled, setSettingsToggled] = useState(false)
+  const settingsOpen = inSettings || settingsToggled
+
   const current = NAV_ITEMS.find((item) => location.pathname.startsWith(item.to))
+  const currentSetting = SETTINGS_ITEMS.find((item) => location.pathname.startsWith(item.to))
 
   const navLinkClass = (isActive: boolean) =>
     cn(
@@ -43,6 +66,7 @@ export function AppLayout() {
     )
 
   return (
+    <CategoriesProvider>
     <div className="flex min-h-screen bg-zinc-50">
       <aside className="sticky top-0 hidden h-screen w-[230px] shrink-0 flex-col gap-6 border-r bg-background px-3.5 py-5 md:flex">
         <NavLink to="/app/dashboard" className="flex items-center gap-2.5 px-2 font-semibold">
@@ -58,6 +82,34 @@ export function AppLayout() {
               {t(item.key)}
             </NavLink>
           ))}
+          <button
+            type="button"
+            aria-expanded={settingsOpen}
+            onClick={() => setSettingsToggled((prev) => !prev)}
+            className={cn(navLinkClass(inSettings), 'w-full')}
+          >
+            <Settings className="h-[15px] w-[15px]" />
+            <span className="flex-1 text-left">{t('menu.settings')}</span>
+            {settingsOpen ? (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+          </button>
+          {settingsOpen && (
+            <div className="ml-[21px] flex flex-col gap-0.5 border-l border-zinc-200 pl-2">
+              {SETTINGS_ITEMS.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  className={({ isActive }) => cn(navLinkClass(isActive), 'h-8')}
+                >
+                  <item.icon className="h-[14px] w-[14px]" />
+                  {t(item.key)}
+                </NavLink>
+              ))}
+            </div>
+          )}
           {COMING_SOON.map((item) => (
             <span
               key={item.key}
@@ -79,6 +131,19 @@ export function AppLayout() {
                 {' '}
                 <span className="text-zinc-300">/</span>{' '}
                 <span className="font-medium text-foreground">{t(current.key)}</span>
+              </>
+            )}
+            {inSettings && (
+              <>
+                {' '}
+                <span className="text-zinc-300">/</span> {t('menu.settings')}
+                {currentSetting && (
+                  <>
+                    {' '}
+                    <span className="text-zinc-300">/</span>{' '}
+                    <span className="font-medium text-foreground">{t(currentSetting.key)}</span>
+                  </>
+                )}
               </>
             )}
           </span>
@@ -142,8 +207,8 @@ export function AppLayout() {
           </div>
         </header>
 
-        <nav className="flex gap-1 border-b bg-background px-4 py-2 md:hidden">
-          {NAV_ITEMS.map((item) => (
+        <nav className="flex gap-1 overflow-x-auto border-b bg-background px-4 py-2 md:hidden">
+          {[...NAV_ITEMS, ...SETTINGS_ITEMS].map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => navLinkClass(isActive)}>
               <item.icon className="h-[15px] w-[15px]" />
               {t(item.key)}
@@ -156,5 +221,6 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+    </CategoriesProvider>
   )
 }
