@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { ArrowDownRight, ArrowUpRight, ChevronDown, Plus, TrendingUp, WalletCards } from 'lucide-react'
 import { toast } from 'sonner'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,13 +12,15 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getApiErrorMessage } from '../api/client'
 import { createTransaction, getDashboardStats, getMonthlySummary } from '../api/transactionApi'
 import type { DashboardStatsResponse, MonthlySummaryResponse } from '../api/types'
-import { CategoryIcon } from '../components/CategoryIcon'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
+import { toCategorySpending } from '../utils/chartData'
 import { toIncomeExpenseBars } from '../utils/chartData'
 import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
+import { categoryVisual } from '../utils/categoryIcons'
+import { CategoryIcon } from '../components/CategoryIcon'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 
@@ -96,6 +98,8 @@ export function DashboardPage() {
   const creditCount = summary?.items.filter((i) => i.credit.amount > 0).length ?? 0
   const debitCount = summary?.items.filter((i) => i.debit.amount > 0).length ?? 0
   const recent = summary?.items.slice(0, 4) ?? []
+  const categorySpending = toCategorySpending(summary?.items ?? [])
+  const spendingTotal = categorySpending.reduce((s, d) => s + d.amount, 0)
 
   return (
     <div className="grid gap-4">
@@ -286,6 +290,66 @@ export function DashboardPage() {
         </CardContent>
       </Card>
       </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{t('dashboard.byCategory')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {categorySpending.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">{t('summary.empty')}</p>
+          ) : (
+            <div className="grid items-center gap-6 md:grid-cols-[260px_1fr]">
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={categorySpending}
+                      dataKey="amount"
+                      nameKey="category"
+                      innerRadius={55}
+                      outerRadius={90}
+                      paddingAngle={2}
+                      strokeWidth={0}
+                    >
+                      {categorySpending.map((d) => (
+                        <Cell key={d.category} fill={categoryVisual(d.category).hex} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value, _name, entry) => [
+                        vnd(Number(value)),
+                        t(`category.${(entry?.payload as { category?: string })?.category ?? 'other'}`),
+                      ]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="grid gap-2">
+                {categorySpending.map((d) => (
+                  <div key={d.category} className="flex items-center gap-2.5 text-sm">
+                    <CategoryIcon category={d.category} className="h-7 w-7 rounded-lg" />
+                    <span className="w-28 truncate">{t(`category.${d.category}`)}</span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${spendingTotal > 0 ? (d.amount / spendingTotal) * 100 : 0}%`,
+                          backgroundColor: categoryVisual(d.category).hex,
+                        }}
+                      />
+                    </div>
+                    <span className="w-28 text-right font-medium text-expense">−{vnd(d.amount)}</span>
+                    <span className="w-12 text-right text-xs text-muted-foreground">
+                      {spendingTotal > 0 ? ((d.amount / spendingTotal) * 100).toFixed(1) : 0}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <TransactionFormModal
         open={modalOpen}

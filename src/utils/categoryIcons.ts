@@ -18,22 +18,24 @@ export interface CategoryVisual {
   chipClass: string
   iconClass: string
   labelClass: string
+  /** Hex used by charts (matches the icon color). */
+  hex: string
 }
 
 // Keyed by backend category code. Includes legacy codes (transport,
 // entertainment) so existing rows keep their icons even though they are no
 // longer selectable.
 const VISUALS: Record<string, CategoryVisual> = {
-  living: { icon: House, chipClass: 'bg-teal-100', iconClass: 'text-teal-600', labelClass: 'bg-teal-50 text-teal-700' },
-  salary: { icon: Wallet, chipClass: 'bg-green-100', iconClass: 'text-green-600', labelClass: 'bg-green-50 text-green-700' },
-  education: { icon: GraduationCap, chipClass: 'bg-indigo-100', iconClass: 'text-indigo-600', labelClass: 'bg-indigo-50 text-indigo-700' },
-  food: { icon: Utensils, chipClass: 'bg-orange-100', iconClass: 'text-orange-600', labelClass: 'bg-orange-50 text-orange-700' },
-  shopping: { icon: ShoppingBag, chipClass: 'bg-pink-100', iconClass: 'text-pink-600', labelClass: 'bg-pink-50 text-pink-700' },
-  bills: { icon: Zap, chipClass: 'bg-amber-100', iconClass: 'text-amber-600', labelClass: 'bg-amber-50 text-amber-700' },
-  savings: { icon: PiggyBank, chipClass: 'bg-emerald-100', iconClass: 'text-emerald-600', labelClass: 'bg-emerald-50 text-emerald-700' },
-  transport: { icon: Car, chipClass: 'bg-blue-100', iconClass: 'text-blue-600', labelClass: 'bg-blue-50 text-blue-700' },
-  entertainment: { icon: Clapperboard, chipClass: 'bg-violet-100', iconClass: 'text-violet-600', labelClass: 'bg-violet-50 text-violet-700' },
-  other: { icon: Tag, chipClass: 'bg-zinc-100', iconClass: 'text-zinc-500', labelClass: 'bg-zinc-100 text-zinc-600' },
+  living: { icon: House, chipClass: 'bg-teal-100', iconClass: 'text-teal-600', labelClass: 'bg-teal-50 text-teal-700', hex: '#0d9488' },
+  salary: { icon: Wallet, chipClass: 'bg-green-100', iconClass: 'text-green-600', labelClass: 'bg-green-50 text-green-700', hex: '#16a34a' },
+  education: { icon: GraduationCap, chipClass: 'bg-indigo-100', iconClass: 'text-indigo-600', labelClass: 'bg-indigo-50 text-indigo-700', hex: '#4f46e5' },
+  food: { icon: Utensils, chipClass: 'bg-orange-100', iconClass: 'text-orange-600', labelClass: 'bg-orange-50 text-orange-700', hex: '#ea580c' },
+  shopping: { icon: ShoppingBag, chipClass: 'bg-pink-100', iconClass: 'text-pink-600', labelClass: 'bg-pink-50 text-pink-700', hex: '#db2777' },
+  bills: { icon: Zap, chipClass: 'bg-amber-100', iconClass: 'text-amber-600', labelClass: 'bg-amber-50 text-amber-700', hex: '#d97706' },
+  savings: { icon: PiggyBank, chipClass: 'bg-emerald-100', iconClass: 'text-emerald-600', labelClass: 'bg-emerald-50 text-emerald-700', hex: '#059669' },
+  transport: { icon: Car, chipClass: 'bg-blue-100', iconClass: 'text-blue-600', labelClass: 'bg-blue-50 text-blue-700', hex: '#2563eb' },
+  entertainment: { icon: Clapperboard, chipClass: 'bg-violet-100', iconClass: 'text-violet-600', labelClass: 'bg-violet-50 text-violet-700', hex: '#7c3aed' },
+  other: { icon: Tag, chipClass: 'bg-zinc-100', iconClass: 'text-zinc-500', labelClass: 'bg-zinc-100 text-zinc-600', hex: '#71717a' },
 }
 
 export function categoryVisual(category: string | null): CategoryVisual {

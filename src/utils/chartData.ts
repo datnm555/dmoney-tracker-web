@@ -55,3 +55,23 @@ export function toCategoryPie(
 ): PieDatum[] {
   return byCategory.map((c) => ({ label: t(`category.${c.category}`), amount: c.debit.amount }))
 }
+
+export interface CategorySpendingDatum {
+  category: string
+  amount: number
+}
+
+/** Aggregates debit totals per category (uncategorised rows land in "other"), largest first. */
+export function toCategorySpending(
+  items: { category: string | null; debit: { amount: number } }[],
+): CategorySpendingDatum[] {
+  const byCategory = new Map<string, number>()
+  for (const item of items) {
+    if (item.debit.amount <= 0) continue
+    const key = item.category ?? 'other'
+    byCategory.set(key, (byCategory.get(key) ?? 0) + item.debit.amount)
+  }
+  return [...byCategory.entries()]
+    .map(([category, amount]) => ({ category, amount }))
+    .sort((a, b) => b.amount - a.amount)
+}

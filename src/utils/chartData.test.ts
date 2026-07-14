@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CategoryStat, DailyStat, MonthlyStat } from '../api/types'
-import { toBalanceLine, toCategoryPie, toDailyBars, toIncomeExpenseBars, toMonthlyBars } from './chartData'
+import { toBalanceLine, toCategoryPie, toCategorySpending, toDailyBars, toIncomeExpenseBars, toMonthlyBars } from './chartData'
 
 const vnd = (amount: number) => ({ amount, currency: 'VND' })
 
@@ -42,6 +42,21 @@ describe('chartData', () => {
     expect(toIncomeExpenseBars(monthly)).toEqual([
       { month: 'T6', income: 10, expense: 4 },
       { month: 'T7', income: 0, expense: 5 },
+    ])
+  })
+
+  it('toCategorySpending sums debits per category, null as other, sorted desc', () => {
+    const items = [
+      { category: 'bills', debit: { amount: 1_200_000 } },
+      { category: 'bills', debit: { amount: 300_000 } },
+      { category: null, debit: { amount: 50_000 } },
+      { category: 'food', debit: { amount: 2_000_000 } },
+      { category: 'salary', debit: { amount: 0 } },
+    ]
+    expect(toCategorySpending(items)).toEqual([
+      { category: 'food', amount: 2_000_000 },
+      { category: 'bills', amount: 1_500_000 },
+      { category: 'other', amount: 50_000 },
     ])
   })
 })
