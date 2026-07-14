@@ -23,6 +23,7 @@ import { getOpenAdvances, getPrepaidCredits } from '../api/transactionApi'
 import type { AdvanceResponse, PrepaidCreditResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
+import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
   BANK_PRESETS,
@@ -76,6 +77,7 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
 export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
   const { options: categoryOptions } = useCategoryDisplay()
+  const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
   const [date, setDate] = useState('')
   const [content, setContent] = useState('')
@@ -168,12 +170,26 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       .catch(() => setPrepaidCredits([]))
   }, [open, alreadyPrepaid])
 
+  // Every time the dialog opens (create or edit), pull fresh category and
+  // sub-category lists from the backend so newly created ones show up.
   useEffect(() => {
     if (!open) return
+    void refreshCategories()
     getSubCategories()
       .then(setSubCategories)
       .catch(() => setSubCategories([]))
-  }, [open])
+  }, [open, refreshCategories])
+
+  // When creating and a category is already chosen with nothing picked yet,
+  // pick its default sub-category as soon as the list is available.
+  useEffect(() => {
+    if (!open || editing || category === null) return
+    setSubCategoryId((current) =>
+      current !== null
+        ? current
+        : (subCategories.find((s) => s.category === category && s.isDefault)?.id ?? null),
+    )
+  }, [open, editing, category, subCategories])
 
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
