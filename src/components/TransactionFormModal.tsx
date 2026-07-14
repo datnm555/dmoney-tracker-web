@@ -351,7 +351,7 @@ export function TransactionFormModal({ open, editing, submitting, onSubmit, onCa
                     <SelectContent>
                       {advances.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
-                          {dayjs(a.date).format('DD/MM')} · {a.content} · −{formatMoney(a.debit)}
+                          {dayjs(a.date).format('DD/MM/YYYY')} · {a.content} · −{formatMoney(a.debit)}
                         </SelectItem>
                       ))}
                     </SelectContent>
