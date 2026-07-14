@@ -1,19 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { ArrowDownRight, ArrowUpRight, ChevronDown, Plus, TrendingUp, WalletCards } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, ChevronDown, TrendingUp, WalletCards } from 'lucide-react'
 import { toast } from 'sonner'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
-import { createTransaction, getDashboardStats, getMonthlySummary } from '../api/transactionApi'
+import { getDashboardStats, getMonthlySummary } from '../api/transactionApi'
 import type { DashboardStatsResponse, MonthlySummaryResponse } from '../api/types'
-import { TransactionFormModal } from '../components/TransactionFormModal'
-import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
 import { toCategorySpending } from '../utils/chartData'
 import { toIncomeExpenseBars } from '../utils/chartData'
@@ -27,12 +25,10 @@ const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 export function DashboardPage() {
   const { t, lang } = useI18n()
   const { label: categoryLabel, visual: categoryDisplayVisual } = useCategoryDisplay()
-  // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
-  const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
+  // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year (default).
+  const [monthKey, setMonthKey] = useState<string>(() => String(dayjs().year()))
   const [stats, setStats] = useState<DashboardStatsResponse | null>(null)
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -52,44 +48,17 @@ export function DashboardPage() {
     void load()
   }, [load])
 
-  const handleCreate = async (values: TransactionFormValues, options?: SubmitOptions) => {
-    setSubmitting(true)
-    try {
-      await createTransaction({
-        date: values.date,
-        content: values.content,
-        creditAmount: values.type === 'in' ? values.amount : 0,
-        debitAmount: values.type === 'out' ? values.amount : 0,
-        note: values.note,
-        categoryId: values.categoryId,
-        paymentMethod: values.paymentMethod,
-        cardType: values.cardType,
-        bank: values.bank,
-        isAdvance: values.isAdvance,
-        advanceTransactionIds: values.advanceTransactionIds,
-      isPrepaid: values.isPrepaid,
-      prepaidFrom: values.prepaidFrom,
-      prepaidTo: values.prepaidTo,
-      prepaidTransactionId: values.prepaidTransactionId,
-      subCategoryId: values.subCategoryId,
-      })
-      if (options?.keepOpen) {
-        // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.
-        toast.success(t('form.saved'))
-      } else {
-        toast.success(t('toast.created'))
-        setModalOpen(false)
-      }
-      await load()
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, t('error.network')))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   const isWholeYear = /^\d{4}$/.test(monthKey)
-  const monthTabs = [2, 1, 0].map((offset) => dayjs().subtract(offset, 'month'))
+  const monthName = (n: number) => {
+    const name = new Date(2026, n - 1, 1).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', {
+      month: 'long',
+    })
+    return `${name.charAt(0).toUpperCase()}${name.slice(1)}`
+  }
+  const monthOptions = Array.from({ length: dayjs().month() + 1 }, (_, i) => ({
+    value: `${dayjs().year()}-${String(i + 1).padStart(2, '0')}`,
+    label: monthName(i + 1),
+  }))
   const bars = stats ? toIncomeExpenseBars(stats.monthly.slice(-6)) : []
   const current = stats?.monthly.at(-1)
   const previous = stats?.monthly.at(-2)
@@ -118,30 +87,23 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={monthKey} onValueChange={setMonthKey}>
-            <TabsList>
-              {monthTabs.map((m, i) => (
-                <TabsTrigger key={m.format('YYYY-MM')} value={m.format('YYYY-MM')}>
-                  {i === monthTabs.length - 1
-                    ? lang === 'vi'
-                      ? `Tháng ${m.month() + 1}`
-                      : m.toDate().toLocaleDateString('en-US', { month: 'short' })
-                    : `T${m.month() + 1}`}
-                </TabsTrigger>
+          <Select value={monthKey} onValueChange={setMonthKey}>
+            <SelectTrigger className="w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={String(dayjs().year())}>{t('transactions.filterAll')}</SelectItem>
+              {monthOptions.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
               ))}
-              <TabsTrigger value={String(dayjs().year())}>
-                {t('filters.allYear')} {dayjs().year()}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+            </SelectContent>
+          </Select>
           <div className="flex h-9 items-center gap-1.5 rounded-lg border bg-background px-3 text-sm shadow-xs">
             ₫ VND
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
-          <Button onClick={() => setModalOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" />
-            {t('summary.create')}
-          </Button>
         </div>
       </div>
 
@@ -375,14 +337,6 @@ export function DashboardPage() {
           )}
         </CardContent>
       </Card>
-
-      <TransactionFormModal
-        open={modalOpen}
-        editing={null}
-        submitting={submitting}
-        onSubmit={handleCreate}
-        onCancel={() => setModalOpen(false)}
-      />
     </div>
   )
 }
