@@ -12,7 +12,7 @@ export function exportTransactionsToExcel(
   const rows = items.map((tx) => ({
     [t('form.date')]: tx.date,
     [t('form.content')]: tx.content,
-    [t('form.category')]: labelFor(tx.category),
+    [t('form.category')]: labelFor(tx.categoryId),
     [t('form.subCategory')]: tx.subCategoryName ?? '',
     [t('payment.method')]: t(`payment.${tx.paymentMethod}`),
     [t('summary.colCredit')]: tx.credit.amount || '',

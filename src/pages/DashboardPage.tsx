@@ -61,7 +61,7 @@ export function DashboardPage() {
         creditAmount: values.type === 'in' ? values.amount : 0,
         debitAmount: values.type === 'out' ? values.amount : 0,
         note: values.note,
-        category: values.category,
+        categoryId: values.categoryId,
         paymentMethod: values.paymentMethod,
         cardType: values.cardType,
         bank: values.bank,
@@ -260,7 +260,7 @@ export function DashboardPage() {
                 <TableRow key={tx.id}>
                   <TableCell>
                     <div className="flex items-center gap-2.5">
-                      <CategoryIcon category={tx.category} />
+                      <CategoryIcon category={tx.categoryId} />
                       <div>
                         <div className="font-medium">{tx.content}</div>
                         <div className="text-xs text-muted-foreground">{dayjs(tx.date).format('DD/MM')}</div>

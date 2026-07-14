@@ -38,7 +38,7 @@ import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
 import { formatMoney } from '../utils/money'
-import { paymentLabel } from '../utils/paymentLabel'
+import { paymentMethodChipLabel } from '../utils/paymentLabel'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
 import { matchesSearch } from '../utils/transactionSearch'
 import { exportTransactionsToExcel } from '../utils/exportExcel'
@@ -48,7 +48,7 @@ type Filter = 'all' | 'in' | 'out' | 'advance'
 
 export function TransactionsPage() {
   const { t, lang } = useI18n()
-  const { label: categoryLabel } = useCategoryDisplay()
+  const { label: categoryLabel, visual: categoryDisplayVisual } = useCategoryDisplay()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
@@ -82,7 +82,7 @@ export function TransactionsPage() {
       creditAmount: values.type === 'in' ? values.amount : 0,
       debitAmount: values.type === 'out' ? values.amount : 0,
       note: values.note,
-      category: values.category,
+      categoryId: values.categoryId,
       paymentMethod: values.paymentMethod,
       cardType: values.cardType,
       bank: values.bank,
@@ -420,17 +420,42 @@ export function TransactionsPage() {
               return (
                 <div key={tx.id}>
                   <div className="flex items-center gap-3 px-4 py-3.5">
-                  <CategoryIcon category={tx.category} className="h-11 w-11 rounded-2xl" />
+                  <CategoryIcon category={tx.categoryId} className="h-11 w-11 rounded-2xl" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-semibold">{tx.content}</div>
-                    <div className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <span className="truncate">
-                        {tx.category ? `${categoryLabel(tx.category)} · ` : ''}
-                        {tx.subCategoryName ? `${tx.subCategoryName} · ` : ''}
-                        {paymentLabel(tx, t)}
+                    <div className="mt-1 flex flex-wrap items-center gap-1 text-xs font-medium">
+                      {tx.categoryId && (
+                        <span
+                          className={cn(
+                            'rounded-md px-1.5 py-0.5',
+                            categoryDisplayVisual(tx.categoryId).labelClass,
+                          )}
+                        >
+                          {categoryLabel(tx.categoryId)}
+                        </span>
+                      )}
+                      {tx.subCategoryName && (
+                        <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-indigo-700">
+                          {tx.subCategoryName}
+                        </span>
+                      )}
+                      {tx.bank && (
+                        <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700">{tx.bank}</span>
+                      )}
+                      <span
+                        className={cn(
+                          'rounded-md px-1.5 py-0.5',
+                          tx.paymentMethod === 'card'
+                            ? 'bg-violet-50 text-violet-700'
+                            : tx.paymentMethod === 'cash'
+                              ? 'bg-lime-50 text-lime-700'
+                              : 'bg-emerald-50 text-emerald-700',
+                        )}
+                      >
+                        {paymentMethodChipLabel(tx, t)}
                       </span>
                       {tx.isAdvance && (
-                        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-amber-700">
                           {t('form.isAdvance')}
                         </span>
                       )}

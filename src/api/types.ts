@@ -10,7 +10,7 @@ export interface TransactionResponse {
   credit: MoneyResponse
   debit: MoneyResponse
   note: string | null
-  category: string | null
+  categoryId: string | null
   paymentMethod: string
   cardType: string | null
   bank: string | null
@@ -79,7 +79,7 @@ export interface DailyStat {
 }
 
 export interface CategoryStat {
-  category: string
+  categoryId: string | null
   debit: MoneyResponse
 }
 
@@ -91,7 +91,7 @@ export interface DashboardStatsResponse {
 
 export interface SubCategoryResponse {
   id: string
-  category: string
+  categoryId: string
   name: string
   isDefault: boolean
   icon: string | null

@@ -1,4 +1,4 @@
-import type { CategoryStat, DailyStat, MonthlyStat } from '../api/types'
+import type { DailyStat, MonthlyStat } from '../api/types'
 
 export interface MonthlyBarDatum {
   month: string
@@ -25,11 +25,6 @@ export interface PointDatum {
   amount: number
 }
 
-export interface PieDatum {
-  label: string
-  amount: number
-}
-
 export function toMonthlyBars(
   monthly: MonthlyStat[],
   creditLabel: string,
@@ -49,13 +44,6 @@ export function toDailyBars(daily: DailyStat[]): PointDatum[] {
   return daily.map((d) => ({ x: String(d.day), amount: d.debit.amount }))
 }
 
-export function toCategoryPie(
-  byCategory: CategoryStat[],
-  t: (key: string) => string,
-): PieDatum[] {
-  return byCategory.map((c) => ({ label: t(`category.${c.category}`), amount: c.debit.amount }))
-}
-
 export interface SubCategorySpendingDatum {
   name: string | null
   amount: number
@@ -73,12 +61,12 @@ export interface CategorySpendingDatum {
  * grouped under name null, listed last).
  */
 export function toCategorySpending(
-  items: { category: string | null; debit: { amount: number }; subCategoryName?: string | null }[],
+  items: { categoryId: string | null; debit: { amount: number }; subCategoryName?: string | null }[],
 ): CategorySpendingDatum[] {
   const byCategory = new Map<string, Map<string | null, number>>()
   for (const item of items) {
     if (item.debit.amount <= 0) continue
-    const key = item.category ?? 'other'
+    const key = item.categoryId ?? 'other'
     const subs = byCategory.get(key) ?? new Map<string | null, number>()
     const subKey = item.subCategoryName ?? null
     subs.set(subKey, (subs.get(subKey) ?? 0) + item.debit.amount)

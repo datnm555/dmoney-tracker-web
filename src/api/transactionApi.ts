@@ -7,7 +7,7 @@ export interface TransactionPayload {
   creditAmount: number
   debitAmount: number
   note: string | null
-  category: string | null
+  categoryId: string | null
   paymentMethod: string
   cardType: string | null
   bank: string | null

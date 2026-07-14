@@ -9,7 +9,7 @@ const tx = (content: string, debit: number, note: string | null = null): Transac
   credit: { amount: 0, currency: 'VND' },
   debit: { amount: debit, currency: 'VND' },
   note,
-  category: null,
+  categoryId: null,
   paymentMethod: 'transfer',
   cardType: null,
   bank: null,

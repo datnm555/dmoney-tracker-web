@@ -10,7 +10,7 @@ vi.mock('../api/resourceApi', () => ({
 }))
 
 vi.mock('../api/subCategoryApi', () => ({
-  getSubCategories: vi.fn().mockResolvedValue([{ id: 'sub-1', category: 'bills', name: 'Xăng', isDefault: true }]),
+  getSubCategories: vi.fn().mockResolvedValue([{ id: 'sub-1', categoryId: 'cat-bills', name: 'Xăng', isDefault: true }]),
 }))
 
 vi.mock('../api/transactionApi', () => ({
@@ -248,7 +248,7 @@ describe('TransactionFormModal', () => {
             credit: { amount: 0, currency: 'VND' },
             debit: { amount: 260000, currency: 'VND' },
             note: null,
-            category: null,
+            categoryId: null,
             paymentMethod: 'transfer',
             cardType: null,
             bank: null,

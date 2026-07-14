@@ -9,7 +9,7 @@ const tx = (id: string, date: string, credit: number, debit: number): Transactio
   credit: { amount: credit, currency: 'VND' },
   debit: { amount: debit, currency: 'VND' },
   note: null,
-  category: null,
+  categoryId: null,
   paymentMethod: 'transfer',
   cardType: null,
   bank: null,

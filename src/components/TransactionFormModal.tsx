@@ -37,7 +37,7 @@ export interface TransactionFormValues {
   content: string
   type: 'in' | 'out'
   amount: number
-  category: string | null
+  categoryId: string | null
   paymentMethod: PaymentMethodCode
   cardType: CardTypeCode | null
   bank: string | null
@@ -111,7 +111,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setDate(editing.date)
       setContent(editing.content)
       setAmountDigits(String(isIncome ? editing.credit.amount : editing.debit.amount))
-      setCategory(editing.category)
+      setCategory(editing.categoryId)
       setPaymentMethod((editing.paymentMethod as PaymentMethodCode) ?? 'transfer')
       setCardType((editing.cardType as CardTypeCode) ?? null)
       setBank(editing.bank)
@@ -187,7 +187,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     setSubCategoryId((current) =>
       current !== null
         ? current
-        : (subCategories.find((s) => s.category === category && s.isDefault)?.id ?? null),
+        : (subCategories.find((s) => s.categoryId === category && s.isDefault)?.id ?? null),
     )
   }, [open, editing, category, subCategories])
 
@@ -209,7 +209,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       content: content.trim(),
       type,
       amount,
-      category,
+      categoryId: category,
       paymentMethod,
       cardType: paymentMethod === 'card' ? cardType : null,
       bank: paymentMethod === 'card' ? (bank?.trim() || null) : null,
@@ -473,7 +473,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                       // Auto-pick the default sub-category of the chosen parent, if any.
                       setSubCategoryId(
                         next !== null
-                          ? (subCategories.find((s) => s.category === next && s.isDefault)?.id ?? null)
+                          ? (subCategories.find((s) => s.categoryId === next && s.isDefault)?.id ?? null)
                           : null,
                       )
                     }}
@@ -490,12 +490,12 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                 )
               })}
             </div>
-            {category !== null && subCategories.some((s) => s.category === category) && (
+            {category !== null && subCategories.some((s) => s.categoryId === category) && (
               <div className="grid gap-1.5">
                 <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {subCategories
-                    .filter((s) => s.category === category)
+                    .filter((s) => s.categoryId === category)
                     .map((s) => (
                       <button
                         key={s.id}

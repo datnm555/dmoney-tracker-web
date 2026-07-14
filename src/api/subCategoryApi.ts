@@ -1,20 +1,20 @@
 import { apiClient } from './client'
 import type { SubCategoryResponse } from './types'
 
-export async function getSubCategories(category?: string): Promise<SubCategoryResponse[]> {
+export async function getSubCategories(categoryId?: string): Promise<SubCategoryResponse[]> {
   const { data } = await apiClient.get<SubCategoryResponse[]>('/subcategories', {
-    params: category ? { category } : undefined,
+    params: categoryId ? { categoryId } : undefined,
   })
   return data
 }
 
 export async function createSubCategory(
-  category: string,
+  categoryId: string,
   name: string,
   isDefault = false,
   icon: string | null = null,
 ): Promise<{ id: string }> {
-  const { data } = await apiClient.post<{ id: string }>('/subcategories', { category, name, isDefault, icon })
+  const { data } = await apiClient.post<{ id: string }>('/subcategories', { categoryId, name, isDefault, icon })
   return data
 }
 

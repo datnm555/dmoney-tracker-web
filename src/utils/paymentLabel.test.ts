@@ -11,7 +11,7 @@ const tx = (paymentMethod: string, cardType: string | null = null, bank: string 
   credit: { amount: 0, currency: 'VND' },
   debit: { amount: 1000, currency: 'VND' },
   note: null,
-  category: null,
+  categoryId: null,
   paymentMethod,
   cardType,
   bank,

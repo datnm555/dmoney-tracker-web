@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { CategoryStat, DailyStat, MonthlyStat } from '../api/types'
-import { toBalanceLine, toCategoryPie, toCategorySpending, toDailyBars, toIncomeExpenseBars, toMonthlyBars } from './chartData'
+import type { DailyStat, MonthlyStat } from '../api/types'
+import { toBalanceLine, toCategorySpending, toDailyBars, toIncomeExpenseBars, toMonthlyBars } from './chartData'
 
 const vnd = (amount: number) => ({ amount, currency: 'VND' })
 
@@ -32,12 +32,6 @@ describe('chartData', () => {
     expect(toDailyBars(daily)).toEqual([{ x: '5', amount: 250000 }])
   })
 
-  it('toCategoryPie localizes labels via t', () => {
-    const byCategory: CategoryStat[] = [{ category: 'food', debit: vnd(200000) }]
-    const t = (key: string) => `vi:${key}`
-    expect(toCategoryPie(byCategory, t)).toEqual([{ label: 'vi:category.food', amount: 200000 }])
-  })
-
   it('toIncomeExpenseBars maps monthly stats to T-labelled income/expense rows', () => {
     expect(toIncomeExpenseBars(monthly)).toEqual([
       { month: 'T6', income: 10, expense: 4 },
@@ -47,29 +41,29 @@ describe('chartData', () => {
 
   it('toCategorySpending sums debits per category, null as other, sorted desc', () => {
     const items = [
-      { category: 'bills', debit: { amount: 1_200_000 } },
-      { category: 'bills', debit: { amount: 300_000 } },
-      { category: null, debit: { amount: 50_000 } },
-      { category: 'food', debit: { amount: 2_000_000 } },
-      { category: 'salary', debit: { amount: 0 } },
+      { categoryId: 'cat-bills', debit: { amount: 1_200_000 } },
+      { categoryId: 'cat-bills', debit: { amount: 300_000 } },
+      { categoryId: null, debit: { amount: 50_000 } },
+      { categoryId: 'cat-food', debit: { amount: 2_000_000 } },
+      { categoryId: 'cat-salary', debit: { amount: 0 } },
     ]
     expect(toCategorySpending(items)).toEqual([
-      { category: 'food', amount: 2_000_000, subs: [{ name: null, amount: 2_000_000 }] },
-      { category: 'bills', amount: 1_500_000, subs: [{ name: null, amount: 1_500_000 }] },
+      { category: 'cat-food', amount: 2_000_000, subs: [{ name: null, amount: 2_000_000 }] },
+      { category: 'cat-bills', amount: 1_500_000, subs: [{ name: null, amount: 1_500_000 }] },
       { category: 'other', amount: 50_000, subs: [{ name: null, amount: 50_000 }] },
     ])
   })
 
   it('toCategorySpending breaks each category down by sub-category, unnamed rows last', () => {
     const items = [
-      { category: 'bills', debit: { amount: 400_000 }, subCategoryName: 'Điện' },
-      { category: 'bills', debit: { amount: 900_000 }, subCategoryName: 'Nước' },
-      { category: 'bills', debit: { amount: 100_000 }, subCategoryName: 'Điện' },
-      { category: 'bills', debit: { amount: 250_000 }, subCategoryName: null },
+      { categoryId: 'cat-bills', debit: { amount: 400_000 }, subCategoryName: 'Điện' },
+      { categoryId: 'cat-bills', debit: { amount: 900_000 }, subCategoryName: 'Nước' },
+      { categoryId: 'cat-bills', debit: { amount: 100_000 }, subCategoryName: 'Điện' },
+      { categoryId: 'cat-bills', debit: { amount: 250_000 }, subCategoryName: null },
     ]
     expect(toCategorySpending(items)).toEqual([
       {
-        category: 'bills',
+        category: 'cat-bills',
         amount: 1_650_000,
         subs: [
           { name: 'Nước', amount: 900_000 },

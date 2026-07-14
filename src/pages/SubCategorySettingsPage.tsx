@@ -77,7 +77,7 @@ export function SubCategorySettingsPage() {
   const grouped = options
     .map((option) => ({
       option,
-      items: subCategories.filter((s) => s.category === option.code),
+      items: subCategories.filter((s) => s.categoryId === option.code),
     }))
     .filter((g) => g.items.length > 0)
 
