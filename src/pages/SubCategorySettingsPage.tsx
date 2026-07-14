@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
-import { createSubCategory, deleteSubCategory, getSubCategories } from '../api/subCategoryApi'
+import { createSubCategory, deleteSubCategory, getSubCategories, updateSubCategory } from '../api/subCategoryApi'
 import type { SubCategoryResponse } from '../api/types'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
@@ -29,6 +29,7 @@ export function SubCategorySettingsPage() {
   const { options, label } = useCategoryDisplay()
   const [subCategories, setSubCategories] = useState<SubCategoryResponse[]>([])
   const [open, setOpen] = useState(false)
+  const [editingSub, setEditingSub] = useState<SubCategoryResponse | null>(null)
   const [category, setCategory] = useState<string>('')
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
@@ -47,22 +48,36 @@ export function SubCategorySettingsPage() {
     void load()
   }, [load])
 
-  const handleAdd = async (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     if (!name.trim()) return
     setSubmitting(true)
     try {
-      await createSubCategory(category, name.trim(), isDefault, icon)
+      if (editingSub) {
+        await updateSubCategory(editingSub.id, name.trim(), isDefault, icon)
+      } else {
+        await createSubCategory(category, name.trim(), isDefault, icon)
+      }
       setName('')
       setIcon(null)
       setIsDefault(false)
       setOpen(false)
+      setEditingSub(null)
       await load()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const openEdit = (sub: SubCategoryResponse) => {
+    setEditingSub(sub)
+    setCategory(sub.categoryId)
+    setName(sub.name)
+    setIcon(sub.icon)
+    setIsDefault(sub.isDefault)
+    setOpen(true)
   }
 
   const handleDelete = async (id: string) => {
@@ -90,6 +105,10 @@ export function SubCategorySettingsPage() {
         </div>
         <Button
           onClick={() => {
+            setEditingSub(null)
+            setName('')
+            setIcon(null)
+            setIsDefault(false)
             // Categories come from the db; make sure the select holds a valid one.
             setCategory((prev) =>
               options.some((o) => o.code === prev) ? prev : (options[0]?.code ?? ''),
@@ -144,6 +163,14 @@ export function SubCategorySettingsPage() {
                       )}
                       <button
                         type="button"
+                        aria-label={`${t('summary.edit')} ${sub.name}`}
+                        className="rounded p-1 text-muted-foreground hover:bg-zinc-100 hover:text-foreground"
+                        onClick={() => openEdit(sub)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
                         aria-label={`${t('summary.delete')} ${sub.name}`}
                         className="rounded p-1 text-muted-foreground hover:bg-expense/10 hover:text-expense"
                         onClick={() => {
@@ -164,12 +191,12 @@ export function SubCategorySettingsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t('subcat.create')}</DialogTitle>
+            <DialogTitle>{editingSub ? t('subcat.edit') : t('subcat.create')}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAdd} className="grid gap-4">
+          <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-1.5">
               <Label>{t('form.category')}</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={setCategory} disabled={editingSub !== null}>
                 <SelectTrigger>
                   <SelectValue>{label(category)}</SelectValue>
                 </SelectTrigger>
