@@ -263,10 +263,10 @@ export function TransactionsPage() {
             {t('filters.title')}
           </div>
 
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+          <div className="grid items-end gap-4 md:grid-cols-3">
             <div className="grid gap-1.5">
               <span className="text-xs text-muted-foreground">{t('form.content')}</span>
-              <Input className="w-56" value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
+              <Input value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
             </div>
 
             <div className="grid gap-1.5">
@@ -277,7 +277,7 @@ export function TransactionsPage() {
                 <Input
                   inputMode="numeric"
                   aria-label={t('filters.amountFrom')}
-                  className="w-32"
+                  className="flex-1"
                   value={amountFromDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                   onChange={(e) => setAmountFromDigits(e.target.value.replace(/\D/g, ''))}
                 />
@@ -285,7 +285,7 @@ export function TransactionsPage() {
                 <Input
                   inputMode="numeric"
                   aria-label={t('filters.amountTo')}
-                  className="w-32"
+                  className="flex-1"
                   value={amountToDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                   onChange={(e) => setAmountToDigits(e.target.value.replace(/\D/g, ''))}
                 />
@@ -294,15 +294,15 @@ export function TransactionsPage() {
 
             <div className="grid gap-1.5">
               <span className="text-xs text-muted-foreground">{t('form.note')}</span>
-              <Input className="w-48" value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
+              <Input value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
             </div>
           </div>
 
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+          <div className="grid items-end gap-4 md:grid-cols-4">
             <div className="grid gap-1.5">
               <span className="text-xs text-muted-foreground">{t('filters.type')}</span>
               <Select value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -320,7 +320,7 @@ export function TransactionsPage() {
               </span>
               <div className="flex items-center gap-2">
                 <Select value={selMonth} onValueChange={(value) => applyPeriod(selYear, value)}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger className="flex-1">
                     <div className="flex min-w-0 items-center gap-2">
                       <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
                       <SelectValue />
@@ -335,7 +335,7 @@ export function TransactionsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={String(selYear)} onValueChange={(value) => applyPeriod(Number(value), selMonth)}>
-                  <SelectTrigger className="w-24">
+                  <SelectTrigger className="w-28 shrink-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -358,7 +358,7 @@ export function TransactionsPage() {
                   setFilterSub('all')
                 }}
               >
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -376,7 +376,7 @@ export function TransactionsPage() {
               <div className="grid gap-1.5">
                 <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
                 <Select value={filterSub} onValueChange={setFilterSub}>
-                  <SelectTrigger className="w-44">
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
