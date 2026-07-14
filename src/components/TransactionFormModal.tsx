@@ -222,7 +222,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
   const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
+    if (!date) nextErrors.date = t('form.dateRequired')
     if (!content.trim()) nextErrors.content = t('form.contentRequired')
+    if (category === null) nextErrors.category = t('form.categoryRequired')
     const amountOptional = type === 'out' && alreadyPrepaid
     if (amount <= 0 && !amountOptional) nextErrors.amount = t('form.amountRequired')
     if (paymentMethod === 'card' && !cardType) nextErrors.cardType = t('form.cardTypeRequired')
@@ -319,9 +321,12 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
             ))}
           </div>
 
-          <div className="grid grid-cols-2 items-center gap-2">
-            <Label htmlFor="tx-date">{t('form.date')}</Label>
-            <Input id="tx-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+          <div className="grid gap-1">
+            <div className="grid grid-cols-2 items-center gap-2">
+              <Label htmlFor="tx-date">{t('form.date')}</Label>
+              <Input id="tx-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+            {errors.date && <p className="text-xs text-expense">{errors.date}</p>}
           </div>
 
           <div className="grid gap-2">
@@ -514,6 +519,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
           <div className="grid gap-2">
             <Label>{t('form.category')}</Label>
+            {errors.category && <p className="text-xs text-expense">{errors.category}</p>}
             <div className="grid grid-cols-4 gap-2">
               {categoryOptions.map((option) => {
                 const { code, visual } = option
