@@ -64,6 +64,7 @@ export interface LoginResponse {
   email: string
   username: string
   displayName: string
+  refreshToken: string
 }
 
 export interface MonthlyStat {
