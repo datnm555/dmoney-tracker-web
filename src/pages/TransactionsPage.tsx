@@ -416,8 +416,11 @@ export function TransactionsPage() {
       <Card>
         <CardContent className="grid gap-2.5 p-4 md:p-5">
           {(() => {
-            const credit = summary?.totalCredit.amount ?? 0
-            const debit = summary?.totalDebit.amount ?? 0
+            // Totals over the filtered rows, not the raw month — the card must
+            // agree with the list it sits above.
+            const currency = summary?.totalCredit.currency ?? 'VND'
+            const credit = items.reduce((sum, tx) => sum + tx.credit.amount, 0)
+            const debit = items.reduce((sum, tx) => sum + tx.debit.amount, 0)
             const total = credit + debit
             const creditPct = total > 0 ? (credit / total) * 100 : 0
             return (
@@ -434,13 +437,13 @@ export function TransactionsPage() {
                   <span>
                     <span className="text-muted-foreground">{t('summary.colCredit')} </span>
                     <strong className="text-income underline decoration-income/30 underline-offset-4">
-                      +{summary ? formatMoney(summary.totalCredit) : '—'}
+                      +{summary ? formatMoney({ amount: credit, currency }) : '—'}
                     </strong>
                   </span>
                   <span>
                     <span className="text-muted-foreground">{t('summary.colDebit')} </span>
                     <strong className="text-expense underline decoration-expense/30 underline-offset-4">
-                      −{summary ? formatMoney(summary.totalDebit) : '—'}
+                      −{summary ? formatMoney({ amount: debit, currency }) : '—'}
                     </strong>
                   </span>
                 </div>
