@@ -6,6 +6,7 @@ import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { CategorySettingsPage } from './pages/CategorySettingsPage'
 import { LoginPage } from './pages/LoginPage'
+import { PlanSettingsPage } from './pages/PlanSettingsPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SubCategorySettingsPage } from './pages/SubCategorySettingsPage'
 import { TransactionsPage } from './pages/TransactionsPage'
@@ -26,6 +27,7 @@ export default function App() {
                 <Route path="settings" element={<Navigate to="/app/settings/categories" replace />} />
                 <Route path="settings/categories" element={<CategorySettingsPage />} />
                 <Route path="settings/subcategories" element={<SubCategorySettingsPage />} />
+                <Route path="settings/plans" element={<PlanSettingsPage />} />
                 <Route path="summary" element={<Navigate to="/app/transactions" replace />} />
               </Route>
             </Route>

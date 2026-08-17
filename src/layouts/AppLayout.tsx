@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
+  BookOpen,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
@@ -44,6 +45,7 @@ const NAV_ITEMS: NavItem[] = [
 const SETTINGS_ITEMS: NavItem[] = [
   { to: '/app/settings/categories', key: 'menu.categories', icon: Tags },
   { to: '/app/settings/subcategories', key: 'menu.subcategories', icon: ListTree },
+  { to: '/app/settings/plans', key: 'menu.plans', icon: BookOpen },
 ]
 
 const COMING_SOON: { key: string; icon: LucideIcon }[] = [{ key: 'menu.reports', icon: PieChart }]
