@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { getApiErrorMessage } from '../api/client'
-import { deletePlan, updatePlan } from '../api/planApi'
+import { deletePlan, setDefaultPlan, updatePlan } from '../api/planApi'
 import type { PlanResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { CreatePlanDialog } from '../plans/CreatePlanDialog'
@@ -34,6 +34,15 @@ export function PlanSettingsPage() {
     try {
       await updatePlan(editing.id, editName.trim())
       setEditing(null)
+      await refresh()
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, t('error.network')))
+    }
+  }
+
+  const submitSetDefault = async (plan: PlanResponse) => {
+    try {
+      await setDefaultPlan(plan.id)
       await refresh()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
@@ -80,6 +89,17 @@ export function PlanSettingsPage() {
                 <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10.5px] text-muted-foreground">
                   {t('plans.default')}
                 </span>
+              )}
+              {!plan.isDefault && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  aria-label={`${t('plans.setDefault')} ${plan.name}`}
+                  onClick={() => void submitSetDefault(plan)}
+                >
+                  <Star className="h-4 w-4" />
+                </Button>
               )}
               <Button
                 variant="ghost"
