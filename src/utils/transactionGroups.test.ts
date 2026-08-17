@@ -21,6 +21,7 @@ const tx = (id: string, date: string, credit: number, debit: number): Transactio
   prepaidTransactionId: null,
   subCategoryId: null,
   subCategoryName: null,
+  planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
 })

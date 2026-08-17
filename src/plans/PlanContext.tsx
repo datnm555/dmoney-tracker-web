@@ -52,6 +52,17 @@ export function PlanProvider({ children }: { children: ReactNode }) {
     void refresh()
   }, [refresh])
 
+  // Self-heal: if any API call reports the selected plan no longer exists
+  // (deleted elsewhere, e.g. another tab/device), reload plans so selection
+  // falls back to the default plan.
+  useEffect(() => {
+    const onPlansChanged = () => {
+      void refresh()
+    }
+    window.addEventListener('dmoney:plans-changed', onPlansChanged)
+    return () => window.removeEventListener('dmoney:plans-changed', onPlansChanged)
+  }, [refresh])
+
   const value = useMemo(
     () => ({ plans, selectedPlanId, selectPlan, refresh }),
     [plans, selectedPlanId, selectPlan, refresh],

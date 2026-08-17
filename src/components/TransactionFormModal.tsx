@@ -145,7 +145,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setSubCategoryId(editing.subCategoryId)
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
       setNote(editing.note ?? '')
-      setPlanId(selectedPlanId)
+      setPlanId(editing.planId)
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -167,9 +167,6 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setNote('')
       setPlanId(null)
     }
-    // selectedPlanId is deliberately closure-read (like `t` in the effects
-    // below): this reset effect must never re-run — wiping unsaved edits —
-    // just because the selected plan changed.
   }, [open, editing, defaultDate])
 
   useEffect(() => {

@@ -74,6 +74,7 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   prepaidTransactionId: null,
   subCategoryId: null,
   subCategoryName: null,
+  planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
   ...overrides,

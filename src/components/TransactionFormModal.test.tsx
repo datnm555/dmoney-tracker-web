@@ -77,6 +77,7 @@ const baseEditingFixture = {
   prepaidTransactionId: null,
   subCategoryId: null,
   subCategoryName: null,
+  planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
 }
@@ -314,6 +315,7 @@ describe('TransactionFormModal', () => {
             prepaidTransactionId: null,
             subCategoryId: null,
             subCategoryName: null,
+            planId: 'p-default',
             reimbursedByTransactionId: null,
             links: null,
           }}

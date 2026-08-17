@@ -22,6 +22,7 @@ export interface TransactionResponse {
   prepaidTransactionId: string | null
   subCategoryId: string | null
   subCategoryName: string | null
+  planId: string
   reimbursedByTransactionId: string | null
   links: LinkedTransactionResponse[] | null
 }

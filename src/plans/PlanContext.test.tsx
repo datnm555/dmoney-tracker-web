@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { STORAGE_KEYS } from '../api/client'
 import { getPlans } from '../api/planApi'
@@ -60,5 +60,21 @@ describe('PlanContext', () => {
     await userEvent.click(screen.getByText('go-trip'))
     expect(screen.getByTestId('selected')).toHaveTextContent('p-trip')
     expect(localStorage.getItem(STORAGE_KEYS.planId)).toBe('p-trip')
+  })
+
+  it('self-heals selection when a plans-changed event fires after the plan disappears', async () => {
+    render(<PlanProvider><Probe /></PlanProvider>)
+    await waitFor(() => expect(screen.getByTestId('selected')).toHaveTextContent('p-default'))
+    await userEvent.click(screen.getByText('go-trip'))
+    expect(screen.getByTestId('selected')).toHaveTextContent('p-trip')
+
+    // 'p-trip' was deleted elsewhere; the next getPlans() no longer returns it.
+    vi.mocked(getPlans).mockResolvedValue([PLANS[0]])
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('dmoney:plans-changed'))
+    })
+
+    await waitFor(() => expect(screen.getByTestId('selected')).toHaveTextContent('p-default'))
   })
 })
