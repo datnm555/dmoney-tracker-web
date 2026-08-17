@@ -103,10 +103,9 @@ export function TransactionsPage() {
       prepaidTo: values.prepaidTo,
       prepaidTransactionId: values.prepaidTransactionId,
       subCategoryId: values.subCategoryId,
-      // values.planId lands in Task 10 (move between plans); until then the
-      // selected plan is the only possible target. Submit is unreachable
-      // before plans finish loading, so the assertion is safe.
-      planId: selectedPlanId!,
+      // Create mode never sets a plan on the form, so it always falls back
+      // to the selected plan; edit mode carries the picked plan (a move).
+      planId: values.planId ?? selectedPlanId!,
       reimbursedByTransactionId: values.reimbursedByTransactionId,
     }
     setSubmitting(true)

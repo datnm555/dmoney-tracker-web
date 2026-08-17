@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
@@ -56,6 +56,29 @@ vi.mock('../api/transactionApi', () => ({
 
 function Wrapper({ children }: { children: ReactNode }) {
   return <I18nProvider>{children}</I18nProvider>
+}
+
+const baseEditingFixture = {
+  id: '1',
+  date: '2026-07-08',
+  content: 'Netflix',
+  credit: { amount: 0, currency: 'VND' },
+  debit: { amount: 260000, currency: 'VND' },
+  note: null,
+  categoryId: 'cat-bills',
+  paymentMethod: 'transfer',
+  cardType: null,
+  bank: null,
+  isAdvance: false,
+  advanceTransactionIds: [],
+  isPrepaid: false,
+  prepaidFrom: null,
+  prepaidTo: null,
+  prepaidTransactionId: null,
+  subCategoryId: null,
+  subCategoryName: null,
+  reimbursedByTransactionId: null,
+  links: null,
 }
 
 async function pickCategory() {
@@ -303,5 +326,28 @@ describe('TransactionFormModal', () => {
 
     await screen.findByLabelText('form.content')
     expect(screen.queryByRole('button', { name: 'form.saveAndContinue' })).not.toBeInTheDocument()
+  })
+
+  it('lets an edited transaction pick another plan', async () => {
+    const onSubmit = vi.fn()
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture }}
+          submitting={false}
+          onSubmit={onSubmit}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+
+    // Plan select only renders in edit mode, preselected to the current plan.
+    await userEvent.click(await screen.findByRole('combobox', { name: 'plans.form' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Du lịch' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0].planId).toBe('p-trip')
   })
 })

@@ -53,6 +53,7 @@ export interface TransactionFormValues {
   subCategoryId: string | null
   reimbursedByTransactionId: string | null
   note: string | null
+  planId: string | null
 }
 
 export interface SubmitOptions {
@@ -80,7 +81,7 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
 
 export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
-  const { selectedPlanId } = usePlans()
+  const { plans, selectedPlanId } = usePlans()
   const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
@@ -106,6 +107,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [subCategoryId, setSubCategoryId] = useState<string | null>(null)
   const [subCategories, setSubCategories] = useState<SubCategoryResponse[]>([])
   const [note, setNote] = useState('')
+  const [planId, setPlanId] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -143,6 +145,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setSubCategoryId(editing.subCategoryId)
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
       setNote(editing.note ?? '')
+      setPlanId(selectedPlanId)
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -162,8 +165,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setPrepaidId(null)
       setSubCategoryId(null)
       setNote('')
+      setPlanId(null)
     }
-  }, [open, editing, defaultDate])
+  }, [open, editing, defaultDate, selectedPlanId])
 
   useEffect(() => {
     if (!open || !reimburse || !selectedPlanId) return
@@ -256,6 +260,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       subCategoryId: category !== null ? subCategoryId : null,
       reimbursedByTransactionId: type === 'out' && isAdvance ? reimbursedById : null,
       note: note.trim() || null,
+      planId,
     }
   }
 
@@ -330,6 +335,24 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
             </div>
             {errors.date && <p className="text-xs text-expense">{errors.date}</p>}
           </div>
+
+          {editing && (
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">{t('plans.form')}</span>
+              <Select value={planId ?? selectedPlanId ?? undefined} onValueChange={(value) => setPlanId(value)}>
+                <SelectTrigger aria-label={t('plans.form')} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid gap-2">
             <Label htmlFor="tx-content">{t('form.content')}</Label>
