@@ -167,7 +167,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setNote('')
       setPlanId(null)
     }
-  }, [open, editing, defaultDate, selectedPlanId])
+    // selectedPlanId is deliberately closure-read (like `t` in the effects
+    // below): this reset effect must never re-run — wiping unsaved edits —
+    // just because the selected plan changed.
+  }, [open, editing, defaultDate])
 
   useEffect(() => {
     if (!open || !reimburse || !selectedPlanId) return
