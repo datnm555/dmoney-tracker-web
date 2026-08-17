@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   refreshToken: 'dmoney.refresh',
   user: 'dmoney.user',
   lang: 'dmoney.lang',
+  planId: 'dmoney.plan',
 } as const
 
 export const apiClient = axios.create({
@@ -51,6 +52,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (!axios.isAxiosError(error) || error.response?.status !== 401) {
+      if (axios.isAxiosError(error) && (error.response?.data as { code?: string } | undefined)?.code === 'Plans.NotFound') {
+        // The selected plan was deleted elsewhere; let PlanContext reload
+        // and fall back to the default plan.
+        window.dispatchEvent(new CustomEvent('dmoney:plans-changed'))
+      }
       return Promise.reject(error)
     }
 

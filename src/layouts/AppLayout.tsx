@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
+  BookOpen,
   ChevronDown,
   ChevronRight,
   LayoutDashboard,
@@ -14,6 +15,8 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { CategoriesProvider } from '../categories/CategoriesContext'
+import { PlanProvider } from '../plans/PlanContext'
+import { PlanSwitcher } from '../plans/PlanSwitcher'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -42,6 +45,7 @@ const NAV_ITEMS: NavItem[] = [
 const SETTINGS_ITEMS: NavItem[] = [
   { to: '/app/settings/categories', key: 'menu.categories', icon: Tags },
   { to: '/app/settings/subcategories', key: 'menu.subcategories', icon: ListTree },
+  { to: '/app/settings/plans', key: 'menu.plans', icon: BookOpen },
 ]
 
 const COMING_SOON: { key: string; icon: LucideIcon }[] = [{ key: 'menu.reports', icon: PieChart }]
@@ -67,6 +71,7 @@ export function AppLayout() {
 
   return (
     <CategoriesProvider>
+    <PlanProvider>
     <div className="flex min-h-screen bg-zinc-50">
       <aside className="sticky top-0 hidden h-screen w-[230px] shrink-0 flex-col gap-6 border-r bg-background px-3.5 py-5 md:flex">
         <NavLink to="/app/dashboard" className="flex items-center gap-2.5 px-2 font-semibold">
@@ -148,6 +153,7 @@ export function AppLayout() {
             )}
           </span>
           <div className="flex items-center gap-3.5">
+            <PlanSwitcher />
             <div className="flex rounded-lg bg-zinc-100 p-[3px] text-[11.5px] font-semibold">
               {(['vi', 'en'] as const).map((code) => (
                 <button
@@ -221,6 +227,7 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+    </PlanProvider>
     </CategoriesProvider>
   )
 }
