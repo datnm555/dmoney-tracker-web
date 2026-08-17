@@ -104,6 +104,9 @@ describe('TransactionsPage summary card', () => {
     expect(await screen.findByText(`+${fmt(13_000_000)}`)).toBeInTheDocument()
     expect(screen.getByText(`−${fmt(2_500_000)}`)).toBeInTheDocument()
 
+    // Filters start collapsed; expand before touching the inputs.
+    await userEvent.click(screen.getByRole('button', { name: 'filters.expand' }))
+
     // Amount ≥ 5.000.000 leaves only the 10M salary.
     await userEvent.type(screen.getByLabelText('filters.amountFrom'), '5000000')
 
@@ -112,6 +115,29 @@ describe('TransactionsPage summary card', () => {
     // Card credit total plus the matching row itself.
     expect(screen.getAllByText(`+${fmt(10_000_000)}`)).toHaveLength(2)
     expect(screen.getByText(`−${fmt(0)}`)).toBeInTheDocument()
+  })
+
+  it('filters start collapsed and toggle from the header button', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 0, currency: 'VND' },
+      balance: { amount: 0, currency: 'VND' },
+    })
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    expect(await screen.findByText('filters.title')).toBeInTheDocument()
+    expect(screen.queryByLabelText('filters.amountFrom')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'filters.expand' }))
+    expect(screen.getByLabelText('filters.amountFrom')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'filters.collapse' }))
+    expect(screen.queryByLabelText('filters.amountFrom')).not.toBeInTheDocument()
   })
 
   it('loads the summary scoped to the selected plan', async () => {
