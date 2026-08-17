@@ -31,6 +31,7 @@ import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
+import { usePlans } from '../plans/PlanContext'
 import { formatMoney } from '../utils/money'
 import { paymentMethodChipLabel } from '../utils/paymentLabel'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
@@ -42,6 +43,7 @@ type Filter = 'all' | 'in' | 'out' | 'advance'
 
 export function TransactionsPage() {
   const { t, lang } = useI18n()
+  const { selectedPlanId } = usePlans()
   const { label: categoryLabel, visual: categoryDisplayVisual, options: categoryOptions } = useCategoryDisplay()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
@@ -61,12 +63,13 @@ export function TransactionsPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
+    if (!selectedPlanId) return
     try {
-      setSummary(await getMonthlySummary(monthKey))
+      setSummary(await getMonthlySummary(monthKey, selectedPlanId))
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
     }
-  }, [monthKey, t])
+  }, [monthKey, selectedPlanId, t])
 
   useEffect(() => {
     void load()
@@ -100,6 +103,10 @@ export function TransactionsPage() {
       prepaidTo: values.prepaidTo,
       prepaidTransactionId: values.prepaidTransactionId,
       subCategoryId: values.subCategoryId,
+      // values.planId lands in Task 10 (move between plans); until then the
+      // selected plan is the only possible target. Submit is unreachable
+      // before plans finish loading, so the assertion is safe.
+      planId: selectedPlanId!,
       reimbursedByTransactionId: values.reimbursedByTransactionId,
     }
     setSubmitting(true)

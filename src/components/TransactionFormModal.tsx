@@ -25,6 +25,7 @@ import { getCredits, getOpenAdvances, getPrepaidCredits } from '../api/transacti
 import type { AdvanceResponse, CreditResponse, PrepaidCreditResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
+import { usePlans } from '../plans/PlanContext'
 import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
@@ -79,6 +80,7 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
 
 export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
+  const { selectedPlanId } = usePlans()
   const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
@@ -164,35 +166,35 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   }, [open, editing, defaultDate])
 
   useEffect(() => {
-    if (!open || !reimburse) return
-    getOpenAdvances(editing?.id)
+    if (!open || !reimburse || !selectedPlanId) return
+    getOpenAdvances(selectedPlanId, editing?.id)
       .then(setAdvances)
       .catch((error) => {
         setAdvances([])
         toast.error(getApiErrorMessage(error, t('error.network')))
       })
-  }, [open, reimburse, editing])
+  }, [open, reimburse, editing, selectedPlanId])
 
   // Credits offered as "reimbursed by" for an advance being edited.
   useEffect(() => {
-    if (!open || !editing || !isAdvance) return
-    getCredits()
+    if (!open || !editing || !isAdvance || !selectedPlanId) return
+    getCredits(selectedPlanId)
       .then((list) => setCredits(list.filter((c) => c.id !== editing.id)))
       .catch((error) => {
         setCredits([])
         toast.error(getApiErrorMessage(error, t('error.network')))
       })
-  }, [open, editing, isAdvance])
+  }, [open, editing, isAdvance, selectedPlanId])
 
   useEffect(() => {
-    if (!open || !alreadyPrepaid) return
-    getPrepaidCredits()
+    if (!open || !alreadyPrepaid || !selectedPlanId) return
+    getPrepaidCredits(selectedPlanId)
       .then(setPrepaidCredits)
       .catch((error) => {
         setPrepaidCredits([])
         toast.error(getApiErrorMessage(error, t('error.network')))
       })
-  }, [open, alreadyPrepaid])
+  }, [open, alreadyPrepaid, selectedPlanId])
 
   // Every time the dialog opens (create or edit), pull fresh category and
   // sub-category lists from the backend so newly created ones show up.

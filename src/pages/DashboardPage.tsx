@@ -13,6 +13,7 @@ import { getApiErrorMessage } from '../api/client'
 import { getDashboardStats, getMonthlySummary } from '../api/transactionApi'
 import type { DashboardStatsResponse, MonthlySummaryResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
+import { usePlans } from '../plans/PlanContext'
 import { toCategorySpending } from '../utils/chartData'
 import { toIncomeExpenseBars } from '../utils/chartData'
 import { formatMoney } from '../utils/money'
@@ -24,6 +25,7 @@ const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 
 export function DashboardPage() {
   const { t, lang } = useI18n()
+  const { selectedPlanId } = usePlans()
   const { label: categoryLabel, visual: categoryDisplayVisual } = useCategoryDisplay()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year (default).
   const [monthKey, setMonthKey] = useState<string>(() => String(dayjs().year()))
@@ -31,18 +33,19 @@ export function DashboardPage() {
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
 
   const load = useCallback(async () => {
+    if (!selectedPlanId) return
     try {
       const statsKey = /^\d{4}$/.test(monthKey) ? dayjs().format('YYYY-MM') : monthKey
       const [nextStats, nextSummary] = await Promise.all([
-        getDashboardStats(statsKey),
-        getMonthlySummary(monthKey),
+        getDashboardStats(statsKey, selectedPlanId),
+        getMonthlySummary(monthKey, selectedPlanId),
       ])
       setStats(nextStats)
       setSummary(nextSummary)
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
     }
-  }, [monthKey, t])
+  }, [monthKey, selectedPlanId, t])
 
   useEffect(() => {
     void load()

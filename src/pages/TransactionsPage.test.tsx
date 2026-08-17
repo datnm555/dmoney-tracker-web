@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import dayjs from 'dayjs'
@@ -11,6 +11,18 @@ import { TransactionsPage } from './TransactionsPage'
 
 vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
+}))
+
+vi.mock('../plans/PlanContext', () => ({
+  usePlans: () => ({
+    plans: [
+      { id: 'p-default', name: 'Sổ chính', isDefault: true },
+      { id: 'p-trip', name: 'Du lịch', isDefault: false },
+    ],
+    selectedPlanId: 'p-default',
+    selectPlan: vi.fn(),
+    refresh: vi.fn(),
+  }),
 }))
 
 vi.mock('../categories/CategoriesContext', () => ({
@@ -99,5 +111,22 @@ describe('TransactionsPage summary card', () => {
     // Card credit total plus the matching row itself.
     expect(screen.getAllByText(`+${fmt(10_000_000)}`)).toHaveLength(2)
     expect(screen.getByText(`−${fmt(0)}`)).toBeInTheDocument()
+  })
+
+  it('loads the summary scoped to the selected plan', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 0, currency: 'VND' },
+      balance: { amount: 0, currency: 'VND' },
+    })
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+    await waitFor(() =>
+      expect(getMonthlySummary).toHaveBeenCalledWith(dayjs().format('YYYY-MM'), 'p-default'),
+    )
   })
 })

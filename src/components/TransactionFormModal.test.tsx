@@ -9,6 +9,18 @@ vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
 }))
 
+vi.mock('../plans/PlanContext', () => ({
+  usePlans: () => ({
+    plans: [
+      { id: 'p-default', name: 'Sổ chính', isDefault: true },
+      { id: 'p-trip', name: 'Du lịch', isDefault: false },
+    ],
+    selectedPlanId: 'p-default',
+    selectPlan: vi.fn(),
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../categories/CategoriesContext', () => ({
   CategoriesProvider: ({ children }: { children: ReactNode }) => children,
   useCategories: () => ({

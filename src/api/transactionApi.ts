@@ -18,11 +18,12 @@ export interface TransactionPayload {
   prepaidTo: string | null
   prepaidTransactionId: string | null
   subCategoryId: string | null
+  planId: string
   reimbursedByTransactionId?: string | null
 }
 
-export async function getMonthlySummary(month: string): Promise<MonthlySummaryResponse> {
-  const { data } = await apiClient.get<MonthlySummaryResponse>('/transactions', { params: { month } })
+export async function getMonthlySummary(month: string, planId: string): Promise<MonthlySummaryResponse> {
+  const { data } = await apiClient.get<MonthlySummaryResponse>('/transactions', { params: { month, planId } })
   return data
 }
 
@@ -39,8 +40,8 @@ export async function deleteTransaction(id: string): Promise<void> {
   await apiClient.delete(`/transactions/${id}`)
 }
 
-export async function getDashboardStats(month: string): Promise<DashboardStatsResponse> {
-  const { data } = await apiClient.get<DashboardStatsResponse>('/transactions/stats', { params: { month } })
+export async function getDashboardStats(month: string, planId: string): Promise<DashboardStatsResponse> {
+  const { data } = await apiClient.get<DashboardStatsResponse>('/transactions/stats', { params: { month, planId } })
   return data
 }
 
@@ -51,24 +52,24 @@ export interface ImportRowPayload {
   note: string | null
 }
 
-export async function importTransactions(rows: ImportRowPayload[]): Promise<{ imported: number }> {
-  const { data } = await apiClient.post<{ imported: number }>('/transactions/import', { rows })
+export async function importTransactions(rows: ImportRowPayload[], planId: string): Promise<{ imported: number }> {
+  const { data } = await apiClient.post<{ imported: number }>('/transactions/import', { rows, planId })
   return data
 }
 
-export async function getOpenAdvances(forTransaction?: string): Promise<AdvanceResponse[]> {
+export async function getOpenAdvances(planId: string, forTransaction?: string): Promise<AdvanceResponse[]> {
   const { data } = await apiClient.get<AdvanceResponse[]>('/transactions/advances/open', {
-    params: forTransaction ? { forTransaction } : undefined,
+    params: forTransaction ? { planId, forTransaction } : { planId },
   })
   return data
 }
 
-export async function getCredits(): Promise<CreditResponse[]> {
-  const { data } = await apiClient.get<CreditResponse[]>('/transactions/credits')
+export async function getCredits(planId: string): Promise<CreditResponse[]> {
+  const { data } = await apiClient.get<CreditResponse[]>('/transactions/credits', { params: { planId } })
   return data
 }
 
-export async function getPrepaidCredits(): Promise<PrepaidCreditResponse[]> {
-  const { data } = await apiClient.get<PrepaidCreditResponse[]>('/transactions/prepaid')
+export async function getPrepaidCredits(planId: string): Promise<PrepaidCreditResponse[]> {
+  const { data } = await apiClient.get<PrepaidCreditResponse[]>('/transactions/prepaid', { params: { planId } })
   return data
 }
