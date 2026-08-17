@@ -114,3 +114,10 @@ export interface CategoryResponse {
   /** Built-in code for seeded system categories; null for user-created ones. */
   code: string | null
 }
+
+// Mirrors Application/Plans/Data/PlanResponse.cs on the backend.
+export interface PlanResponse {
+  id: string
+  name: string
+  isDefault: boolean
+}

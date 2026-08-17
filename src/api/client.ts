@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   refreshToken: 'dmoney.refresh',
   user: 'dmoney.user',
   lang: 'dmoney.lang',
+  planId: 'dmoney.plan',
 } as const
 
 export const apiClient = axios.create({
