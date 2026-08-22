@@ -11,6 +11,8 @@ export interface CategoryOption {
   visual: CategoryVisual
   /** False for the seeded system categories (they carry a built-in code). */
   isCustom: boolean
+  /** 'expense' | 'income' | 'both' — which transaction direction it applies to. */
+  kind: string
 }
 
 /**
@@ -49,6 +51,7 @@ export function useCategoryDisplay() {
         label: c.name,
         visual: visualForIcon(c.icon),
         isCustom: !c.code,
+        kind: c.kind,
       })),
     [categories],
   )

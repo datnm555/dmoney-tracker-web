@@ -35,12 +35,12 @@ describe('paymentLabel', () => {
   })
 
   it('appends card type and bank when present', () => {
-    expect(paymentLabel(tx('card', 'visa', 'Techcombank'), t)).toBe('payment.card payment.cardType.visa Techcombank')
+    expect(paymentLabel(tx('card', 'debit', 'Techcombank'), t)).toBe('payment.card payment.cardType.debit Techcombank')
     expect(paymentLabel(tx('card', 'credit', 'VPBank'), t)).toBe('payment.card payment.cardType.credit VPBank')
   })
 
   it('omits missing card details gracefully', () => {
-    expect(paymentLabel(tx('card', 'visa'), t)).toBe('payment.card payment.cardType.visa')
+    expect(paymentLabel(tx('card', 'debit'), t)).toBe('payment.card payment.cardType.debit')
     expect(paymentLabel(tx('card'), t)).toBe('payment.card')
   })
 })

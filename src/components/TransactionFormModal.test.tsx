@@ -24,7 +24,7 @@ vi.mock('../plans/PlanContext', () => ({
 vi.mock('../categories/CategoriesContext', () => ({
   CategoriesProvider: ({ children }: { children: ReactNode }) => children,
   useCategories: () => ({
-    customCategories: [{ id: 'cat-bills', name: 'Hóa đơn', icon: 'zap', code: 'bills' }],
+    customCategories: [{ id: 'cat-bills', name: 'Hóa đơn', icon: 'zap', code: 'bills', kind: 'expense' }],
     refresh: vi.fn().mockResolvedValue(undefined),
   }),
 }))
@@ -125,7 +125,7 @@ describe('TransactionFormModal', () => {
     await userEvent.type(screen.getByLabelText('form.amount'), '260000')
     await pickCategory()
     await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
-    await userEvent.click(await screen.findByRole('radio', { name: 'payment.cardType.visa' }))
+    await userEvent.click(await screen.findByRole('radio', { name: 'payment.cardType.debit' }))
     await userEvent.click(screen.getByRole('button', { name: 'Techcombank' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
@@ -135,7 +135,7 @@ describe('TransactionFormModal', () => {
         type: 'out',
         amount: 260000,
         paymentMethod: 'card',
-        cardType: 'visa',
+        cardType: 'debit',
         bank: 'Techcombank',
       }),
     )

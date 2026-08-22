@@ -114,6 +114,8 @@ export interface CategoryResponse {
   icon: string
   /** Built-in code for seeded system categories; null for user-created ones. */
   code: string | null
+  /** Which transaction direction the category applies to: 'expense' | 'income' | 'both'. */
+  kind: string
 }
 
 // Mirrors Application/Plans/Data/PlanResponse.cs on the backend.
