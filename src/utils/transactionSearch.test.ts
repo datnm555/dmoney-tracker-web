@@ -21,6 +21,7 @@ const tx = (content: string, debit: number, note: string | null = null): Transac
   prepaidTransactionId: null,
   subCategoryId: null,
   subCategoryName: null,
+  planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
 })

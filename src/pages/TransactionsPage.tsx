@@ -31,6 +31,7 @@ import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
+import { usePlans } from '../plans/PlanContext'
 import { formatMoney } from '../utils/money'
 import { paymentMethodChipLabel } from '../utils/paymentLabel'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
@@ -42,6 +43,7 @@ type Filter = 'all' | 'in' | 'out' | 'advance'
 
 export function TransactionsPage() {
   const { t, lang } = useI18n()
+  const { selectedPlanId } = usePlans()
   const { label: categoryLabel, visual: categoryDisplayVisual, options: categoryOptions } = useCategoryDisplay()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
@@ -61,12 +63,13 @@ export function TransactionsPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
+    if (!selectedPlanId) return
     try {
-      setSummary(await getMonthlySummary(monthKey))
+      setSummary(await getMonthlySummary(monthKey, selectedPlanId))
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
     }
-  }, [monthKey, t])
+  }, [monthKey, selectedPlanId, t])
 
   useEffect(() => {
     void load()
@@ -100,6 +103,9 @@ export function TransactionsPage() {
       prepaidTo: values.prepaidTo,
       prepaidTransactionId: values.prepaidTransactionId,
       subCategoryId: values.subCategoryId,
+      // Create mode never sets a plan on the form, so it always falls back
+      // to the selected plan; edit mode carries the picked plan (a move).
+      planId: values.planId ?? selectedPlanId!,
       reimbursedByTransactionId: values.reimbursedByTransactionId,
     }
     setSubmitting(true)
@@ -416,8 +422,11 @@ export function TransactionsPage() {
       <Card>
         <CardContent className="grid gap-2.5 p-4 md:p-5">
           {(() => {
-            const credit = summary?.totalCredit.amount ?? 0
-            const debit = summary?.totalDebit.amount ?? 0
+            // Totals over the filtered rows, not the raw month — the card must
+            // agree with the list it sits above.
+            const currency = summary?.totalCredit.currency ?? 'VND'
+            const credit = items.reduce((sum, tx) => sum + tx.credit.amount, 0)
+            const debit = items.reduce((sum, tx) => sum + tx.debit.amount, 0)
             const total = credit + debit
             const creditPct = total > 0 ? (credit / total) * 100 : 0
             return (
@@ -434,13 +443,13 @@ export function TransactionsPage() {
                   <span>
                     <span className="text-muted-foreground">{t('summary.colCredit')} </span>
                     <strong className="text-income underline decoration-income/30 underline-offset-4">
-                      +{summary ? formatMoney(summary.totalCredit) : '—'}
+                      +{summary ? formatMoney({ amount: credit, currency }) : '—'}
                     </strong>
                   </span>
                   <span>
                     <span className="text-muted-foreground">{t('summary.colDebit')} </span>
                     <strong className="text-expense underline decoration-expense/30 underline-offset-4">
-                      −{summary ? formatMoney(summary.totalDebit) : '—'}
+                      −{summary ? formatMoney({ amount: debit, currency }) : '—'}
                     </strong>
                   </span>
                 </div>

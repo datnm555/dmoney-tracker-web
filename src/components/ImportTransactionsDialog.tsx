@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { getApiErrorMessage } from '../api/client'
 import { importTransactions } from '../api/transactionApi'
 import { useI18n } from '../i18n/I18nContext'
+import { usePlans } from '../plans/PlanContext'
 import { formatMoney } from '../utils/money'
 import { parseImportRows } from '../utils/importParser'
 import type { ParsedImport } from '../utils/importParser'
@@ -27,6 +28,7 @@ interface Props {
 
 export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
   const { t } = useI18n()
+  const { plans, selectedPlanId } = usePlans()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedImport | null>(null)
@@ -47,10 +49,10 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
   }
 
   const handleImport = async () => {
-    if (!parsed || parsed.valid.length === 0) return
+    if (!parsed || parsed.valid.length === 0 || !selectedPlanId) return
     setSubmitting(true)
     try {
-      const { imported } = await importTransactions(parsed.valid)
+      const { imported } = await importTransactions(parsed.valid, selectedPlanId)
       toast.success(
         `${t('import.success')} ${imported} ${t('transactions.count')}` +
           (parsed.invalid.length > 0 ? ` · ${t('import.skipped')} ${parsed.invalid.length}` : ''),
@@ -99,6 +101,10 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
         </DialogHeader>
 
         <div className="grid gap-4">
+          <p className="text-xs text-muted-foreground">
+            {t('import.targetPlan')}: <strong>{plans.find((p) => p.id === selectedPlanId)?.name}</strong>
+          </p>
+
           <div className="flex items-center gap-3">
             <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
               {t('import.chooseFile')}
