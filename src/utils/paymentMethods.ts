@@ -2,7 +2,7 @@
 export const PAYMENT_METHOD_CODES = ['transfer', 'cash', 'card'] as const
 export type PaymentMethodCode = (typeof PAYMENT_METHOD_CODES)[number]
 
-export const CARD_TYPE_CODES = ['visa', 'credit'] as const
+export const CARD_TYPE_CODES = ['debit', 'credit'] as const
 export type CardTypeCode = (typeof CARD_TYPE_CODES)[number]
 
 // UI convenience only; the backend stores bank as free text.

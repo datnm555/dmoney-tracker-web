@@ -20,6 +20,7 @@ export interface TransactionPayload {
   subCategoryId: string | null
   planId: string
   reimbursedByTransactionId?: string | null
+  beneficiaryId: string | null
 }
 
 export async function getMonthlySummary(month: string, planId: string): Promise<MonthlySummaryResponse> {

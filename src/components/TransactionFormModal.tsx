@@ -26,6 +26,7 @@ import type { AdvanceResponse, CreditResponse, PrepaidCreditResponse, SubCategor
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
+import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
@@ -54,6 +55,7 @@ export interface TransactionFormValues {
   reimbursedByTransactionId: string | null
   note: string | null
   planId: string | null
+  beneficiaryId: string | null
 }
 
 export interface SubmitOptions {
@@ -82,6 +84,7 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
 export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
   const { plans, selectedPlanId } = usePlans()
+  const { beneficiaries } = useBeneficiaries()
   const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
@@ -108,6 +111,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [subCategories, setSubCategories] = useState<SubCategoryResponse[]>([])
   const [note, setNote] = useState('')
   const [planId, setPlanId] = useState<string | null>(null)
+  const [beneficiaryId, setBeneficiaryId] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -146,6 +150,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
       setNote(editing.note ?? '')
       setPlanId(editing.planId)
+      setBeneficiaryId(editing.beneficiaryId)
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -166,6 +171,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setSubCategoryId(null)
       setNote('')
       setPlanId(null)
+      // Closure-read (not a dep, same as elsewhere in this effect): re-running
+      // this reset whenever the beneficiaries list refreshes would clobber a
+      // beneficiary the user already picked in this open session.
+      setBeneficiaryId(beneficiaries.find((b) => b.isDefault)?.id ?? null)
     }
   }, [open, editing, defaultDate])
 
@@ -226,6 +235,17 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
+  // Money-out hides income-only categories (never valid there). Money-in keeps
+  // every category — reimbursements and prepaid credits legitimately carry an
+  // expense category — but floats income/both categories to the front.
+  const visibleCategories = useMemo(() => {
+    if (type === 'out') {
+      return categoryOptions.filter((o) => o.code === category || o.kind !== 'income')
+    }
+    const rank = (kind: string) => (kind === 'income' ? 0 : kind === 'both' ? 1 : 2)
+    return [...categoryOptions].sort((a, b) => rank(a.kind) - rank(b.kind))
+  }, [categoryOptions, category, type])
+
   const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
     if (!date) nextErrors.date = t('form.dateRequired')
@@ -247,7 +267,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       categoryId: category,
       paymentMethod,
       cardType: paymentMethod === 'card' ? cardType : null,
-      bank: paymentMethod === 'card' ? (bank?.trim() || null) : null,
+      bank: paymentMethod !== 'cash' ? (bank?.trim() || null) : null,
       isAdvance: type === 'out' ? isAdvance : false,
       advanceTransactionIds: type === 'in' && reimburse ? advanceIds : [],
       isPrepaid: type === 'in' && isPrepaid,
@@ -261,6 +281,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       reimbursedByTransactionId: type === 'out' && isAdvance ? reimbursedById : null,
       note: note.trim() || null,
       planId,
+      beneficiaryId: type === 'out' ? beneficiaryId : null,
     }
   }
 
@@ -293,7 +314,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{editing ? t('summary.editTitle') : t('summary.createTitle')}</DialogTitle>
-          <DialogDescription>{t('summary.createTitle')}</DialogDescription>
+          <DialogDescription>{editing ? t('summary.editTitle') : t('summary.createTitle')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1">
@@ -360,25 +381,43 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
             {errors.content && <p className="text-xs text-expense">{errors.content}</p>}
           </div>
 
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <div className="grid gap-2">
-              <Label htmlFor="tx-amount">{t('form.amount')}</Label>
+          <div className="grid gap-2">
+            <Label htmlFor="tx-amount">{t('form.amount')}</Label>
+            <div className="relative">
               <Input
                 id="tx-amount"
                 inputMode="numeric"
+                className="pr-9"
                 value={formatThousands(amountDigits)}
                 onChange={(e) => setAmountDigits(e.target.value.replace(/\D/g, ''))}
               />
-              {errors.amount && <p className="text-xs text-expense">{errors.amount}</p>}
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                ₫
+              </span>
             </div>
-            <div className="grid gap-2">
-              <Label>{t('form.currency')}</Label>
-              <div className="flex h-9 items-center rounded-md border px-3 text-sm text-muted-foreground">₫ VND</div>
-            </div>
+            {errors.amount && <p className="text-xs text-expense">{errors.amount}</p>}
           </div>
 
           {type === 'out' && (
             <>
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted-foreground">{t('form.beneficiary')}</span>
+                <Select
+                  value={beneficiaryId ?? 'none'}
+                  onValueChange={(value) => setBeneficiaryId(value === 'none' ? null : value)}
+                >
+                  <SelectTrigger aria-label={t('form.beneficiary')} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    {beneficiaries.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid gap-2 rounded-lg border px-3 py-2.5">
                 <label className="flex items-start gap-2.5">
                   <Checkbox
@@ -438,7 +477,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                 {alreadyPrepaid && (
                   <>
                     <Select value={prepaidId ?? ''} onValueChange={setPrepaidId}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger aria-label={t('form.selectPrepaid')} className="w-full">
                         <SelectValue placeholder={t('form.selectPrepaid')} />
                       </SelectTrigger>
                       <SelectContent>
@@ -546,7 +585,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
             <Label>{t('form.category')}</Label>
             {errors.category && <p className="text-xs text-expense">{errors.category}</p>}
             <div className="grid grid-cols-4 gap-2">
-              {categoryOptions.map((option) => {
+              {visibleCategories.map((option) => {
                 const { code, visual } = option
                 const selected = category === code
                 return (
@@ -608,8 +647,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
               value={paymentMethod}
               onValueChange={(value) => {
                 setPaymentMethod(value as PaymentMethodCode)
-                if (value !== 'card') {
-                  setCardType(null)
+                if (value !== 'card') setCardType(null)
+                if (value === 'cash') {
                   setBank(null)
                   setCustomBank(false)
                 }
@@ -640,8 +679,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
             </RadioGroup>
           </div>
 
-          {paymentMethod === 'card' && (
+          {paymentMethod !== 'cash' && (
             <div className="grid gap-3 rounded-lg bg-zinc-50 p-3">
+              {paymentMethod === 'card' && (
               <div className="grid gap-2">
                 <Label>{t('payment.cardType')}</Label>
                 <RadioGroup
@@ -659,10 +699,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                       )}
                     >
                       <RadioGroupItem id={`tx-ct-${code}`} value={code} />
-                      {code === 'visa' ? (
-                        <span className="text-[13px] font-extrabold italic tracking-tight text-primary">
-                          {t(`payment.cardType.${code}`)}
-                        </span>
+                      {code === 'debit' ? (
+                        <span>{t(`payment.cardType.${code}`)}</span>
                       ) : (
                         <span className="flex items-center">
                           <span className="h-3 w-3 rounded-full bg-red-500" />
@@ -675,6 +713,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                 </RadioGroup>
                 {errors.cardType && <p className="text-xs text-expense">{errors.cardType}</p>}
               </div>
+              )}
               <div className="grid gap-2">
                 <Label>{t('payment.bank')}</Label>
                 <div className="flex flex-wrap gap-1.5">

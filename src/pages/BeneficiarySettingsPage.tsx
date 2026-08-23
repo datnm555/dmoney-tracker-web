@@ -15,24 +15,24 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { getApiErrorMessage } from '../api/client'
-import { deletePlan, setDefaultPlan, updatePlan } from '../api/planApi'
-import type { PlanResponse } from '../api/types'
+import { deleteBeneficiary, setDefaultBeneficiary, updateBeneficiary } from '../api/beneficiaryApi'
+import type { BeneficiaryResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
-import { CreatePlanDialog } from '../plans/CreatePlanDialog'
-import { usePlans } from '../plans/PlanContext'
+import { CreateBeneficiaryDialog } from '../beneficiaries/CreateBeneficiaryDialog'
+import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 
-export function PlanSettingsPage() {
+export function BeneficiarySettingsPage() {
   const { t } = useI18n()
-  const { plans, refresh, selectPlan } = usePlans()
+  const { beneficiaries, refresh } = useBeneficiaries()
   const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<PlanResponse | null>(null)
+  const [editing, setEditing] = useState<BeneficiaryResponse | null>(null)
   const [editName, setEditName] = useState('')
-  const [deleting, setDeleting] = useState<PlanResponse | null>(null)
+  const [deleting, setDeleting] = useState<BeneficiaryResponse | null>(null)
 
   const submitRename = async () => {
     if (!editing || !editName.trim()) return
     try {
-      await updatePlan(editing.id, editName.trim())
+      await updateBeneficiary(editing.id, editName.trim())
       setEditing(null)
       await refresh()
     } catch (error) {
@@ -40,9 +40,9 @@ export function PlanSettingsPage() {
     }
   }
 
-  const submitSetDefault = async (plan: PlanResponse) => {
+  const submitSetDefault = async (beneficiary: BeneficiaryResponse) => {
     try {
-      await setDefaultPlan(plan.id)
+      await setDefaultBeneficiary(beneficiary.id)
       await refresh()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
@@ -52,10 +52,11 @@ export function PlanSettingsPage() {
   const submitDelete = async () => {
     if (!deleting) return
     try {
-      await deletePlan(deleting.id)
+      await deleteBeneficiary(deleting.id)
       setDeleting(null)
       await refresh()
     } catch (error) {
+      // Server enforces the InUse guard (and default protection) — surface it here.
       toast.error(getApiErrorMessage(error, t('error.network')))
     }
   }
@@ -63,18 +64,18 @@ export function PlanSettingsPage() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{t('plans.title')}</h1>
+        <h1 className="text-xl font-bold">{t('beneficiaries.title')}</h1>
         <Button onClick={() => setCreating(true)}>
           <Plus className="mr-1 h-4 w-4" />
-          {t('plans.create')}
+          {t('beneficiaries.create')}
         </Button>
       </div>
 
       <Card>
         <CardContent className="divide-y p-0">
-          {plans.map((plan) => (
-            <div key={plan.id} className="flex items-center gap-3 px-4 py-3">
-              {editing?.id === plan.id ? (
+          {beneficiaries.map((beneficiary) => (
+            <div key={beneficiary.id} className="flex items-center gap-3 px-4 py-3">
+              {editing?.id === beneficiary.id ? (
                 <Input
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
@@ -83,20 +84,20 @@ export function PlanSettingsPage() {
                   className="max-w-xs"
                 />
               ) : (
-                <span className="min-w-0 flex-1 truncate font-medium">{plan.name}</span>
+                <span className="min-w-0 flex-1 truncate font-medium">{beneficiary.name}</span>
               )}
-              {plan.isDefault && (
+              {beneficiary.isDefault && (
                 <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10.5px] text-muted-foreground">
-                  {t('plans.default')}
+                  {t('beneficiaries.default')}
                 </span>
               )}
-              {!plan.isDefault && (
+              {!beneficiary.isDefault && (
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  aria-label={`${t('plans.setDefault')} ${plan.name}`}
-                  onClick={() => void submitSetDefault(plan)}
+                  aria-label={`${t('beneficiaries.setDefault')} ${beneficiary.name}`}
+                  onClick={() => void submitSetDefault(beneficiary)}
                 >
                   <Star className="h-4 w-4" />
                 </Button>
@@ -105,43 +106,38 @@ export function PlanSettingsPage() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                aria-label={`${t('plans.rename')} ${plan.name}`}
+                aria-label={`${t('beneficiaries.rename')} ${beneficiary.name}`}
                 onClick={() => {
-                  setEditing(plan)
-                  setEditName(plan.name)
+                  setEditing(beneficiary)
+                  setEditName(beneficiary.name)
                 }}
               >
                 <Pencil className="h-4 w-4" />
               </Button>
-              {!plan.isDefault && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                  aria-label={`${t('plans.delete')} ${plan.name}`}
-                  onClick={() => setDeleting(plan)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                aria-label={`${t('beneficiaries.delete')} ${beneficiary.name}`}
+                onClick={() => setDeleting(beneficiary)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      <CreatePlanDialog
+      <CreateBeneficiaryDialog
         open={creating}
         onClose={() => setCreating(false)}
-        onCreated={async (id) => {
-          await refresh()
-          selectPlan(id)
-        }}
+        onCreated={() => refresh()}
       />
 
       <AlertDialog open={deleting !== null} onOpenChange={(next) => !next && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('plans.deleteConfirm')}</AlertDialogTitle>
+            <AlertDialogTitle>{t('beneficiaries.deleteConfirm')}</AlertDialogTitle>
             <AlertDialogDescription>{deleting?.name}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

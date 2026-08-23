@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { deletePlan, updatePlan } from '../api/planApi'
+import { deletePlan, setDefaultPlan, updatePlan } from '../api/planApi'
 import { PlanSettingsPage } from './PlanSettingsPage'
 
 const refresh = vi.fn()
@@ -10,6 +10,7 @@ vi.mock('../api/planApi', () => ({
   createPlan: vi.fn(),
   updatePlan: vi.fn().mockResolvedValue(undefined),
   deletePlan: vi.fn().mockResolvedValue(undefined),
+  setDefaultPlan: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('../plans/PlanContext', () => ({
@@ -44,6 +45,16 @@ describe('PlanSettingsPage', () => {
     await userEvent.clear(input)
     await userEvent.type(input, 'Du lịch hè{Enter}')
     expect(updatePlan).toHaveBeenCalledWith('p-trip', 'Du lịch hè')
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('sets a non-default plan as the default', async () => {
+    render(<PlanSettingsPage />)
+    // Only the non-default plan offers the set-default action.
+    const buttons = screen.getAllByRole('button', { name: /plans.setDefault/ })
+    expect(buttons).toHaveLength(1)
+    await userEvent.click(buttons[0])
+    expect(setDefaultPlan).toHaveBeenCalledWith('p-trip')
     expect(refresh).toHaveBeenCalled()
   })
 

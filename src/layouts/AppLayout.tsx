@@ -12,8 +12,10 @@ import {
   PieChart,
   Settings,
   Tags,
+  Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { BeneficiariesProvider } from '../beneficiaries/BeneficiariesContext'
 import { CategoriesProvider } from '../categories/CategoriesContext'
 import { PlanProvider } from '../plans/PlanContext'
 import { PlanSwitcher } from '../plans/PlanSwitcher'
@@ -46,6 +48,7 @@ const SETTINGS_ITEMS: NavItem[] = [
   { to: '/app/settings/categories', key: 'menu.categories', icon: Tags },
   { to: '/app/settings/subcategories', key: 'menu.subcategories', icon: ListTree },
   { to: '/app/settings/plans', key: 'menu.plans', icon: BookOpen },
+  { to: '/app/settings/beneficiaries', key: 'menu.beneficiaries', icon: Users },
 ]
 
 const COMING_SOON: { key: string; icon: LucideIcon }[] = [{ key: 'menu.reports', icon: PieChart }]
@@ -72,6 +75,7 @@ export function AppLayout() {
   return (
     <CategoriesProvider>
     <PlanProvider>
+    <BeneficiariesProvider>
     <div className="flex min-h-screen bg-zinc-50">
       <aside className="sticky top-0 hidden h-screen w-[230px] shrink-0 flex-col gap-6 border-r bg-background px-3.5 py-5 md:flex">
         <NavLink to="/app/dashboard" className="flex items-center gap-2.5 px-2 font-semibold">
@@ -227,6 +231,7 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+    </BeneficiariesProvider>
     </PlanProvider>
     </CategoriesProvider>
   )

@@ -33,6 +33,16 @@ vi.mock('../categories/CategoriesContext', () => ({
   }),
 }))
 
+vi.mock('../beneficiaries/BeneficiariesContext', () => ({
+  useBeneficiaries: () => ({
+    beneficiaries: [
+      { id: 'b-me', name: 'Tôi', isDefault: true },
+      { id: 'b-con', name: 'Con', isDefault: false },
+    ],
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../api/subCategoryApi', () => ({
   getSubCategories: vi.fn().mockResolvedValue([]),
 }))
@@ -77,6 +87,8 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
+  beneficiaryId: null,
+  beneficiaryName: null,
   ...overrides,
 })
 
@@ -104,6 +116,9 @@ describe('TransactionsPage summary card', () => {
     expect(await screen.findByText(`+${fmt(13_000_000)}`)).toBeInTheDocument()
     expect(screen.getByText(`−${fmt(2_500_000)}`)).toBeInTheDocument()
 
+    // Filters start collapsed; expand before touching the inputs.
+    await userEvent.click(screen.getByRole('button', { name: 'filters.expand' }))
+
     // Amount ≥ 5.000.000 leaves only the 10M salary.
     await userEvent.type(screen.getByLabelText('filters.amountFrom'), '5000000')
 
@@ -112,6 +127,29 @@ describe('TransactionsPage summary card', () => {
     // Card credit total plus the matching row itself.
     expect(screen.getAllByText(`+${fmt(10_000_000)}`)).toHaveLength(2)
     expect(screen.getByText(`−${fmt(0)}`)).toBeInTheDocument()
+  })
+
+  it('filters start collapsed and toggle from the header button', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 0, currency: 'VND' },
+      balance: { amount: 0, currency: 'VND' },
+    })
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    expect(await screen.findByText('filters.title')).toBeInTheDocument()
+    expect(screen.queryByLabelText('filters.amountFrom')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'filters.expand' }))
+    expect(screen.getByLabelText('filters.amountFrom')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'filters.collapse' }))
+    expect(screen.queryByLabelText('filters.amountFrom')).not.toBeInTheDocument()
   })
 
   it('loads the summary scoped to the selected plan', async () => {
@@ -129,5 +167,75 @@ describe('TransactionsPage summary card', () => {
     await waitFor(() =>
       expect(getMonthlySummary).toHaveBeenCalledWith(dayjs().format('YYYY-MM'), 'p-default'),
     )
+  })
+
+  it('filters by a chosen beneficiary and the summary card follows', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [
+        tx({
+          id: 't1',
+          content: 'Ăn trưa',
+          debit: { amount: 200_000, currency: 'VND' },
+          beneficiaryId: 'b-me',
+          beneficiaryName: 'Tôi',
+        }),
+        tx({ id: 't2', content: 'Cafe', debit: { amount: 50_000, currency: 'VND' } }),
+      ],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 250_000, currency: 'VND' },
+      balance: { amount: -250_000, currency: 'VND' },
+    })
+
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    expect(await screen.findByText('Ăn trưa')).toBeInTheDocument()
+    expect(screen.getByText('Cafe')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'filters.expand' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'filters.beneficiary' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Tôi' }))
+
+    expect(screen.getByText('Ăn trưa')).toBeInTheDocument()
+    expect(screen.queryByText('Cafe')).not.toBeInTheDocument()
+    // Row amount, the day group's net line, and the summary card debit total —
+    // all three now agree since only this one row remains.
+    expect(screen.getAllByText(`−${fmt(200_000)}`)).toHaveLength(3)
+  })
+
+  it('filters to beneficiary-less transactions via "beneficiaries.none"', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [
+        tx({
+          id: 't1',
+          content: 'Ăn trưa',
+          debit: { amount: 200_000, currency: 'VND' },
+          beneficiaryId: 'b-me',
+          beneficiaryName: 'Tôi',
+        }),
+        tx({ id: 't2', content: 'Cafe', debit: { amount: 50_000, currency: 'VND' } }),
+      ],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 250_000, currency: 'VND' },
+      balance: { amount: -250_000, currency: 'VND' },
+    })
+
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    expect(await screen.findByText('Ăn trưa')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'filters.expand' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'filters.beneficiary' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'beneficiaries.none' }))
+
+    expect(screen.queryByText('Ăn trưa')).not.toBeInTheDocument()
+    expect(screen.getByText('Cafe')).toBeInTheDocument()
   })
 })

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
-import { CalendarDays, CornerDownRight, Download, Funnel, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { CalendarDays, ChevronDown, CornerDownRight, Download, Funnel, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -26,6 +26,7 @@ import {
 } from '../api/transactionApi'
 import { getSubCategories } from '../api/subCategoryApi'
 import type { MonthlySummaryResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
+import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
@@ -45,6 +46,7 @@ export function TransactionsPage() {
   const { t, lang } = useI18n()
   const { selectedPlanId } = usePlans()
   const { label: categoryLabel, visual: categoryDisplayVisual, options: categoryOptions } = useCategoryDisplay()
+  const { beneficiaries } = useBeneficiaries()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
@@ -55,6 +57,8 @@ export function TransactionsPage() {
   const [searchNote, setSearchNote] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterSub, setFilterSub] = useState<string>('all')
+  const [filterBeneficiary, setFilterBeneficiary] = useState<string>('all')
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [allSubCategories, setAllSubCategories] = useState<SubCategoryResponse[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -107,6 +111,7 @@ export function TransactionsPage() {
       // to the selected plan; edit mode carries the picked plan (a move).
       planId: values.planId ?? selectedPlanId!,
       reimbursedByTransactionId: values.reimbursedByTransactionId,
+      beneficiaryId: values.beneficiaryId,
     }
     setSubmitting(true)
     try {
@@ -156,6 +161,8 @@ export function TransactionsPage() {
     if (filter === 'out' && tx.debit.amount <= 0) return false
     if (filterCategory !== 'all' && tx.categoryId !== filterCategory) return false
     if (filterCategory !== 'all' && filterSub !== 'all' && tx.subCategoryId !== filterSub) return false
+    if (filterBeneficiary === 'none' && tx.beneficiaryId !== null) return false
+    if (filterBeneficiary !== 'all' && filterBeneficiary !== 'none' && tx.beneficiaryId !== filterBeneficiary) return false
     return matchesSearch(tx, searchCriteria)
   })
 
@@ -264,158 +271,194 @@ export function TransactionsPage() {
 
       <Card>
         <CardContent className="grid gap-4 p-4 md:p-5">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Funnel className="h-4 w-4 text-primary" />
-            {t('filters.title')}
-          </div>
-
-          <div className="grid items-end gap-4 md:grid-cols-3">
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">{t('form.content')}</span>
-              <Input value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <Funnel className="h-4 w-4 text-primary" />
+              {t('filters.title')}
             </div>
-
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">
-                {t('form.amount')} ({t('filters.amountFrom')} → {t('filters.amountTo')})
-              </span>
-              <div className="flex items-center gap-1.5">
-                <Input
-                  inputMode="numeric"
-                  aria-label={t('filters.amountFrom')}
-                  className="flex-1"
-                  value={amountFromDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                  onChange={(e) => setAmountFromDigits(e.target.value.replace(/\D/g, ''))}
-                />
-                <span className="text-muted-foreground">→</span>
-                <Input
-                  inputMode="numeric"
-                  aria-label={t('filters.amountTo')}
-                  className="flex-1"
-                  value={amountToDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                  onChange={(e) => setAmountToDigits(e.target.value.replace(/\D/g, ''))}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">{t('form.note')}</span>
-              <Input value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="grid items-end gap-4 md:grid-cols-4">
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">{t('filters.type')}</span>
-              <Select value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
-                  <SelectItem value="in">↑ {t('form.moneyIn')}</SelectItem>
-                  <SelectItem value="out">↓ {t('form.moneyOut')}</SelectItem>
-                  <SelectItem value="advance">⏳ {t('form.isAdvance')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">
-                {t('filters.month')} {t('filters.optional')}
-              </span>
-              <div className="flex items-center gap-2">
-                <Select value={selMonth} onValueChange={(value) => applyPeriod(selYear, value)}>
-                  <SelectTrigger className="flex-1">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <SelectValue />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {monthOptions.map((m) => (
-                      <SelectItem key={m.value} value={m.value} disabled={m.disabled}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={String(selYear)} onValueChange={(value) => applyPeriod(Number(value), selMonth)}>
-                  <SelectTrigger className="w-28 shrink-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {yearOptions.map((y) => (
-                      <SelectItem key={y} value={String(y)}>
-                        {y}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">{t('form.category')}</span>
-              <Select
-                value={filterCategory}
-                onValueChange={(value) => {
-                  setFilterCategory(value)
-                  setFilterSub('all')
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
-                  {categoryOptions.map((option) => (
-                    <SelectItem key={option.code} value={option.code}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {filterCategory !== 'all' && (
-              <div className="grid gap-1.5">
-                <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
-                <Select value={filterSub} onValueChange={setFilterSub}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
-                    {subOptions.map((sub) => (
-                      <SelectItem key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end border-t pt-3">
             <Button
               type="button"
-              variant="outline"
-              onClick={() => {
-                setFilter('all')
-                setMonthKey(dayjs().format('YYYY-MM'))
-                setSearchContent('')
-                setAmountFromDigits('')
-                setAmountToDigits('')
-                setSearchNote('')
-                setFilterCategory('all')
-                setFilterSub('all')
-              }}
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              aria-label={filtersOpen ? t('filters.collapse') : t('filters.expand')}
+              aria-expanded={filtersOpen}
+              onClick={() => setFiltersOpen((open) => !open)}
             >
-              {t('filters.reset')}
+              <ChevronDown className={cn('h-4 w-4 transition-transform', filtersOpen && 'rotate-180')} />
             </Button>
           </div>
+
+          {filtersOpen && (
+            <>
+              <div className="grid items-end gap-4 md:grid-cols-3">
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('form.content')}</span>
+                  <Input value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
+                </div>
+
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">
+                    {t('form.amount')} ({t('filters.amountFrom')} → {t('filters.amountTo')})
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      inputMode="numeric"
+                      aria-label={t('filters.amountFrom')}
+                      className="flex-1"
+                      value={amountFromDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                      onChange={(e) => setAmountFromDigits(e.target.value.replace(/\D/g, ''))}
+                    />
+                    <span className="text-muted-foreground">→</span>
+                    <Input
+                      inputMode="numeric"
+                      aria-label={t('filters.amountTo')}
+                      className="flex-1"
+                      value={amountToDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                      onChange={(e) => setAmountToDigits(e.target.value.replace(/\D/g, ''))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('form.note')}</span>
+                  <Input value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="grid items-end gap-4 md:grid-cols-4">
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('filters.type')}</span>
+                  <Select value={filter} onValueChange={(value) => setFilter(value as Filter)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
+                      <SelectItem value="in">↑ {t('form.moneyIn')}</SelectItem>
+                      <SelectItem value="out">↓ {t('form.moneyOut')}</SelectItem>
+                      <SelectItem value="advance">⏳ {t('form.isAdvance')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">
+                    {t('filters.month')} {t('filters.optional')}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Select value={selMonth} onValueChange={(value) => applyPeriod(selYear, value)}>
+                      <SelectTrigger className="flex-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <SelectValue />
+                        </div>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {monthOptions.map((m) => (
+                          <SelectItem key={m.value} value={m.value} disabled={m.disabled}>
+                            {m.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(selYear)} onValueChange={(value) => applyPeriod(Number(value), selMonth)}>
+                      <SelectTrigger className="w-28 shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {yearOptions.map((y) => (
+                          <SelectItem key={y} value={String(y)}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('form.category')}</span>
+                  <Select
+                    value={filterCategory}
+                    onValueChange={(value) => {
+                      setFilterCategory(value)
+                      setFilterSub('all')
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
+                      {categoryOptions.map((option) => (
+                        <SelectItem key={option.code} value={option.code}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('filters.beneficiary')}</span>
+                  <Select value={filterBeneficiary} onValueChange={setFilterBeneficiary}>
+                    <SelectTrigger aria-label={t('filters.beneficiary')} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
+                      <SelectItem value="none">{t('beneficiaries.none')}</SelectItem>
+                      {beneficiaries.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {filterCategory !== 'all' && (
+                  <div className="grid gap-1.5">
+                    <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
+                    <Select value={filterSub} onValueChange={setFilterSub}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
+                        {subOptions.map((sub) => (
+                          <SelectItem key={sub.id} value={sub.id}>
+                            {sub.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end border-t pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setFilter('all')
+                    setMonthKey(dayjs().format('YYYY-MM'))
+                    setSearchContent('')
+                    setAmountFromDigits('')
+                    setAmountToDigits('')
+                    setSearchNote('')
+                    setFilterCategory('all')
+                    setFilterSub('all')
+                    setFilterBeneficiary('all')
+                  }}
+                >
+                  {t('filters.reset')}
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -513,6 +556,9 @@ export function TransactionsPage() {
                         <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-indigo-700">
                           {tx.subCategoryName}
                         </span>
+                      )}
+                      {tx.beneficiaryName && (
+                        <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-700">{tx.beneficiaryName}</span>
                       )}
                       {tx.bank && (
                         <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700">{tx.bank}</span>

@@ -17,6 +17,7 @@ export function exportTransactionsToExcel(
     [t('payment.method')]: t(`payment.${tx.paymentMethod}`),
     [t('summary.colCredit')]: tx.credit.amount || '',
     [t('summary.colDebit')]: tx.debit.amount || '',
+    [t('export.colBeneficiary')]: tx.beneficiaryName ?? '',
     [t('form.isAdvance')]: tx.isAdvance ? 'x' : '',
     [t('form.note')]: tx.note ?? '',
   }))
@@ -31,12 +32,24 @@ export function exportTransactionsToExcel(
     [t('payment.method')]: '',
     [t('summary.colCredit')]: totalCredit,
     [t('summary.colDebit')]: totalDebit,
+    [t('export.colBeneficiary')]: '',
     [t('form.isAdvance')]: '',
     [t('form.note')]: `${t('transactions.net')}: ${totalCredit - totalDebit}`,
   })
 
   const sheet = utils.json_to_sheet(rows)
-  sheet['!cols'] = [{ wch: 12 }, { wch: 45 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 10 }, { wch: 30 }]
+  sheet['!cols'] = [
+    { wch: 12 },
+    { wch: 45 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 10 },
+    { wch: 30 },
+  ]
   const workbook = utils.book_new()
   utils.book_append_sheet(workbook, sheet, periodLabel.slice(0, 31))
   writeFile(workbook, `bao-cao-${periodLabel}.xlsx`)

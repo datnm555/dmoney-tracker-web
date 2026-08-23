@@ -18,3 +18,7 @@ export async function updatePlan(id: string, name: string): Promise<void> {
 export async function deletePlan(id: string): Promise<void> {
   await apiClient.delete(`/plans/${id}`)
 }
+
+export async function setDefaultPlan(id: string): Promise<void> {
+  await apiClient.put(`/plans/${id}/default`)
+}
