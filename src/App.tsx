@@ -4,6 +4,7 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { I18nProvider } from './i18n/I18nContext'
 import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
+import { BeneficiarySettingsPage } from './pages/BeneficiarySettingsPage'
 import { CategorySettingsPage } from './pages/CategorySettingsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlanSettingsPage } from './pages/PlanSettingsPage'
@@ -28,6 +29,7 @@ export default function App() {
                 <Route path="settings/categories" element={<CategorySettingsPage />} />
                 <Route path="settings/subcategories" element={<SubCategorySettingsPage />} />
                 <Route path="settings/plans" element={<PlanSettingsPage />} />
+                <Route path="settings/beneficiaries" element={<BeneficiarySettingsPage />} />
                 <Route path="summary" element={<Navigate to="/app/transactions" replace />} />
               </Route>
             </Route>
