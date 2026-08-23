@@ -25,6 +25,8 @@ export interface TransactionResponse {
   planId: string
   reimbursedByTransactionId: string | null
   links: LinkedTransactionResponse[] | null
+  beneficiaryId: string | null
+  beneficiaryName: string | null
 }
 
 export interface LinkedTransactionResponse {
@@ -120,6 +122,13 @@ export interface CategoryResponse {
 
 // Mirrors Application/Plans/Data/PlanResponse.cs on the backend.
 export interface PlanResponse {
+  id: string
+  name: string
+  isDefault: boolean
+}
+
+// Mirrors Application/Beneficiaries/Data/BeneficiaryResponse.cs on the backend.
+export interface BeneficiaryResponse {
   id: string
   name: string
   isDefault: boolean

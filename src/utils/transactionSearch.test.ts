@@ -24,6 +24,8 @@ const tx = (content: string, debit: number, note: string | null = null): Transac
   planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
+  beneficiaryId: null,
+  beneficiaryName: null,
 })
 
 const none = { content: '', amountFrom: null, amountTo: null, note: '' }

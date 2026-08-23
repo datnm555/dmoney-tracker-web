@@ -24,6 +24,8 @@ const tx = (id: string, date: string, credit: number, debit: number): Transactio
   planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
+  beneficiaryId: null,
+  beneficiaryName: null,
 })
 
 describe('groupTransactionsByDay', () => {

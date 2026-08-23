@@ -26,6 +26,8 @@ const tx = (paymentMethod: string, cardType: string | null = null, bank: string 
   planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
+  beneficiaryId: null,
+  beneficiaryName: null,
 })
 
 describe('paymentLabel', () => {

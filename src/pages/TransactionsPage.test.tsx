@@ -77,6 +77,8 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
+  beneficiaryId: null,
+  beneficiaryName: null,
   ...overrides,
 })
 

@@ -80,6 +80,8 @@ const baseEditingFixture = {
   planId: 'p-default',
   reimbursedByTransactionId: null,
   links: null,
+  beneficiaryId: null,
+  beneficiaryName: null,
 }
 
 async function pickCategory() {
@@ -318,6 +320,8 @@ describe('TransactionFormModal', () => {
             planId: 'p-default',
             reimbursedByTransactionId: null,
             links: null,
+            beneficiaryId: null,
+            beneficiaryName: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}
