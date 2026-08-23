@@ -21,6 +21,16 @@ vi.mock('../plans/PlanContext', () => ({
   }),
 }))
 
+vi.mock('../beneficiaries/BeneficiariesContext', () => ({
+  useBeneficiaries: () => ({
+    beneficiaries: [
+      { id: 'b-me', name: 'Tôi', isDefault: true },
+      { id: 'b-con', name: 'Con', isDefault: false },
+    ],
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../categories/CategoriesContext', () => ({
   CategoriesProvider: ({ children }: { children: ReactNode }) => children,
   useCategories: () => ({
@@ -162,6 +172,49 @@ describe('TransactionFormModal', () => {
     )
   })
 
+  it('preselects the default beneficiary on a money-out transaction', async () => {
+    const onSubmit = renderModal()
+
+    expect(await screen.findByRole('combobox', { name: 'form.beneficiary' })).toHaveTextContent('Tôi')
+
+    await userEvent.type(screen.getByLabelText('form.content'), 'Ăn trưa')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ beneficiaryId: 'b-me' }))
+  })
+
+  it('clears the beneficiary when switching to money-in', async () => {
+    const onSubmit = renderModal()
+
+    await screen.findByRole('combobox', { name: 'form.beneficiary' })
+    await userEvent.click(screen.getByRole('button', { name: /form\.moneyIn/ }))
+
+    expect(screen.queryByRole('combobox', { name: 'form.beneficiary' })).not.toBeInTheDocument()
+
+    await userEvent.type(screen.getByLabelText('form.content'), 'Nhận lương')
+    await userEvent.type(screen.getByLabelText('form.amount'), '1000000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ type: 'in', beneficiaryId: null }))
+  })
+
+  it('submits the picked beneficiary', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.click(await screen.findByRole('combobox', { name: 'form.beneficiary' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Con' }))
+
+    await userEvent.type(screen.getByLabelText('form.content'), 'Ăn trưa')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ beneficiaryId: 'b-con' }))
+  })
+
   it('submits isAdvance when the advance checkbox is ticked', async () => {
     const onSubmit = renderModal()
 
@@ -244,7 +297,7 @@ describe('TransactionFormModal', () => {
     expect(await screen.findByText('form.prepaidRequired')).toBeInTheDocument()
     expect(onSubmit).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByRole('combobox'))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.selectPrepaid' }))
     await userEvent.click(await screen.findByRole('option', { name: /Sinh hoạt 5 tháng/ }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 

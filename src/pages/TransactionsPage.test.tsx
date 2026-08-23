@@ -33,6 +33,13 @@ vi.mock('../categories/CategoriesContext', () => ({
   }),
 }))
 
+vi.mock('../beneficiaries/BeneficiariesContext', () => ({
+  useBeneficiaries: () => ({
+    beneficiaries: [],
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../api/subCategoryApi', () => ({
   getSubCategories: vi.fn().mockResolvedValue([]),
 }))

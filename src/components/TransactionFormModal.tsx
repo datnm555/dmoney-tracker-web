@@ -26,6 +26,7 @@ import type { AdvanceResponse, CreditResponse, PrepaidCreditResponse, SubCategor
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
+import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
@@ -54,6 +55,7 @@ export interface TransactionFormValues {
   reimbursedByTransactionId: string | null
   note: string | null
   planId: string | null
+  beneficiaryId: string | null
 }
 
 export interface SubmitOptions {
@@ -82,6 +84,7 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
 export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
   const { plans, selectedPlanId } = usePlans()
+  const { beneficiaries } = useBeneficiaries()
   const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
@@ -108,6 +111,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [subCategories, setSubCategories] = useState<SubCategoryResponse[]>([])
   const [note, setNote] = useState('')
   const [planId, setPlanId] = useState<string | null>(null)
+  const [beneficiaryId, setBeneficiaryId] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -146,6 +150,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
       setNote(editing.note ?? '')
       setPlanId(editing.planId)
+      setBeneficiaryId(editing.beneficiaryId)
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -166,6 +171,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setSubCategoryId(null)
       setNote('')
       setPlanId(null)
+      // Closure-read (not a dep, same as elsewhere in this effect): re-running
+      // this reset whenever the beneficiaries list refreshes would clobber a
+      // beneficiary the user already picked in this open session.
+      setBeneficiaryId(beneficiaries.find((b) => b.isDefault)?.id ?? null)
     }
   }, [open, editing, defaultDate])
 
@@ -272,6 +281,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       reimbursedByTransactionId: type === 'out' && isAdvance ? reimbursedById : null,
       note: note.trim() || null,
       planId,
+      beneficiaryId: type === 'out' ? beneficiaryId : null,
     }
   }
 
@@ -390,6 +400,24 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
           {type === 'out' && (
             <>
+              <div className="grid gap-1.5">
+                <span className="text-xs text-muted-foreground">{t('form.beneficiary')}</span>
+                <Select
+                  value={beneficiaryId ?? 'none'}
+                  onValueChange={(value) => setBeneficiaryId(value === 'none' ? null : value)}
+                >
+                  <SelectTrigger aria-label={t('form.beneficiary')} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    {beneficiaries.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid gap-2 rounded-lg border px-3 py-2.5">
                 <label className="flex items-start gap-2.5">
                   <Checkbox
@@ -449,7 +477,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                 {alreadyPrepaid && (
                   <>
                     <Select value={prepaidId ?? ''} onValueChange={setPrepaidId}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger aria-label={t('form.selectPrepaid')} className="w-full">
                         <SelectValue placeholder={t('form.selectPrepaid')} />
                       </SelectTrigger>
                       <SelectContent>

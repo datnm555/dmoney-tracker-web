@@ -108,8 +108,7 @@ export function TransactionsPage() {
       // to the selected plan; edit mode carries the picked plan (a move).
       planId: values.planId ?? selectedPlanId!,
       reimbursedByTransactionId: values.reimbursedByTransactionId,
-      // Beneficiary picking lands in a later task; every submit is unassigned for now.
-      beneficiaryId: null,
+      beneficiaryId: values.beneficiaryId,
     }
     setSubmitting(true)
     try {
