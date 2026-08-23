@@ -26,6 +26,7 @@ import {
 } from '../api/transactionApi'
 import { getSubCategories } from '../api/subCategoryApi'
 import type { MonthlySummaryResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
+import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
@@ -45,6 +46,7 @@ export function TransactionsPage() {
   const { t, lang } = useI18n()
   const { selectedPlanId } = usePlans()
   const { label: categoryLabel, visual: categoryDisplayVisual, options: categoryOptions } = useCategoryDisplay()
+  const { beneficiaries } = useBeneficiaries()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
   const [summary, setSummary] = useState<MonthlySummaryResponse | null>(null)
@@ -55,6 +57,7 @@ export function TransactionsPage() {
   const [searchNote, setSearchNote] = useState('')
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterSub, setFilterSub] = useState<string>('all')
+  const [filterBeneficiary, setFilterBeneficiary] = useState<string>('all')
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [allSubCategories, setAllSubCategories] = useState<SubCategoryResponse[]>([])
   const [modalOpen, setModalOpen] = useState(false)
@@ -158,6 +161,8 @@ export function TransactionsPage() {
     if (filter === 'out' && tx.debit.amount <= 0) return false
     if (filterCategory !== 'all' && tx.categoryId !== filterCategory) return false
     if (filterCategory !== 'all' && filterSub !== 'all' && tx.subCategoryId !== filterSub) return false
+    if (filterBeneficiary === 'none' && tx.beneficiaryId !== null) return false
+    if (filterBeneficiary !== 'all' && filterBeneficiary !== 'none' && tx.beneficiaryId !== filterBeneficiary) return false
     return matchesSearch(tx, searchCriteria)
   })
 
@@ -395,6 +400,24 @@ export function TransactionsPage() {
                   </Select>
                 </div>
 
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('filters.beneficiary')}</span>
+                  <Select value={filterBeneficiary} onValueChange={setFilterBeneficiary}>
+                    <SelectTrigger aria-label={t('filters.beneficiary')} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('transactions.filterAll')}</SelectItem>
+                      <SelectItem value="none">{t('beneficiaries.none')}</SelectItem>
+                      {beneficiaries.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 {filterCategory !== 'all' && (
                   <div className="grid gap-1.5">
                     <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
@@ -428,6 +451,7 @@ export function TransactionsPage() {
                     setSearchNote('')
                     setFilterCategory('all')
                     setFilterSub('all')
+                    setFilterBeneficiary('all')
                   }}
                 >
                   {t('filters.reset')}
@@ -532,6 +556,9 @@ export function TransactionsPage() {
                         <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-indigo-700">
                           {tx.subCategoryName}
                         </span>
+                      )}
+                      {tx.beneficiaryName && (
+                        <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-700">{tx.beneficiaryName}</span>
                       )}
                       {tx.bank && (
                         <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700">{tx.bank}</span>
