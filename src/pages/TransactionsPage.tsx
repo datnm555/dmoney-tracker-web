@@ -112,6 +112,9 @@ export function TransactionsPage() {
       planId: values.planId ?? selectedPlanId!,
       reimbursedByTransactionId: values.reimbursedByTransactionId,
       beneficiaryId: values.beneficiaryId,
+      // Gold type/quantity selection lands in a later task; payload always sends null for now.
+      goldTypeId: null,
+      goldQuantity: null,
     }
     setSubmitting(true)
     try {

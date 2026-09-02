@@ -89,6 +89,9 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   links: null,
   beneficiaryId: null,
   beneficiaryName: null,
+  goldTypeId: null,
+  goldTypeName: null,
+  goldQuantity: null,
   ...overrides,
 })
 

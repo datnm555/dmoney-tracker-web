@@ -92,6 +92,9 @@ const baseEditingFixture = {
   links: null,
   beneficiaryId: null,
   beneficiaryName: null,
+  goldTypeId: null,
+  goldTypeName: null,
+  goldQuantity: null,
 }
 
 async function pickCategory() {
@@ -375,6 +378,9 @@ describe('TransactionFormModal', () => {
             links: null,
             beneficiaryId: null,
             beneficiaryName: null,
+            goldTypeId: null,
+            goldTypeName: null,
+            goldQuantity: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}
