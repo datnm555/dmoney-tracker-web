@@ -6,6 +6,7 @@ import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { BeneficiarySettingsPage } from './pages/BeneficiarySettingsPage'
 import { CategorySettingsPage } from './pages/CategorySettingsPage'
+import { GoldTypeSettingsPage } from './pages/GoldTypeSettingsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlanSettingsPage } from './pages/PlanSettingsPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -30,6 +31,7 @@ export default function App() {
                 <Route path="settings/subcategories" element={<SubCategorySettingsPage />} />
                 <Route path="settings/plans" element={<PlanSettingsPage />} />
                 <Route path="settings/beneficiaries" element={<BeneficiarySettingsPage />} />
+                <Route path="settings/gold-types" element={<GoldTypeSettingsPage />} />
                 <Route path="summary" element={<Navigate to="/app/transactions" replace />} />
               </Route>
             </Route>
