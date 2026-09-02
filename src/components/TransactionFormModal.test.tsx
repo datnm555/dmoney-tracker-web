@@ -31,6 +31,16 @@ vi.mock('../beneficiaries/BeneficiariesContext', () => ({
   }),
 }))
 
+vi.mock('../gold/GoldTypesContext', () => ({
+  useGoldTypes: () => ({
+    goldTypes: [
+      { id: 'g-ring', name: 'Nhẫn trơn' },
+      { id: 'g-sjc', name: 'SJC' },
+    ],
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../categories/CategoriesContext', () => ({
   CategoriesProvider: ({ children }: { children: ReactNode }) => children,
   useCategories: () => ({
@@ -414,5 +424,84 @@ describe('TransactionFormModal', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(onSubmit.mock.calls[0][0].planId).toBe('p-trip')
+  })
+
+  it('gold toggle off by default sends null gold fields and hides the gold type field', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ goldTypeId: null, goldQuantity: null }),
+    )
+    expect(screen.queryByRole('combobox', { name: 'form.goldType' })).not.toBeInTheDocument()
+  })
+
+  it('submits the picked gold type and quantity on a money-out transaction', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Nhẫn trơn' }))
+    await userEvent.type(screen.getByLabelText('form.goldQuantity'), '0.5')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ goldTypeId: 'g-ring', goldQuantity: 0.5 }),
+    )
+  })
+
+  it('gold toggle also works on a money-in transaction (sell)', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
+    await userEvent.type(screen.getByLabelText('form.content'), 'Bán vàng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    await userEvent.type(screen.getByLabelText('form.goldQuantity'), '1')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'in', goldTypeId: 'g-sjc', goldQuantity: 1 }),
+    )
+  })
+
+  it('requires a gold quantity when the gold toggle is on', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(await screen.findByText('form.goldQuantityRequired')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('edit mode prefills the gold toggle, type and quantity', async () => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, goldTypeId: 'g-ring', goldTypeName: 'Nhẫn trơn', goldQuantity: 2 }}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+
+    expect(await screen.findByRole('checkbox', { name: 'form.goldToggle' })).toBeChecked()
+    expect(screen.getByLabelText('form.goldQuantity')).toHaveValue('2')
   })
 })
