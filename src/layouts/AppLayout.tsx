@@ -5,6 +5,7 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
+  Coins,
   Gem,
   LayoutDashboard,
   List,
@@ -43,6 +44,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { to: '/app/dashboard', key: 'menu.dashboard', icon: LayoutDashboard },
   { to: '/app/transactions', key: 'menu.transactions', icon: List },
+  { to: '/app/gold', key: 'menu.gold', icon: Coins },
 ]
 
 // Children of the "Settings" tree node in the sidebar.
