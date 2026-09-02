@@ -1,6 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { getGoldSummary } from '../api/goldApi'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { deleteGoldAcquisition, getGoldSummary } from '../api/goldApi'
+import { GoldAcquisitionDialog } from '../gold/GoldAcquisitionDialog'
+import { formatMoney } from '../utils/money'
 import { GoldPage } from './GoldPage'
 
 vi.mock('../api/goldApi', () => ({
@@ -41,15 +44,41 @@ vi.mock('../api/goldApi', () => ({
         pricePerChi: { amount: 10_000_000, currency: 'VND' },
       },
     ],
-    acquisitions: [],
+    acquisitions: [
+      {
+        id: 'acq-1',
+        date: '2024-05-10',
+        goldTypeId: 'g-1',
+        goldTypeName: 'Nhẫn trơn',
+        quantity: 3,
+        unitPrice: { amount: 5_500_000, currency: 'VND' },
+        value: { amount: 16_500_000, currency: 'VND' },
+        note: 'mua 2024',
+      },
+    ],
   }),
+  deleteGoldAcquisition: vi.fn().mockResolvedValue(undefined),
 }))
 
-vi.mock('../i18n/I18nContext', () => ({
-  useI18n: () => ({ t: (key: string) => key, lang: 'vi' }),
+vi.mock('../gold/GoldAcquisitionDialog', () => ({
+  GoldAcquisitionDialog: vi.fn(() => null),
 }))
+
+vi.mock('../i18n/I18nContext', () => {
+  // Keep `t` a stable reference across renders, matching the real I18nContext
+  // (t is useCallback-memoized there). GoldPage's `load` is useCallback([t]),
+  // so an unstable mock t here would make the mount effect refire on every
+  // unrelated state update (e.g. opening the delete confirm), inflating
+  // getGoldSummary call counts independent of this file's own assertions.
+  const t = (key: string) => key
+  return { useI18n: () => ({ t, lang: 'vi' }) }
+})
 
 describe('GoldPage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('renders a type card with the name and held quantity', async () => {
     render(<GoldPage />)
     // The same gold-type name also appears in the history table's type column,
@@ -72,6 +101,42 @@ describe('GoldPage', () => {
     expect(screen.getByText('gold.buy')).toBeInTheDocument()
     expect(screen.getByText('Bán 1 chỉ')).toBeInTheDocument()
     expect(screen.getByText('gold.sell')).toBeInTheDocument()
+  })
+
+  it('renders the acquisition row with the pre-owned badge, note and value', async () => {
+    render(<GoldPage />)
+    expect(await screen.findByText('goldAcq.badge')).toBeInTheDocument()
+    expect(screen.getByText('mua 2024')).toBeInTheDocument()
+    // Intl.NumberFormat renders a non-breaking space between the amount and the
+    // currency symbol; RTL's getByText normalizer collapses that in the DOM
+    // text but not in a raw string matcher, so compare textContent directly.
+    const valueCell = document.querySelector('td.text-right.text-muted-foreground')
+    expect(valueCell?.textContent).toBe(formatMoney({ amount: 16_500_000, currency: 'VND' }))
+  })
+
+  it('deletes an acquisition after confirm and reloads the summary', async () => {
+    const user = userEvent.setup()
+    render(<GoldPage />)
+    await screen.findByText('goldAcq.badge')
+
+    await user.click(screen.getByRole('button', { name: 'goldAcq.deleteConfirm' }))
+    await user.click(await screen.findByText('summary.delete'))
+
+    expect(deleteGoldAcquisition).toHaveBeenCalledWith('acq-1')
+    await waitFor(() => expect(getGoldSummary).toHaveBeenCalledTimes(2))
+  })
+
+  it('opens the dialog for a new acquisition from the header button', async () => {
+    const user = userEvent.setup()
+    render(<GoldPage />)
+    await screen.findByText('goldAcq.badge')
+
+    await user.click(screen.getByRole('button', { name: 'goldAcq.add' }))
+
+    await waitFor(() => {
+      const lastCall = vi.mocked(GoldAcquisitionDialog).mock.calls.at(-1)
+      expect(lastCall?.[0]).toMatchObject({ open: true, editing: null })
+    })
   })
 
   it('shows the empty state when there are no types or transactions', async () => {
