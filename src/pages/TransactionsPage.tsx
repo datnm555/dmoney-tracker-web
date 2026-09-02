@@ -35,6 +35,7 @@ import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { formatMoney } from '../utils/money'
 import { paymentMethodChipLabel } from '../utils/paymentLabel'
+import { formatGoldQuantity } from '../utils/gold'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
 import { matchesSearch } from '../utils/transactionSearch'
 import { exportTransactionsToExcel } from '../utils/exportExcel'
@@ -561,6 +562,12 @@ export function TransactionsPage() {
                       )}
                       {tx.beneficiaryName && (
                         <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-700">{tx.beneficiaryName}</span>
+                      )}
+                      {tx.goldQuantity !== null && (
+                        <span className="rounded-md bg-yellow-50 px-1.5 py-0.5 text-yellow-700">
+                          {formatGoldQuantity(tx.goldQuantity)} {t('gold.unit')}
+                          {tx.goldTypeName ? ` · ${tx.goldTypeName}` : ''}
+                        </span>
                       )}
                       {tx.bank && (
                         <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700">{tx.bank}</span>
