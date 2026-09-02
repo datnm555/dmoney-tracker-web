@@ -167,7 +167,7 @@ export interface GoldTransactionResponse {
   pricePerChi: MoneyResponse
 }
 
-// Mirrors Application/Gold/Data/GoldAcquisitionResponse.cs on the backend.
+// Mirrors Application/GoldAcquisitions/Data/GoldAcquisitionResponse.cs on the backend.
 export interface GoldAcquisitionResponse {
   id: string
   date: string // YYYY-MM-DD
