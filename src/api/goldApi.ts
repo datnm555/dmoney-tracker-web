@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { GoldSummaryResponse, GoldTypeResponse } from './types'
+import type { GoldAcquisitionPayload, GoldSummaryResponse, GoldTypeResponse } from './types'
 
 export async function getGoldTypes(): Promise<GoldTypeResponse[]> {
   const { data } = await apiClient.get<GoldTypeResponse[]>('/gold-types')
@@ -22,4 +22,17 @@ export async function deleteGoldType(id: string): Promise<void> {
 export async function getGoldSummary(): Promise<GoldSummaryResponse> {
   const { data } = await apiClient.get<GoldSummaryResponse>('/gold/summary')
   return data
+}
+
+export async function createGoldAcquisition(payload: GoldAcquisitionPayload): Promise<{ id: string }> {
+  const { data } = await apiClient.post<{ id: string }>('/gold/acquisitions', payload)
+  return data
+}
+
+export async function updateGoldAcquisition(id: string, payload: GoldAcquisitionPayload): Promise<void> {
+  await apiClient.put(`/gold/acquisitions/${id}`, payload)
+}
+
+export async function deleteGoldAcquisition(id: string): Promise<void> {
+  await apiClient.delete(`/gold/acquisitions/${id}`)
 }

@@ -167,7 +167,29 @@ export interface GoldTransactionResponse {
   pricePerChi: MoneyResponse
 }
 
+// Mirrors Application/Gold/Data/GoldAcquisitionResponse.cs on the backend.
+export interface GoldAcquisitionResponse {
+  id: string
+  date: string // YYYY-MM-DD
+  goldTypeId: string
+  goldTypeName: string
+  quantity: number
+  unitPrice: MoneyResponse
+  value: MoneyResponse
+  note: string | null
+}
+
 export interface GoldSummaryResponse {
   types: GoldTypeSummaryResponse[]
   transactions: GoldTransactionResponse[]
+  acquisitions: GoldAcquisitionResponse[]
+}
+
+// Mirrors the request body for POST/PUT /gold/acquisitions on the backend.
+export interface GoldAcquisitionPayload {
+  goldTypeId: string
+  date: string // YYYY-MM-DD
+  quantity: number
+  unitPrice: number
+  note: string | null
 }

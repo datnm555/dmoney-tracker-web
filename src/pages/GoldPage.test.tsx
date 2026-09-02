@@ -41,6 +41,7 @@ vi.mock('../api/goldApi', () => ({
         pricePerChi: { amount: 10_000_000, currency: 'VND' },
       },
     ],
+    acquisitions: [],
   }),
 }))
 
@@ -74,7 +75,7 @@ describe('GoldPage', () => {
   })
 
   it('shows the empty state when there are no types or transactions', async () => {
-    vi.mocked(getGoldSummary).mockResolvedValueOnce({ types: [], transactions: [] })
+    vi.mocked(getGoldSummary).mockResolvedValueOnce({ types: [], transactions: [], acquisitions: [] })
     render(<GoldPage />)
     expect(await screen.findByText('gold.empty')).toBeInTheDocument()
   })
