@@ -27,6 +27,7 @@ import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
+import { useGoldTypes } from '../gold/GoldTypesContext'
 import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
@@ -56,6 +57,8 @@ export interface TransactionFormValues {
   note: string | null
   planId: string | null
   beneficiaryId: string | null
+  goldTypeId: string | null
+  goldQuantity: number | null
 }
 
 export interface SubmitOptions {
@@ -85,6 +88,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const { t } = useI18n()
   const { plans, selectedPlanId } = usePlans()
   const { beneficiaries } = useBeneficiaries()
+  const { goldTypes } = useGoldTypes()
   const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
@@ -112,6 +116,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [note, setNote] = useState('')
   const [planId, setPlanId] = useState<string | null>(null)
   const [beneficiaryId, setBeneficiaryId] = useState<string | null>(null)
+  const [isGold, setIsGold] = useState(false)
+  const [goldTypeId, setGoldTypeId] = useState<string | null>(null)
+  const [goldQuantityText, setGoldQuantityText] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -151,6 +158,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setNote(editing.note ?? '')
       setPlanId(editing.planId)
       setBeneficiaryId(editing.beneficiaryId)
+      setIsGold(editing.goldTypeId !== null)
+      setGoldTypeId(editing.goldTypeId)
+      setGoldQuantityText(editing.goldQuantity !== null ? String(editing.goldQuantity) : '')
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -175,6 +185,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       // this reset whenever the beneficiaries list refreshes would clobber a
       // beneficiary the user already picked in this open session.
       setBeneficiaryId(beneficiaries.find((b) => b.isDefault)?.id ?? null)
+      setIsGold(false)
+      setGoldTypeId(null)
+      setGoldQuantityText('')
     }
   }, [open, editing, defaultDate])
 
@@ -256,6 +269,11 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     if (paymentMethod === 'card' && !cardType) nextErrors.cardType = t('form.cardTypeRequired')
     if (type === 'in' && reimburse && advanceIds.length === 0) nextErrors.advance = t('form.advanceRequired')
     if (type === 'out' && alreadyPrepaid && !prepaidId) nextErrors.prepaid = t('form.prepaidRequired')
+    const goldQuantity = Number(goldQuantityText.replace(',', '.'))
+    if (isGold && goldTypeId === null) nextErrors.goldType = t('form.goldTypeRequired')
+    if (isGold && (goldQuantityText === '' || Number.isNaN(goldQuantity) || goldQuantity <= 0)) {
+      nextErrors.goldQuantity = t('form.goldQuantityRequired')
+    }
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return null
 
@@ -282,6 +300,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       note: note.trim() || null,
       planId,
       beneficiaryId: type === 'out' ? beneficiaryId : null,
+      goldTypeId: isGold ? goldTypeId : null,
+      goldQuantity: isGold ? goldQuantity : null,
     }
   }
 
@@ -306,6 +326,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     setAdvanceIds([])
     setAlreadyPrepaid(false)
     setPrepaidId(null)
+    setIsGold(false)
+    setGoldTypeId(null)
+    setGoldQuantityText('')
     setErrors({})
   }
 
@@ -396,6 +419,65 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
               </span>
             </div>
             {errors.amount && <p className="text-xs text-expense">{errors.amount}</p>}
+          </div>
+
+          <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+            <label className="flex items-start gap-2.5">
+              <Checkbox
+                checked={isGold}
+                onCheckedChange={(checked) => {
+                  setIsGold(checked === true)
+                  if (checked !== true) {
+                    setGoldTypeId(null)
+                    setGoldQuantityText('')
+                  }
+                }}
+                aria-label={t('form.goldToggle')}
+                className="mt-0.5"
+              />
+              <span className="grid gap-0.5 text-sm">
+                <span className="font-medium">{t('form.goldToggle')}</span>
+                <span className="text-xs text-muted-foreground">{t('form.goldToggleHint')}</span>
+              </span>
+            </label>
+            {isGold && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('form.goldType')}</span>
+                  <Select
+                    value={goldTypeId ?? 'none'}
+                    onValueChange={(value) => setGoldTypeId(value === 'none' ? null : value)}
+                  >
+                    <SelectTrigger aria-label={t('form.goldType')} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">—</SelectItem>
+                      {goldTypes.map((g) => (
+                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.goldType && <p className="text-xs text-expense">{errors.goldType}</p>}
+                </div>
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('form.goldQuantity')}</span>
+                  <div className="relative">
+                    <Input
+                      inputMode="decimal"
+                      className="pr-9"
+                      aria-label={t('form.goldQuantity')}
+                      value={goldQuantityText}
+                      onChange={(e) => setGoldQuantityText(e.target.value.replace(/[^\d.,]/g, ''))}
+                    />
+                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                      {t('gold.unit')}
+                    </span>
+                  </div>
+                  {errors.goldQuantity && <p className="text-xs text-expense">{errors.goldQuantity}</p>}
+                </div>
+              </div>
+            )}
           </div>
 
           {type === 'out' && (

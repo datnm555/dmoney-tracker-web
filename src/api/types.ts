@@ -27,6 +27,9 @@ export interface TransactionResponse {
   links: LinkedTransactionResponse[] | null
   beneficiaryId: string | null
   beneficiaryName: string | null
+  goldTypeId: string | null
+  goldTypeName: string | null
+  goldQuantity: number | null
 }
 
 export interface LinkedTransactionResponse {
@@ -132,4 +135,39 @@ export interface BeneficiaryResponse {
   id: string
   name: string
   isDefault: boolean
+}
+
+// Mirrors Application/GoldTypes/Data/GoldTypeResponse.cs on the backend.
+export interface GoldTypeResponse {
+  id: string
+  name: string
+}
+
+// Mirrors Application/Gold/Data/GoldSummaryResponse.cs on the backend.
+export interface GoldTypeSummaryResponse {
+  goldTypeId: string
+  name: string
+  heldQuantity: number
+  boughtQuantity: number
+  soldQuantity: number
+  totalSpent: MoneyResponse
+  totalReceived: MoneyResponse
+  averageCostPerChi: MoneyResponse
+}
+
+export interface GoldTransactionResponse {
+  transactionId: string
+  date: string // YYYY-MM-DD
+  content: string
+  goldTypeId: string
+  goldTypeName: string
+  goldQuantity: number
+  credit: MoneyResponse
+  debit: MoneyResponse
+  pricePerChi: MoneyResponse
+}
+
+export interface GoldSummaryResponse {
+  types: GoldTypeSummaryResponse[]
+  transactions: GoldTransactionResponse[]
 }

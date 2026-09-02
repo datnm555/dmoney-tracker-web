@@ -21,6 +21,8 @@ export interface TransactionPayload {
   planId: string
   reimbursedByTransactionId?: string | null
   beneficiaryId: string | null
+  goldTypeId: string | null
+  goldQuantity: number | null
 }
 
 export async function getMonthlySummary(month: string, planId: string): Promise<MonthlySummaryResponse> {

@@ -89,10 +89,39 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   links: null,
   beneficiaryId: null,
   beneficiaryName: null,
+  goldTypeId: null,
+  goldTypeName: null,
+  goldQuantity: null,
   ...overrides,
 })
 
 describe('TransactionsPage summary card', () => {
+  it('renders gold chip with quantity and type name', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [
+        tx({
+          id: 't1',
+          content: 'Mua vàng',
+          debit: { amount: 500_000, currency: 'VND' },
+          goldTypeId: 'g-ring',
+          goldTypeName: 'Nhẫn trơn',
+          goldQuantity: 0.5,
+        }),
+      ],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 500_000, currency: 'VND' },
+      balance: { amount: -500_000, currency: 'VND' },
+    })
+
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    expect(await screen.findByText('0,5 gold.unit · Nhẫn trơn')).toBeInTheDocument()
+  })
+
   it('totals follow the active filters instead of the whole month', async () => {
     vi.mocked(getMonthlySummary).mockResolvedValue({
       items: [

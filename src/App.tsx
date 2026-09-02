@@ -6,6 +6,8 @@ import { AppLayout } from './layouts/AppLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { BeneficiarySettingsPage } from './pages/BeneficiarySettingsPage'
 import { CategorySettingsPage } from './pages/CategorySettingsPage'
+import { GoldPage } from './pages/GoldPage'
+import { GoldTypeSettingsPage } from './pages/GoldTypeSettingsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlanSettingsPage } from './pages/PlanSettingsPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -25,11 +27,13 @@ export default function App() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="transactions" element={<TransactionsPage />} />
+                <Route path="gold" element={<GoldPage />} />
                 <Route path="settings" element={<Navigate to="/app/settings/categories" replace />} />
                 <Route path="settings/categories" element={<CategorySettingsPage />} />
                 <Route path="settings/subcategories" element={<SubCategorySettingsPage />} />
                 <Route path="settings/plans" element={<PlanSettingsPage />} />
                 <Route path="settings/beneficiaries" element={<BeneficiarySettingsPage />} />
+                <Route path="settings/gold-types" element={<GoldTypeSettingsPage />} />
                 <Route path="summary" element={<Navigate to="/app/transactions" replace />} />
               </Route>
             </Route>
