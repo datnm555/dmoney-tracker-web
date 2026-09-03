@@ -41,6 +41,13 @@ vi.mock('../gold/GoldTypesContext', () => ({
   }),
 }))
 
+vi.mock('../purchasePlaces/PurchasePlacesContext', () => ({
+  usePurchasePlaces: () => ({
+    purchasePlaces: [{ id: 'p-sjc', name: 'SJC' }],
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../categories/CategoriesContext', () => ({
   CategoriesProvider: ({ children }: { children: ReactNode }) => children,
   useCategories: () => ({
@@ -105,6 +112,8 @@ const baseEditingFixture = {
   goldTypeId: null,
   goldTypeName: null,
   goldQuantity: null,
+  purchasePlaceId: null,
+  purchasePlaceName: null,
 }
 
 async function pickCategory() {
@@ -391,6 +400,8 @@ describe('TransactionFormModal', () => {
             goldTypeId: null,
             goldTypeName: null,
             goldQuantity: null,
+            purchasePlaceId: null,
+            purchasePlaceName: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}
@@ -435,9 +446,10 @@ describe('TransactionFormModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ goldTypeId: null, goldQuantity: null }),
+      expect.objectContaining({ goldTypeId: null, goldQuantity: null, purchasePlaceId: null }),
     )
     expect(screen.queryByRole('combobox', { name: 'form.goldType' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'form.purchasePlace' })).not.toBeInTheDocument()
   })
 
   it('submits the picked gold type and quantity on a money-out transaction', async () => {
@@ -453,8 +465,41 @@ describe('TransactionFormModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ goldTypeId: 'g-ring', goldQuantity: 0.5 }),
+      expect.objectContaining({ goldTypeId: 'g-ring', goldQuantity: 0.5, purchasePlaceId: null }),
     )
+  })
+
+  it('submits the picked purchase place while the gold toggle is on', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Nhẫn trơn' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    await userEvent.type(screen.getByLabelText('form.goldQuantity'), '0.5')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ purchasePlaceId: 'p-sjc' }),
+    )
+  })
+
+  it('turning off the gold toggle clears the picked purchase place', async () => {
+    renderModal()
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    expect(screen.getByRole('combobox', { name: 'form.purchasePlace' })).toHaveTextContent('SJC')
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+
+    expect(screen.getByRole('combobox', { name: 'form.purchasePlace' })).not.toHaveTextContent('SJC')
   })
 
   it('gold toggle also works on a money-in transaction (sell)', async () => {
@@ -488,12 +533,19 @@ describe('TransactionFormModal', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('edit mode prefills the gold toggle, type and quantity', async () => {
+  it('edit mode prefills the gold toggle, type, quantity and purchase place', async () => {
     render(
       <Wrapper>
         <TransactionFormModal
           open
-          editing={{ ...baseEditingFixture, goldTypeId: 'g-ring', goldTypeName: 'Nhẫn trơn', goldQuantity: 2 }}
+          editing={{
+            ...baseEditingFixture,
+            goldTypeId: 'g-ring',
+            goldTypeName: 'Nhẫn trơn',
+            goldQuantity: 2,
+            purchasePlaceId: 'p-sjc',
+            purchasePlaceName: 'SJC',
+          }}
           submitting={false}
           onSubmit={vi.fn()}
           onCancel={() => {}}
@@ -503,5 +555,29 @@ describe('TransactionFormModal', () => {
 
     expect(await screen.findByRole('checkbox', { name: 'form.goldToggle' })).toBeChecked()
     expect(screen.getByLabelText('form.goldQuantity')).toHaveValue('2')
+    expect(screen.getByRole('combobox', { name: 'form.purchasePlace' })).toHaveTextContent('SJC')
+  })
+
+  it('save-and-continue clears the picked purchase place along with the rest of the gold block', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Nhẫn trơn' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    await userEvent.type(screen.getByLabelText('form.goldQuantity'), '0.5')
+    await userEvent.click(screen.getByRole('button', { name: 'form.saveAndContinue' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ purchasePlaceId: 'p-sjc' }),
+      { keepOpen: true },
+    )
+    // Gold block collapses back to off, taking the purchase place select with it.
+    expect(screen.getByRole('checkbox', { name: 'form.goldToggle' })).not.toBeChecked()
+    expect(screen.queryByRole('combobox', { name: 'form.purchasePlace' })).not.toBeInTheDocument()
   })
 })

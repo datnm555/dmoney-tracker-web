@@ -17,6 +17,13 @@ vi.mock('./GoldTypesContext', () => ({
   }),
 }))
 
+vi.mock('../purchasePlaces/PurchasePlacesContext', () => ({
+  usePurchasePlaces: () => ({
+    purchasePlaces: [{ id: 'p-sjc', name: 'SJC' }],
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../i18n/I18nContext', () => ({
   useI18n: () => ({ t: (key: string) => key, lang: 'vi' }),
 }))
@@ -30,6 +37,8 @@ const editingFixture: GoldAcquisitionResponse = {
   unitPrice: { amount: 5000000, currency: 'VND' },
   value: { amount: 10000000, currency: 'VND' },
   note: 'quà tặng',
+  purchasePlaceId: 'p-sjc',
+  purchasePlaceName: 'SJC',
 }
 
 describe('GoldAcquisitionDialog', () => {
@@ -57,9 +66,29 @@ describe('GoldAcquisitionDialog', () => {
       quantity: 3,
       unitPrice: 5500000,
       note: 'mua 2024',
+      purchasePlaceId: null,
     })
     expect(onSaved).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('submits the picked purchase place', async () => {
+    const onSaved = vi.fn()
+    const onClose = vi.fn()
+    render(<GoldAcquisitionDialog open editing={null} onClose={onClose} onSaved={onSaved} />)
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Nhẫn trơn' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    fireEvent.change(screen.getByLabelText('goldAcq.date'), { target: { value: '2024-05-10' } })
+    await userEvent.type(screen.getByLabelText('goldAcq.quantity'), '3')
+
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(createGoldAcquisition).toHaveBeenCalledWith(
+      expect.objectContaining({ purchasePlaceId: 'p-sjc' }),
+    )
   })
 
   it('blocks submit when gold type or quantity is missing', async () => {
@@ -78,6 +107,7 @@ describe('GoldAcquisitionDialog', () => {
     render(<GoldAcquisitionDialog open editing={editingFixture} onClose={onClose} onSaved={onSaved} />)
 
     expect(await screen.findByRole('combobox', { name: 'form.goldType' })).toHaveTextContent('Nhẫn trơn')
+    expect(screen.getByRole('combobox', { name: 'form.purchasePlace' })).toHaveTextContent('SJC')
     expect(screen.getByLabelText('goldAcq.date')).toHaveValue('2024-04-01')
     expect(screen.getByLabelText('goldAcq.quantity')).toHaveValue('2')
     expect(screen.getByLabelText('goldAcq.note')).toHaveValue('quà tặng')
@@ -90,6 +120,7 @@ describe('GoldAcquisitionDialog', () => {
       quantity: 2,
       unitPrice: 5000000,
       note: 'quà tặng',
+      purchasePlaceId: 'p-sjc',
     })
     expect(onSaved).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()

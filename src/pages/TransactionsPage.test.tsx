@@ -92,6 +92,8 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   goldTypeId: null,
   goldTypeName: null,
   goldQuantity: null,
+  purchasePlaceId: null,
+  purchasePlaceName: null,
   ...overrides,
 })
 

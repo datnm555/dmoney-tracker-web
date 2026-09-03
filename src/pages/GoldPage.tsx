@@ -132,7 +132,12 @@ export function GoldPage() {
                         <span className="font-medium">{row.tx.content}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{row.tx.goldTypeName}</TableCell>
+                    <TableCell>
+                      {row.tx.goldTypeName}
+                      {row.tx.purchasePlaceName && (
+                        <span className="text-xs text-muted-foreground"> · {row.tx.purchasePlaceName}</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       {formatGoldQuantity(row.tx.goldQuantity)} {t('gold.unit')}
                     </TableCell>
@@ -159,7 +164,12 @@ export function GoldPage() {
                         <span className="font-medium">{row.acq.note || '—'}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{row.acq.goldTypeName}</TableCell>
+                    <TableCell>
+                      {row.acq.goldTypeName}
+                      {row.acq.purchasePlaceName && (
+                        <span className="text-xs text-muted-foreground"> · {row.acq.purchasePlaceName}</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       {formatGoldQuantity(row.acq.quantity)} {t('gold.unit')}
                     </TableCell>

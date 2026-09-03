@@ -16,6 +16,7 @@ import { getApiErrorMessage } from '../api/client'
 import { createGoldAcquisition, updateGoldAcquisition } from '../api/goldApi'
 import type { GoldAcquisitionPayload, GoldAcquisitionResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
+import { usePurchasePlaces } from '../purchasePlaces/PurchasePlacesContext'
 import { useGoldTypes } from './GoldTypesContext'
 
 interface Props {
@@ -31,7 +32,9 @@ const formatThousands = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))
 export function GoldAcquisitionDialog({ open, editing, onClose, onSaved }: Props) {
   const { t } = useI18n()
   const { goldTypes } = useGoldTypes()
+  const { purchasePlaces } = usePurchasePlaces()
   const [goldTypeId, setGoldTypeId] = useState<string | null>(null)
+  const [purchasePlaceId, setPurchasePlaceId] = useState<string | null>(null)
   const [date, setDate] = useState('')
   const [quantityText, setQuantityText] = useState('')
   const [unitPriceDigits, setUnitPriceDigits] = useState('')
@@ -44,12 +47,14 @@ export function GoldAcquisitionDialog({ open, editing, onClose, onSaved }: Props
     setErrors({})
     if (editing) {
       setGoldTypeId(editing.goldTypeId)
+      setPurchasePlaceId(editing.purchasePlaceId)
       setDate(editing.date)
       setQuantityText(String(editing.quantity))
       setUnitPriceDigits(String(editing.unitPrice.amount))
       setNote(editing.note ?? '')
     } else {
       setGoldTypeId(null)
+      setPurchasePlaceId(null)
       setDate(dayjs().format('YYYY-MM-DD'))
       setQuantityText('')
       setUnitPriceDigits('')
@@ -74,6 +79,7 @@ export function GoldAcquisitionDialog({ open, editing, onClose, onSaved }: Props
       quantity,
       unitPrice: Number(unitPriceDigits || '0'),
       note: note.trim() || null,
+      purchasePlaceId,
     }
 
     setSaving(true)
@@ -116,6 +122,24 @@ export function GoldAcquisitionDialog({ open, editing, onClose, onSaved }: Props
               </SelectContent>
             </Select>
             {errors.goldType && <p className="text-xs text-expense">{errors.goldType}</p>}
+          </div>
+
+          <div className="grid gap-1.5">
+            <span className="text-xs text-muted-foreground">{t('form.purchasePlace')}</span>
+            <Select
+              value={purchasePlaceId ?? 'none'}
+              onValueChange={(value) => setPurchasePlaceId(value === 'none' ? null : value)}
+            >
+              <SelectTrigger aria-label={t('form.purchasePlace')} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">—</SelectItem>
+                {purchasePlaces.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-1.5">

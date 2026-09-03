@@ -115,6 +115,7 @@ export function TransactionsPage() {
       beneficiaryId: values.beneficiaryId,
       goldTypeId: values.goldTypeId,
       goldQuantity: values.goldQuantity,
+      purchasePlaceId: values.purchasePlaceId,
     }
     setSubmitting(true)
     try {

@@ -30,6 +30,8 @@ export interface TransactionResponse {
   goldTypeId: string | null
   goldTypeName: string | null
   goldQuantity: number | null
+  purchasePlaceId: string | null
+  purchasePlaceName: string | null
 }
 
 export interface LinkedTransactionResponse {
@@ -171,6 +173,8 @@ export interface GoldTransactionResponse {
   credit: MoneyResponse
   debit: MoneyResponse
   pricePerChi: MoneyResponse
+  purchasePlaceId: string | null
+  purchasePlaceName: string | null
 }
 
 // Mirrors Application/GoldAcquisitions/Data/GoldAcquisitionResponse.cs on the backend.
@@ -183,6 +187,8 @@ export interface GoldAcquisitionResponse {
   unitPrice: MoneyResponse
   value: MoneyResponse
   note: string | null
+  purchasePlaceId: string | null
+  purchasePlaceName: string | null
 }
 
 export interface GoldSummaryResponse {
@@ -198,4 +204,5 @@ export interface GoldAcquisitionPayload {
   quantity: number
   unitPrice: number
   note: string | null
+  purchasePlaceId: string | null
 }

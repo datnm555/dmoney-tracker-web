@@ -28,6 +28,7 @@ import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { useGoldTypes } from '../gold/GoldTypesContext'
+import { usePurchasePlaces } from '../purchasePlaces/PurchasePlacesContext'
 import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
@@ -59,6 +60,7 @@ export interface TransactionFormValues {
   beneficiaryId: string | null
   goldTypeId: string | null
   goldQuantity: number | null
+  purchasePlaceId: string | null
 }
 
 export interface SubmitOptions {
@@ -89,6 +91,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const { plans, selectedPlanId } = usePlans()
   const { beneficiaries } = useBeneficiaries()
   const { goldTypes } = useGoldTypes()
+  const { purchasePlaces } = usePurchasePlaces()
   const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
@@ -119,6 +122,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [isGold, setIsGold] = useState(false)
   const [goldTypeId, setGoldTypeId] = useState<string | null>(null)
   const [goldQuantityText, setGoldQuantityText] = useState('')
+  const [purchasePlaceId, setPurchasePlaceId] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -161,6 +165,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setIsGold(editing.goldTypeId !== null)
       setGoldTypeId(editing.goldTypeId)
       setGoldQuantityText(editing.goldQuantity !== null ? String(editing.goldQuantity) : '')
+      setPurchasePlaceId(editing.purchasePlaceId)
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -188,6 +193,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setIsGold(false)
       setGoldTypeId(null)
       setGoldQuantityText('')
+      setPurchasePlaceId(null)
     }
   }, [open, editing, defaultDate])
 
@@ -302,6 +308,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       beneficiaryId: type === 'out' ? beneficiaryId : null,
       goldTypeId: isGold ? goldTypeId : null,
       goldQuantity: isGold ? goldQuantity : null,
+      purchasePlaceId: isGold ? purchasePlaceId : null,
     }
   }
 
@@ -329,6 +336,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     setIsGold(false)
     setGoldTypeId(null)
     setGoldQuantityText('')
+    setPurchasePlaceId(null)
     setErrors({})
   }
 
@@ -430,6 +438,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                   if (checked !== true) {
                     setGoldTypeId(null)
                     setGoldQuantityText('')
+                    setPurchasePlaceId(null)
                   }
                 }}
                 aria-label={t('form.goldToggle')}
@@ -461,6 +470,23 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                   {errors.goldType && <p className="text-xs text-expense">{errors.goldType}</p>}
                 </div>
                 <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('form.purchasePlace')}</span>
+                  <Select
+                    value={purchasePlaceId ?? 'none'}
+                    onValueChange={(value) => setPurchasePlaceId(value === 'none' ? null : value)}
+                  >
+                    <SelectTrigger aria-label={t('form.purchasePlace')} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">—</SelectItem>
+                      {purchasePlaces.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 grid gap-1.5">
                   <span className="text-xs text-muted-foreground">{t('form.goldQuantity')}</span>
                   <div className="relative">
                     <Input

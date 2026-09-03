@@ -29,6 +29,8 @@ const tx = (content: string, debit: number, note: string | null = null): Transac
   goldTypeId: null,
   goldTypeName: null,
   goldQuantity: null,
+  purchasePlaceId: null,
+  purchasePlaceName: null,
 })
 
 const none = { content: '', amountFrom: null, amountTo: null, note: '' }
