@@ -10,6 +10,7 @@ import { GoldPage } from './pages/GoldPage'
 import { GoldTypeSettingsPage } from './pages/GoldTypeSettingsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlanSettingsPage } from './pages/PlanSettingsPage'
+import { PurchasePlaceSettingsPage } from './pages/PurchasePlaceSettingsPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SubCategorySettingsPage } from './pages/SubCategorySettingsPage'
 import { TransactionsPage } from './pages/TransactionsPage'
@@ -34,6 +35,7 @@ export default function App() {
                 <Route path="settings/plans" element={<PlanSettingsPage />} />
                 <Route path="settings/beneficiaries" element={<BeneficiarySettingsPage />} />
                 <Route path="settings/gold-types" element={<GoldTypeSettingsPage />} />
+                <Route path="settings/purchase-places" element={<PurchasePlaceSettingsPage />} />
                 <Route path="summary" element={<Navigate to="/app/transactions" replace />} />
               </Route>
             </Route>

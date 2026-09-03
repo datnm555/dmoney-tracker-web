@@ -143,6 +143,12 @@ export interface GoldTypeResponse {
   name: string
 }
 
+// Mirrors Application/PurchasePlaces/Data/PurchasePlaceResponse.cs on the backend.
+export interface PurchasePlaceResponse {
+  id: string
+  name: string
+}
+
 // Mirrors Application/Gold/Data/GoldSummaryResponse.cs on the backend.
 export interface GoldTypeSummaryResponse {
   goldTypeId: string
