@@ -120,23 +120,20 @@ describe('GoldPage', () => {
     expect(valueCell?.textContent).toBe(formatMoney({ amount: 16_500_000, currency: 'VND' }))
   })
 
-  it('shows the purchase place as muted text next to the gold type on both row kinds', async () => {
+  it('shows the purchase place in its own column on both row kinds', async () => {
     render(<GoldPage />)
     await screen.findByText('Bán 1 chỉ')
     await screen.findByText('goldAcq.badge')
 
-    // getByText matches on each element's own direct text nodes (not nested
-    // children), so every gold-type <td> here reads "Nhẫn trơn" regardless of
-    // whether it also has the muted place <span> nested inside it — telling
-    // the two apart requires comparing the cell's full textContent.
+    expect(screen.getByRole('columnheader', { name: 'form.purchasePlace' })).toBeInTheDocument()
+    // tx-1 (sell) and acq-1 (acquisition) each carry the place in a dedicated cell.
+    expect(screen.getAllByText('SJC', { selector: 'td' })).toHaveLength(2)
+    // The gold-type cells stay plain — no inline " · SJC" remnant anywhere.
     const typeCells = screen.getAllByText('Nhẫn trơn', { selector: 'td' })
-    const withPlace = typeCells.filter((cell) => cell.textContent === 'Nhẫn trơn · SJC')
-    const withoutPlace = typeCells.filter((cell) => cell.textContent === 'Nhẫn trơn')
-
-    // tx-1 (sell, has a place) and acq-1 (acquisition, has a place).
-    expect(withPlace).toHaveLength(2)
-    // tx-2 (buy, no place) stays plain.
-    expect(withoutPlace).toHaveLength(1)
+    expect(typeCells).toHaveLength(3)
+    for (const cell of typeCells) {
+      expect(cell.textContent).toBe('Nhẫn trơn')
+    }
   })
 
   it('deletes an acquisition after confirm and reloads the summary', async () => {

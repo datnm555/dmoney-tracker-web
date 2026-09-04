@@ -113,6 +113,7 @@ export function GoldPage() {
                 <TableHead>{t('form.date')}</TableHead>
                 <TableHead>{t('form.content')}</TableHead>
                 <TableHead>{t('form.goldType')}</TableHead>
+                <TableHead>{t('form.purchasePlace')}</TableHead>
                 <TableHead className="text-right">{t('form.goldQuantity')}</TableHead>
                 <TableHead className="text-right">{t('form.amount')}</TableHead>
                 <TableHead className="text-right">{t('gold.pricePerChi')}</TableHead>
@@ -132,11 +133,9 @@ export function GoldPage() {
                         <span className="font-medium">{row.tx.content}</span>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {row.tx.goldTypeName}
-                      {row.tx.purchasePlaceName && (
-                        <span className="text-xs text-muted-foreground"> · {row.tx.purchasePlaceName}</span>
-                      )}
+                    <TableCell>{row.tx.goldTypeName}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {row.tx.purchasePlaceName ?? '—'}
                     </TableCell>
                     <TableCell className="text-right">
                       {formatGoldQuantity(row.tx.goldQuantity)} {t('gold.unit')}
@@ -164,11 +163,9 @@ export function GoldPage() {
                         <span className="font-medium">{row.acq.note || '—'}</span>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {row.acq.goldTypeName}
-                      {row.acq.purchasePlaceName && (
-                        <span className="text-xs text-muted-foreground"> · {row.acq.purchasePlaceName}</span>
-                      )}
+                    <TableCell>{row.acq.goldTypeName}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {row.acq.purchasePlaceName ?? '—'}
                     </TableCell>
                     <TableCell className="text-right">
                       {formatGoldQuantity(row.acq.quantity)} {t('gold.unit')}
@@ -204,7 +201,7 @@ export function GoldPage() {
               )}
               {historyRows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     {t('gold.empty')}
                   </TableCell>
                 </TableRow>
