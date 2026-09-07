@@ -85,6 +85,20 @@ describe('GoldPage', () => {
     vi.clearAllMocks()
   })
 
+  it('renders the overview section with aggregate totals across types', async () => {
+    render(<GoldPage />)
+    expect(await screen.findByText('gold.overview')).toBeInTheDocument()
+    expect(screen.getByText('gold.byType')).toBeInTheDocument()
+
+    // Money strings carry a non-breaking space, so compare textContent of the
+    // stat-card value nodes directly (same approach as the acq value test).
+    const money = (amount: number) => formatMoney({ amount, currency: 'VND' })
+    const values = Array.from(document.querySelectorAll('div.text-2xl')).map((el) => el.textContent)
+    expect(values).toContain(`−${money(31_000_000)}`) // total spent
+    expect(values).toContain(`+${money(12_000_000)}`) // total received
+    expect(values).toContain(money(31_000_000 / 3)) // weighted avg cost per chỉ
+  })
+
   it('renders a type card with the name and held quantity', async () => {
     render(<GoldPage />)
     // The same gold-type name also appears in the history table's type column,
