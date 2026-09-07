@@ -97,6 +97,9 @@ describe('GoldPage', () => {
     expect(values).toContain(`−${money(31_000_000)}`) // total spent
     expect(values).toContain(`+${money(12_000_000)}`) // total received
     expect(values).toContain(money(31_000_000 / 3)) // weighted avg cost per chỉ
+
+    // The held-card breakdown lists type names only — no quantity appended.
+    expect(screen.getByText('Nhẫn trơn', { selector: 'p' })).toBeInTheDocument()
   })
 
   it('renders a type card with the name and held quantity', async () => {

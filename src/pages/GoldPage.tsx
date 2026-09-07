@@ -64,7 +64,7 @@ export function GoldPage() {
   const avgCost = { amount: totalBought > 0 ? totalSpent.amount / totalBought : 0, currency }
   const heldBreakdown = types
     .filter((type) => type.heldQuantity > 0)
-    .map((type) => `${type.name} ${formatGoldQuantity(type.heldQuantity)}`)
+    .map((type) => type.name)
     .join(' · ')
 
   const historyRows: HistoryRow[] = [
