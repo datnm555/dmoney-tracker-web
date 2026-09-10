@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { I18nProvider } from './i18n/I18nContext'
 import { AppLayout } from './layouts/AppLayout'
+import { BankSettingsPage } from './pages/BankSettingsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { BeneficiarySettingsPage } from './pages/BeneficiarySettingsPage'
 import { CategorySettingsPage } from './pages/CategorySettingsPage'
@@ -36,6 +37,7 @@ export default function App() {
                 <Route path="settings/beneficiaries" element={<BeneficiarySettingsPage />} />
                 <Route path="settings/gold-types" element={<GoldTypeSettingsPage />} />
                 <Route path="settings/purchase-places" element={<PurchasePlaceSettingsPage />} />
+                <Route path="settings/banks" element={<BankSettingsPage />} />
                 <Route path="summary" element={<Navigate to="/app/transactions" replace />} />
               </Route>
             </Route>
