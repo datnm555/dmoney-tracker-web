@@ -48,6 +48,16 @@ vi.mock('../purchasePlaces/PurchasePlacesContext', () => ({
   }),
 }))
 
+vi.mock('../banks/BanksContext', () => ({
+  useBanks: () => ({
+    banks: [
+      { id: 'b-momo', name: 'MoMo' },
+      { id: 'b-tcb', name: 'Techcombank' },
+    ],
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../categories/CategoriesContext', () => ({
   CategoriesProvider: ({ children }: { children: ReactNode }) => children,
   useCategories: () => ({
@@ -173,6 +183,19 @@ describe('TransactionFormModal', () => {
         bank: 'Techcombank',
       }),
     )
+  })
+
+  it('renders bank chips from the user catalog and submits the picked name', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Cà phê')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
+    // Both catalog entries render as chips; MoMo comes from the user's list.
+    await userEvent.click(screen.getByRole('button', { name: 'MoMo' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ bank: 'MoMo' }))
   })
 
   it('defaults to transfer money-out with no card fields', async () => {

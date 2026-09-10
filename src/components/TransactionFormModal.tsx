@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import dayjs from 'dayjs'
 import { toast } from 'sonner'
@@ -29,10 +29,10 @@ import { usePlans } from '../plans/PlanContext'
 import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { useGoldTypes } from '../gold/GoldTypesContext'
 import { usePurchasePlaces } from '../purchasePlaces/PurchasePlacesContext'
+import { useBanks } from '../banks/BanksContext'
 import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
-  BANK_PRESETS,
   CARD_TYPE_CODES,
   PAYMENT_METHOD_CODES,
 } from '../utils/paymentMethods'
@@ -86,12 +86,28 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
   card: CreditCard,
 }
 
+// Deterministic avatar color per bank name (the catalog has no color field).
+const BANK_CHIP_COLORS = ['bg-red-600', 'bg-green-600', 'bg-sky-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600']
+
+function bankChipColor(name: string): string {
+  let hash = 0
+  for (const char of name) {
+    hash = (hash * 31 + char.charCodeAt(0)) % 997
+  }
+  return BANK_CHIP_COLORS[hash % BANK_CHIP_COLORS.length]
+}
+
 export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
   const { plans, selectedPlanId } = usePlans()
   const { beneficiaries } = useBeneficiaries()
   const { goldTypes } = useGoldTypes()
   const { purchasePlaces } = usePurchasePlaces()
+  const { banks } = useBanks()
+  // The prefill effect must not rerun (and wipe form state) when the catalog
+  // refreshes, so it reads the latest list through a ref instead of a dep.
+  const banksRef = useRef(banks)
+  banksRef.current = banks
   const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
@@ -158,7 +174,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setAlreadyPrepaid(editing.prepaidTransactionId !== null)
       setPrepaidId(editing.prepaidTransactionId)
       setSubCategoryId(editing.subCategoryId)
-      setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
+      setCustomBank(editing.bank !== null && !banksRef.current.some((b) => b.name === editing.bank))
       setNote(editing.note ?? '')
       setPlanId(editing.planId)
       setBeneficiaryId(editing.beneficiaryId)
@@ -825,29 +841,29 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
               <div className="grid gap-2">
                 <Label>{t('payment.bank')}</Label>
                 <div className="flex flex-wrap gap-1.5">
-                  {BANK_PRESETS.map((preset) => (
+                  {banks.map((catalogBank) => (
                     <button
-                      key={preset}
+                      key={catalogBank.id}
                       type="button"
                       onClick={() => {
-                        setBank(preset)
+                        setBank(catalogBank.name)
                         setCustomBank(false)
                       }}
                       className={cn(
                         'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
-                        bank === preset && !customBank && 'border-primary ring-1 ring-primary/30',
+                        bank === catalogBank.name && !customBank && 'border-primary ring-1 ring-primary/30',
                       )}
                     >
                       <span
                         aria-hidden="true"
                         className={cn(
                           'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
-                          preset === 'Techcombank' ? 'bg-red-600' : 'bg-green-600',
+                          bankChipColor(catalogBank.name),
                         )}
                       >
-                        {preset.charAt(0)}
+                        {catalogBank.name.charAt(0).toUpperCase()}
                       </span>
-                      {preset}
+                      {catalogBank.name}
                     </button>
                   ))}
                   <button

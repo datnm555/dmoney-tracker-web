@@ -5,5 +5,5 @@ export type PaymentMethodCode = (typeof PAYMENT_METHOD_CODES)[number]
 export const CARD_TYPE_CODES = ['debit', 'credit'] as const
 export type CardTypeCode = (typeof CARD_TYPE_CODES)[number]
 
-// UI convenience only; the backend stores bank as free text.
-export const BANK_PRESETS = ['Techcombank', 'VPBank'] as const
+// Bank chips come from the per-user catalog (src/banks/BanksContext);
+// the backend stores bank as free text.
