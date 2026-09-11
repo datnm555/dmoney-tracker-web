@@ -13,8 +13,8 @@ vi.mock('../i18n/I18nContext', () => ({
 }))
 
 const BANKS = [
-  { id: 'b-momo', name: 'MoMo' },
-  { id: 'b-tcb', name: 'Techcombank' },
+  { id: 'b-momo', name: 'MoMo', isDefault: false },
+  { id: 'b-tcb', name: 'Techcombank', isDefault: false },
 ]
 
 function Probe() {

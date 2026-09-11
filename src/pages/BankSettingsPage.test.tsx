@@ -10,13 +10,14 @@ vi.mock('../api/bankApi', () => ({
   createBank: vi.fn(),
   updateBank: vi.fn().mockResolvedValue(undefined),
   deleteBank: vi.fn().mockResolvedValue(undefined),
+  setDefaultBank: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('../banks/BanksContext', () => ({
   useBanks: () => ({
     banks: [
-      { id: 'b-1', name: 'MoMo' },
-      { id: 'b-2', name: 'Techcombank' },
+      { id: 'b-1', name: 'MoMo', isDefault: true },
+      { id: 'b-2', name: 'Techcombank', isDefault: false },
     ],
     refresh,
   }),
@@ -41,6 +42,18 @@ describe('BankSettingsPage', () => {
     await userEvent.clear(input)
     await userEvent.type(input, 'TCB{Enter}')
     expect(updateBank).toHaveBeenCalledWith('b-2', 'TCB')
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('shows the default badge and sets a new default', async () => {
+    const { setDefaultBank } = await import('../api/bankApi')
+    render(<BankSettingsPage />)
+    // MoMo is default: badge shown, no set-default button for it.
+    expect(screen.getByText('banks.default')).toBeInTheDocument()
+    const setButtons = screen.getAllByRole('button', { name: /banks.setDefault/ })
+    expect(setButtons).toHaveLength(1) // only Techcombank
+    await userEvent.click(setButtons[0])
+    expect(setDefaultBank).toHaveBeenCalledWith('b-2')
     expect(refresh).toHaveBeenCalled()
   })
 

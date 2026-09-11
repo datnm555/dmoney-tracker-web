@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { getApiErrorMessage } from '../api/client'
-import { deleteBank, updateBank } from '../api/bankApi'
+import { deleteBank, setDefaultBank, updateBank } from '../api/bankApi'
 import type { BankResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { CreateBankDialog } from '../banks/CreateBankDialog'
@@ -34,6 +34,15 @@ export function BankSettingsPage() {
     try {
       await updateBank(editing.id, editName.trim())
       setEditing(null)
+      await refresh()
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, t('error.network')))
+    }
+  }
+
+  const submitSetDefault = async (bank: BankResponse) => {
+    try {
+      await setDefaultBank(bank.id)
       await refresh()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
@@ -75,6 +84,22 @@ export function BankSettingsPage() {
                 />
               ) : (
                 <span className="min-w-0 flex-1 truncate font-medium">{bank.name}</span>
+              )}
+              {bank.isDefault && (
+                <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10.5px] text-muted-foreground">
+                  {t('banks.default')}
+                </span>
+              )}
+              {!bank.isDefault && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  aria-label={`${t('banks.setDefault')} ${bank.name}`}
+                  onClick={() => void submitSetDefault(bank)}
+                >
+                  <Star className="h-4 w-4" />
+                </Button>
               )}
               <Button
                 variant="ghost"

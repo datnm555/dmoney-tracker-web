@@ -18,3 +18,7 @@ export async function updateBank(id: string, name: string): Promise<void> {
 export async function deleteBank(id: string): Promise<void> {
   await apiClient.delete(`/banks/${id}`)
 }
+
+export async function setDefaultBank(id: string): Promise<void> {
+  await apiClient.put(`/banks/${id}/default`)
+}

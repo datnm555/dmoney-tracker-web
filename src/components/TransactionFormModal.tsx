@@ -190,7 +190,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setCategory(null)
       setPaymentMethod('transfer')
       setCardType(null)
-      setBank(null)
+      // Preselect the user's default bank chip (ref-read for the same reason
+      // as the beneficiaries closure-read below).
+      setBank(banksRef.current.find((b) => b.isDefault)?.name ?? null)
       setIsAdvance(false)
       setReimbursedById(null)
       setReimburse(false)

@@ -155,6 +155,7 @@ export interface PurchasePlaceResponse {
 export interface BankResponse {
   id: string
   name: string
+  isDefault: boolean
 }
 
 // Mirrors Application/Gold/Data/GoldSummaryResponse.cs on the backend.

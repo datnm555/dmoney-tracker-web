@@ -51,8 +51,8 @@ vi.mock('../purchasePlaces/PurchasePlacesContext', () => ({
 vi.mock('../banks/BanksContext', () => ({
   useBanks: () => ({
     banks: [
-      { id: 'b-momo', name: 'MoMo' },
-      { id: 'b-tcb', name: 'Techcombank' },
+      { id: 'b-momo', name: 'MoMo', isDefault: false },
+      { id: 'b-tcb', name: 'Techcombank', isDefault: true },
     ],
     refresh: vi.fn(),
   }),
@@ -212,7 +212,8 @@ describe('TransactionFormModal', () => {
         amount: 50000,
         paymentMethod: 'transfer',
         cardType: null,
-        bank: null,
+        // The default bank from the catalog is preselected on a new transaction.
+        bank: 'Techcombank',
       }),
     )
   })
