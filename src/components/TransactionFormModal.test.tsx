@@ -70,7 +70,11 @@ vi.mock('../categories/CategoriesContext', () => ({
 }))
 
 vi.mock('../api/subCategoryApi', () => ({
-  getSubCategories: vi.fn().mockResolvedValue([{ id: 'sub-1', categoryId: 'cat-bills', name: 'Xăng', isDefault: true }]),
+  getSubCategories: vi.fn().mockResolvedValue([
+    { id: 'sub-1', categoryId: 'cat-bills', name: 'Xăng', isDefault: true, icon: null, code: null },
+    { id: 'sub-book', categoryId: 'cat-savings', name: 'Sổ tiết kiệm', isDefault: false, icon: null, code: 'savings_book' },
+    { id: 'sub-gold', categoryId: 'cat-savings', name: 'Vàng', isDefault: false, icon: null, code: null },
+  ]),
 }))
 
 vi.mock('../api/transactionApi', () => ({
@@ -612,25 +616,74 @@ describe('TransactionFormModal', () => {
 
   describe('savings account (Nơi gửi)', () => {
     const savingsGroup = () => screen.getByRole('group', { name: 'form.savingsBank' })
+    const querySavingsGroup = () => screen.queryByRole('group', { name: 'form.savingsBank' })
+    const pickSavingsBook = async () =>
+      userEvent.click(await screen.findByRole('button', { name: 'Sổ tiết kiệm' }))
 
     async function fillSavingsBasics() {
       await userEvent.type(await screen.findByLabelText('form.content'), 'Gửi tiết kiệm')
       await userEvent.type(screen.getByLabelText('form.amount'), '10000000')
       await userEvent.click(screen.getByRole('button', { name: /Tích luỹ/ }))
+      await pickSavingsBook()
     }
 
-    it('is hidden until the savings category is picked', async () => {
+    const editingSavingsBook = (savingsBank: string | null) => ({
+      ...baseEditingFixture,
+      categoryId: 'cat-savings',
+      subCategoryId: 'sub-book',
+      subCategoryName: 'Sổ tiết kiệm',
+      savingsBank,
+    })
+
+    it('is hidden until the savings-book sub-category is picked', async () => {
       renderModal()
 
       await pickCategory()
-      expect(screen.queryByRole('group', { name: 'form.savingsBank' })).not.toBeInTheDocument()
+      expect(querySavingsGroup()).not.toBeInTheDocument()
 
       await userEvent.click(screen.getByRole('button', { name: /Tích luỹ/ }))
+      // The category alone is not enough — Tích luỹ also holds gold.
+      expect(querySavingsGroup()).not.toBeInTheDocument()
+
+      await pickSavingsBook()
       expect(savingsGroup()).toBeInTheDocument()
       // No default preselect, even though Techcombank is the default bank.
       for (const chip of within(savingsGroup()).getAllByRole('button')) {
         expect(chip.className).not.toContain('border-primary')
       }
+    })
+
+    it('stays hidden and submits null for Tích luỹ with another sub-category (Vàng)', async () => {
+      const onSubmit = renderModal()
+
+      await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
+      await userEvent.type(screen.getByLabelText('form.amount'), '10000000')
+      await userEvent.click(screen.getByRole('button', { name: /Tích luỹ/ }))
+      await userEvent.click(await screen.findByRole('button', { name: 'Vàng' }))
+      expect(querySavingsGroup()).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ categoryId: 'cat-savings', subCategoryId: 'sub-gold', savingsBank: null }),
+      )
+    })
+
+    it('switching the sub-category away hides and clears it', async () => {
+      const onSubmit = renderModal()
+
+      await fillSavingsBasics()
+      await userEvent.click(within(savingsGroup()).getByRole('button', { name: 'MoMo' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Vàng' }))
+      expect(querySavingsGroup()).not.toBeInTheDocument()
+
+      // Back to the savings book: the earlier pick is gone.
+      await pickSavingsBook()
+      for (const chip of within(savingsGroup()).getAllByRole('button')) {
+        expect(chip.className).not.toContain('border-primary')
+      }
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ subCategoryId: 'sub-book', savingsBank: null }))
     })
 
     it('submits null when nothing is picked', async () => {
@@ -639,7 +692,9 @@ describe('TransactionFormModal', () => {
       await fillSavingsBasics()
       await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
-      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 'cat-savings', savingsBank: null }))
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ categoryId: 'cat-savings', subCategoryId: 'sub-book', savingsBank: null }),
+      )
     })
 
     it('submits the picked bank chip name', async () => {
@@ -672,7 +727,7 @@ describe('TransactionFormModal', () => {
       await fillSavingsBasics()
       await userEvent.click(within(savingsGroup()).getByRole('button', { name: 'MoMo' }))
       await pickCategory()
-      expect(screen.queryByRole('group', { name: 'form.savingsBank' })).not.toBeInTheDocument()
+      expect(querySavingsGroup()).not.toBeInTheDocument()
       await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 'cat-bills', savingsBank: null }))
@@ -684,7 +739,7 @@ describe('TransactionFormModal', () => {
         <Wrapper>
           <TransactionFormModal
             open
-            editing={{ ...baseEditingFixture, categoryId: 'cat-savings', savingsBank: 'MoMo' }}
+            editing={editingSavingsBook('MoMo')}
             submitting={false}
             onSubmit={onSubmit}
             onCancel={() => {}}
@@ -692,8 +747,10 @@ describe('TransactionFormModal', () => {
         </Wrapper>,
       )
 
-      await screen.findByLabelText('form.content')
-      expect(within(savingsGroup()).getByRole('button', { name: 'MoMo' }).className).toContain('border-primary')
+      const momo = await within(await screen.findByRole('group', { name: 'form.savingsBank' })).findByRole('button', {
+        name: 'MoMo',
+      })
+      expect(momo.className).toContain('border-primary')
       await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ savingsBank: 'MoMo' }))
@@ -704,7 +761,7 @@ describe('TransactionFormModal', () => {
         <Wrapper>
           <TransactionFormModal
             open
-            editing={{ ...baseEditingFixture, categoryId: 'cat-savings', savingsBank: 'Vietinbank' }}
+            editing={editingSavingsBook('Vietinbank')}
             submitting={false}
             onSubmit={vi.fn()}
             onCancel={() => {}}
@@ -721,7 +778,7 @@ describe('TransactionFormModal', () => {
         <Wrapper>
           <TransactionFormModal
             open
-            editing={{ ...baseEditingFixture, categoryId: 'cat-savings', savingsBank: null }}
+            editing={editingSavingsBook(null)}
             submitting={false}
             onSubmit={onSubmit}
             onCancel={() => {}}
@@ -729,10 +786,31 @@ describe('TransactionFormModal', () => {
         </Wrapper>,
       )
 
-      await screen.findByLabelText('form.content')
+      await screen.findByRole('group', { name: 'form.savingsBank' })
       for (const chip of within(savingsGroup()).getAllByRole('button')) {
         expect(chip.className).not.toContain('border-primary')
       }
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ savingsBank: null }))
+    })
+
+    it('edit of a Tích luỹ row with a non-savings-book sub-category hides it and submits null', async () => {
+      const onSubmit = vi.fn()
+      render(
+        <Wrapper>
+          <TransactionFormModal
+            open
+            editing={{ ...baseEditingFixture, categoryId: 'cat-savings', subCategoryId: 'sub-gold', savingsBank: 'MoMo' }}
+            submitting={false}
+            onSubmit={onSubmit}
+            onCancel={() => {}}
+          />
+        </Wrapper>,
+      )
+
+      await screen.findByRole('button', { name: 'Vàng' })
+      expect(querySavingsGroup()).not.toBeInTheDocument()
       await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ savingsBank: null }))

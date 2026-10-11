@@ -21,6 +21,8 @@ const fmt = (amount: number) => formatMoney(vnd(amount)).replace(/\s/g, ' ')
 const norm = (text: string | null) => (text ?? '').replace(/\s/g, ' ')
 
 const summary: SavingsSummaryResponse = {
+  planId: 'p-1',
+  planName: 'Sổ chính',
   totalBalance: vnd(13_000_000),
   accounts: [
     {
@@ -186,7 +188,7 @@ describe('SavingsPage', () => {
   })
 
   it('shows the empty state when there are no savings transactions', async () => {
-    renderPage({ totalBalance: vnd(0), accounts: [], transactions: [] })
+    renderPage({ ...summary, totalBalance: vnd(0), accounts: [], transactions: [] })
 
     expect(await screen.findByText('savings.empty')).toBeInTheDocument()
   })

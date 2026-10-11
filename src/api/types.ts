@@ -105,6 +105,8 @@ export interface SubCategoryResponse {
   name: string
   isDefault: boolean
   icon: string | null
+  /** Stable system code (e.g. 'savings_book' for "Sổ tiết kiệm"); null for user-made ones. */
+  code: string | null
 }
 
 // Mirrors Application/Transactions/Data/CreditResponse.cs on the backend.
@@ -239,6 +241,9 @@ export interface SavingsTransactionResponse {
 }
 
 export interface SavingsSummaryResponse {
+  /** The user's default plan (sổ mặc định) the summary is scoped to. */
+  planId: string
+  planName: string
   totalBalance: MoneyResponse
   accounts: SavingsAccountResponse[]
   transactions: SavingsTransactionResponse[]
