@@ -3,13 +3,16 @@ import { AuthProvider } from './auth/AuthContext'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { I18nProvider } from './i18n/I18nContext'
 import { AppLayout } from './layouts/AppLayout'
+import { BankSettingsPage } from './pages/BankSettingsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { BeneficiarySettingsPage } from './pages/BeneficiarySettingsPage'
 import { CategorySettingsPage } from './pages/CategorySettingsPage'
 import { GoldPage } from './pages/GoldPage'
 import { GoldTypeSettingsPage } from './pages/GoldTypeSettingsPage'
+import { SavingsPage } from './pages/SavingsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlanSettingsPage } from './pages/PlanSettingsPage'
+import { PurchasePlaceSettingsPage } from './pages/PurchasePlaceSettingsPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { SubCategorySettingsPage } from './pages/SubCategorySettingsPage'
 import { TransactionsPage } from './pages/TransactionsPage'
@@ -28,12 +31,15 @@ export default function App() {
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="transactions" element={<TransactionsPage />} />
                 <Route path="gold" element={<GoldPage />} />
+                <Route path="savings" element={<SavingsPage />} />
                 <Route path="settings" element={<Navigate to="/app/settings/categories" replace />} />
                 <Route path="settings/categories" element={<CategorySettingsPage />} />
                 <Route path="settings/subcategories" element={<SubCategorySettingsPage />} />
                 <Route path="settings/plans" element={<PlanSettingsPage />} />
                 <Route path="settings/beneficiaries" element={<BeneficiarySettingsPage />} />
                 <Route path="settings/gold-types" element={<GoldTypeSettingsPage />} />
+                <Route path="settings/purchase-places" element={<PurchasePlaceSettingsPage />} />
+                <Route path="settings/banks" element={<BankSettingsPage />} />
                 <Route path="summary" element={<Navigate to="/app/transactions" replace />} />
               </Route>
             </Route>

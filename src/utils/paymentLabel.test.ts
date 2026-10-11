@@ -31,6 +31,9 @@ const tx = (paymentMethod: string, cardType: string | null = null, bank: string 
   goldTypeId: null,
   goldTypeName: null,
   goldQuantity: null,
+  purchasePlaceId: null,
+  purchasePlaceName: null,
+  savingsBank: null,
 })
 
 describe('paymentLabel', () => {

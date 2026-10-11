@@ -115,6 +115,8 @@ export function TransactionsPage() {
       beneficiaryId: values.beneficiaryId,
       goldTypeId: values.goldTypeId,
       goldQuantity: values.goldQuantity,
+      purchasePlaceId: values.purchasePlaceId,
+      savingsBank: values.savingsBank,
     }
     setSubmitting(true)
     try {
@@ -272,7 +274,12 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      <Card>
+      {/* Collapsed: the whole card is the expand target, not just the chevron. */}
+      <Card
+        data-testid="filters-card"
+        className={cn(!filtersOpen && 'cursor-pointer transition-colors hover:bg-zinc-50')}
+        onClick={filtersOpen ? undefined : () => setFiltersOpen(true)}
+      >
         <CardContent className="grid gap-4 p-4 md:p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-medium">
@@ -474,6 +481,7 @@ export function TransactionsPage() {
             const credit = items.reduce((sum, tx) => sum + tx.credit.amount, 0)
             const debit = items.reduce((sum, tx) => sum + tx.debit.amount, 0)
             const total = credit + debit
+            const balance = credit - debit
             const creditPct = total > 0 ? (credit / total) * 100 : 0
             return (
               <>
@@ -485,11 +493,17 @@ export function TransactionsPage() {
                     </>
                   )}
                 </div>
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
                   <span>
                     <span className="text-muted-foreground">{t('summary.colCredit')} </span>
                     <strong className="text-income underline decoration-income/30 underline-offset-4">
                       +{summary ? formatMoney({ amount: credit, currency }) : '—'}
+                    </strong>
+                  </span>
+                  <span data-testid="month-balance">
+                    <span className="text-muted-foreground">{t('summary.balance')} </span>
+                    <strong className={balance >= 0 ? 'text-income' : 'text-expense'}>
+                      {summary ? `${balance >= 0 ? '+' : '−'}${formatMoney({ amount: Math.abs(balance), currency })}` : '—'}
                     </strong>
                   </span>
                   <span>
@@ -571,6 +585,9 @@ export function TransactionsPage() {
                       )}
                       {tx.bank && (
                         <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700">{tx.bank}</span>
+                      )}
+                      {tx.savingsBank && (
+                        <span className="rounded-md bg-teal-50 px-1.5 py-0.5 text-teal-700">→ {tx.savingsBank}</span>
                       )}
                       <span
                         className={cn(

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import dayjs from 'dayjs'
 import { toast } from 'sonner'
@@ -28,10 +28,11 @@ import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { useGoldTypes } from '../gold/GoldTypesContext'
+import { usePurchasePlaces } from '../purchasePlaces/PurchasePlacesContext'
+import { useBanks } from '../banks/BanksContext'
 import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import {
-  BANK_PRESETS,
   CARD_TYPE_CODES,
   PAYMENT_METHOD_CODES,
 } from '../utils/paymentMethods'
@@ -59,6 +60,9 @@ export interface TransactionFormValues {
   beneficiaryId: string | null
   goldTypeId: string | null
   goldQuantity: number | null
+  purchasePlaceId: string | null
+  /** Where savings are held ("Nơi gửi"); only set for the savings category. */
+  savingsBank: string | null
 }
 
 export interface SubmitOptions {
@@ -84,12 +88,29 @@ const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
   card: CreditCard,
 }
 
+// Deterministic avatar color per bank name (the catalog has no color field).
+const BANK_CHIP_COLORS = ['bg-red-600', 'bg-green-600', 'bg-sky-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600']
+
+function bankChipColor(name: string): string {
+  let hash = 0
+  for (const char of name) {
+    hash = (hash * 31 + char.charCodeAt(0)) % 997
+  }
+  return BANK_CHIP_COLORS[hash % BANK_CHIP_COLORS.length]
+}
+
 export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
   const { plans, selectedPlanId } = usePlans()
   const { beneficiaries } = useBeneficiaries()
   const { goldTypes } = useGoldTypes()
-  const { options: categoryOptions } = useCategoryDisplay()
+  const { purchasePlaces } = usePurchasePlaces()
+  const { banks } = useBanks()
+  // The prefill effect must not rerun (and wipe form state) when the catalog
+  // refreshes, so it reads the latest list through a ref instead of a dep.
+  const banksRef = useRef(banks)
+  banksRef.current = banks
+  const { options: categoryOptions, customCategories } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
   const [date, setDate] = useState('')
@@ -100,6 +121,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [cardType, setCardType] = useState<CardTypeCode | null>(null)
   const [bank, setBank] = useState<string | null>(null)
   const [customBank, setCustomBank] = useState(false)
+  const [savingsBank, setSavingsBank] = useState<string | null>(null)
+  const [customSavingsBank, setCustomSavingsBank] = useState(false)
   const [isAdvance, setIsAdvance] = useState(false)
   const [reimburse, setReimburse] = useState(false)
   const [advanceIds, setAdvanceIds] = useState<string[]>([])
@@ -119,6 +142,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [isGold, setIsGold] = useState(false)
   const [goldTypeId, setGoldTypeId] = useState<string | null>(null)
   const [goldQuantityText, setGoldQuantityText] = useState('')
+  const [purchasePlaceId, setPurchasePlaceId] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -154,13 +178,18 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setAlreadyPrepaid(editing.prepaidTransactionId !== null)
       setPrepaidId(editing.prepaidTransactionId)
       setSubCategoryId(editing.subCategoryId)
-      setCustomBank(editing.bank !== null && !BANK_PRESETS.includes(editing.bank as (typeof BANK_PRESETS)[number]))
+      setCustomBank(editing.bank !== null && !banksRef.current.some((b) => b.name === editing.bank))
       setNote(editing.note ?? '')
       setPlanId(editing.planId)
       setBeneficiaryId(editing.beneficiaryId)
       setIsGold(editing.goldTypeId !== null)
       setGoldTypeId(editing.goldTypeId)
       setGoldQuantityText(editing.goldQuantity !== null ? String(editing.goldQuantity) : '')
+      setPurchasePlaceId(editing.purchasePlaceId)
+      setSavingsBank(editing.savingsBank)
+      setCustomSavingsBank(
+        editing.savingsBank !== null && !banksRef.current.some((b) => b.name === editing.savingsBank),
+      )
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -169,7 +198,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setCategory(null)
       setPaymentMethod('transfer')
       setCardType(null)
-      setBank(null)
+      // Preselect the user's default bank chip (ref-read for the same reason
+      // as the beneficiaries closure-read below).
+      setBank(banksRef.current.find((b) => b.isDefault)?.name ?? null)
       setIsAdvance(false)
       setReimbursedById(null)
       setReimburse(false)
@@ -188,6 +219,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setIsGold(false)
       setGoldTypeId(null)
       setGoldQuantityText('')
+      setPurchasePlaceId(null)
+      // No default preselect: where savings are held is always a deliberate pick.
+      setSavingsBank(null)
+      setCustomSavingsBank(false)
     }
   }, [open, editing, defaultDate])
 
@@ -248,6 +283,12 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
+  // category state holds the category id; the built-in code lives on the record.
+  const isSavings = useMemo(
+    () => category !== null && customCategories.some((c) => c.id === category && c.code === 'savings'),
+    [category, customCategories],
+  )
+
   // Money-out hides income-only categories (never valid there). Money-in keeps
   // every category — reimbursements and prepaid credits legitimately carry an
   // expense category — but floats income/both categories to the front.
@@ -302,6 +343,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       beneficiaryId: type === 'out' ? beneficiaryId : null,
       goldTypeId: isGold ? goldTypeId : null,
       goldQuantity: isGold ? goldQuantity : null,
+      purchasePlaceId: isGold ? purchasePlaceId : null,
+      savingsBank: isSavings ? (savingsBank?.trim() || null) : null,
     }
   }
 
@@ -329,6 +372,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     setIsGold(false)
     setGoldTypeId(null)
     setGoldQuantityText('')
+    setPurchasePlaceId(null)
+    setSavingsBank(null)
+    setCustomSavingsBank(false)
     setErrors({})
   }
 
@@ -430,6 +476,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                   if (checked !== true) {
                     setGoldTypeId(null)
                     setGoldQuantityText('')
+                    setPurchasePlaceId(null)
                   }
                 }}
                 aria-label={t('form.goldToggle')}
@@ -461,6 +508,23 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                   {errors.goldType && <p className="text-xs text-expense">{errors.goldType}</p>}
                 </div>
                 <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('form.purchasePlace')}</span>
+                  <Select
+                    value={purchasePlaceId ?? 'none'}
+                    onValueChange={(value) => setPurchasePlaceId(value === 'none' ? null : value)}
+                  >
+                    <SelectTrigger aria-label={t('form.purchasePlace')} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">—</SelectItem>
+                      {purchasePlaces.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 grid gap-1.5">
                   <span className="text-xs text-muted-foreground">{t('form.goldQuantity')}</span>
                   <div className="relative">
                     <Input
@@ -723,6 +787,61 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
             )}
           </div>
 
+          {isSavings && (
+            <div role="group" aria-label={t('form.savingsBank')} className="grid gap-2 rounded-lg bg-zinc-50 p-3">
+              <Label>{t('form.savingsBank')}</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {banks.map((catalogBank) => (
+                  <button
+                    key={catalogBank.id}
+                    type="button"
+                    onClick={() => {
+                      setSavingsBank(catalogBank.name)
+                      setCustomSavingsBank(false)
+                    }}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
+                      savingsBank === catalogBank.name && !customSavingsBank && 'border-primary ring-1 ring-primary/30',
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
+                        bankChipColor(catalogBank.name),
+                      )}
+                    >
+                      {catalogBank.name.charAt(0).toUpperCase()}
+                    </span>
+                    {catalogBank.name}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomSavingsBank(true)
+                    setSavingsBank(null)
+                  }}
+                  className={cn(
+                    'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                    customSavingsBank && 'border-primary text-primary ring-1 ring-primary/30',
+                  )}
+                >
+                  ＋ {t('payment.bank.other')}
+                </button>
+              </div>
+              {customSavingsBank && (
+                <Input
+                  aria-label={t('form.savingsBank')}
+                  maxLength={100}
+                  className="bg-background"
+                  value={savingsBank ?? ''}
+                  onChange={(e) => setSavingsBank(e.target.value)}
+                />
+              )}
+            </div>
+          )}
+
           <div className="grid gap-2">
             <Label>{t('payment.method')}</Label>
             <RadioGroup
@@ -799,29 +918,29 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
               <div className="grid gap-2">
                 <Label>{t('payment.bank')}</Label>
                 <div className="flex flex-wrap gap-1.5">
-                  {BANK_PRESETS.map((preset) => (
+                  {banks.map((catalogBank) => (
                     <button
-                      key={preset}
+                      key={catalogBank.id}
                       type="button"
                       onClick={() => {
-                        setBank(preset)
+                        setBank(catalogBank.name)
                         setCustomBank(false)
                       }}
                       className={cn(
                         'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
-                        bank === preset && !customBank && 'border-primary ring-1 ring-primary/30',
+                        bank === catalogBank.name && !customBank && 'border-primary ring-1 ring-primary/30',
                       )}
                     >
                       <span
                         aria-hidden="true"
                         className={cn(
                           'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
-                          preset === 'Techcombank' ? 'bg-red-600' : 'bg-green-600',
+                          bankChipColor(catalogBank.name),
                         )}
                       >
-                        {preset.charAt(0)}
+                        {catalogBank.name.charAt(0).toUpperCase()}
                       </span>
-                      {preset}
+                      {catalogBank.name}
                     </button>
                   ))}
                   <button

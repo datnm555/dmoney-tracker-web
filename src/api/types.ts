@@ -30,6 +30,9 @@ export interface TransactionResponse {
   goldTypeId: string | null
   goldTypeName: string | null
   goldQuantity: number | null
+  purchasePlaceId: string | null
+  purchasePlaceName: string | null
+  savingsBank: string | null
 }
 
 export interface LinkedTransactionResponse {
@@ -143,6 +146,19 @@ export interface GoldTypeResponse {
   name: string
 }
 
+// Mirrors Application/PurchasePlaces/Data/PurchasePlaceResponse.cs on the backend.
+export interface PurchasePlaceResponse {
+  id: string
+  name: string
+}
+
+// Mirrors Application/Banks/Data/BankResponse.cs on the backend.
+export interface BankResponse {
+  id: string
+  name: string
+  isDefault: boolean
+}
+
 // Mirrors Application/Gold/Data/GoldSummaryResponse.cs on the backend.
 export interface GoldTypeSummaryResponse {
   goldTypeId: string
@@ -165,9 +181,65 @@ export interface GoldTransactionResponse {
   credit: MoneyResponse
   debit: MoneyResponse
   pricePerChi: MoneyResponse
+  purchasePlaceId: string | null
+  purchasePlaceName: string | null
+}
+
+// Mirrors Application/GoldAcquisitions/Data/GoldAcquisitionResponse.cs on the backend.
+export interface GoldAcquisitionResponse {
+  id: string
+  date: string // YYYY-MM-DD
+  goldTypeId: string
+  goldTypeName: string
+  quantity: number
+  unitPrice: MoneyResponse
+  value: MoneyResponse
+  note: string | null
+  purchasePlaceId: string | null
+  purchasePlaceName: string | null
 }
 
 export interface GoldSummaryResponse {
   types: GoldTypeSummaryResponse[]
   transactions: GoldTransactionResponse[]
+  acquisitions: GoldAcquisitionResponse[]
+}
+
+// Mirrors the request body for POST/PUT /gold/acquisitions on the backend.
+export interface GoldAcquisitionPayload {
+  goldTypeId: string
+  date: string // YYYY-MM-DD
+  quantity: number
+  unitPrice: number
+  note: string | null
+  purchasePlaceId: string | null
+}
+
+// Mirrors Application/Savings/Data/SavingsSummaryResponse.cs on the backend.
+export interface SavingsAccountResponse {
+  /** Where the savings are held; null = savings rows with no account set. */
+  savingsBank: string | null
+  balance: MoneyResponse
+  totalDeposited: MoneyResponse
+  totalWithdrawn: MoneyResponse
+  transactionCount: number
+}
+
+export interface SavingsTransactionResponse {
+  transactionId: string
+  date: string // YYYY-MM-DD
+  content: string
+  savingsBank: string | null
+  bank: string | null
+  credit: MoneyResponse // withdrawal
+  debit: MoneyResponse // deposit
+  planId: string
+  subCategoryName: string | null
+  note: string | null
+}
+
+export interface SavingsSummaryResponse {
+  totalBalance: MoneyResponse
+  accounts: SavingsAccountResponse[]
+  transactions: SavingsTransactionResponse[]
 }

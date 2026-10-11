@@ -7,21 +7,26 @@ import {
   ChevronRight,
   Coins,
   Gem,
+  Landmark,
   LayoutDashboard,
   List,
   ListTree,
   LogOut,
   PieChart,
+  PiggyBank,
   Settings,
+  Store,
   Tags,
   Users,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { BanksProvider } from '../banks/BanksContext'
 import { BeneficiariesProvider } from '../beneficiaries/BeneficiariesContext'
 import { CategoriesProvider } from '../categories/CategoriesContext'
 import { GoldTypesProvider } from '../gold/GoldTypesContext'
 import { PlanProvider } from '../plans/PlanContext'
 import { PlanSwitcher } from '../plans/PlanSwitcher'
+import { PurchasePlacesProvider } from '../purchasePlaces/PurchasePlacesContext'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -45,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/app/dashboard', key: 'menu.dashboard', icon: LayoutDashboard },
   { to: '/app/transactions', key: 'menu.transactions', icon: List },
   { to: '/app/gold', key: 'menu.gold', icon: Coins },
+  { to: '/app/savings', key: 'menu.savings', icon: PiggyBank },
 ]
 
 // Children of the "Settings" tree node in the sidebar.
@@ -54,6 +60,8 @@ const SETTINGS_ITEMS: NavItem[] = [
   { to: '/app/settings/plans', key: 'menu.plans', icon: BookOpen },
   { to: '/app/settings/beneficiaries', key: 'menu.beneficiaries', icon: Users },
   { to: '/app/settings/gold-types', key: 'menu.goldTypes', icon: Gem },
+  { to: '/app/settings/purchase-places', key: 'menu.purchasePlaces', icon: Store },
+  { to: '/app/settings/banks', key: 'menu.banks', icon: Landmark },
 ]
 
 const COMING_SOON: { key: string; icon: LucideIcon }[] = [{ key: 'menu.reports', icon: PieChart }]
@@ -82,6 +90,8 @@ export function AppLayout() {
     <PlanProvider>
     <BeneficiariesProvider>
     <GoldTypesProvider>
+    <PurchasePlacesProvider>
+    <BanksProvider>
     <div className="flex min-h-screen bg-zinc-50">
       <aside className="sticky top-0 hidden h-screen w-[230px] shrink-0 flex-col gap-6 border-r bg-background px-3.5 py-5 md:flex">
         <NavLink to="/app/dashboard" className="flex items-center gap-2.5 px-2 font-semibold">
@@ -237,6 +247,8 @@ export function AppLayout() {
         </main>
       </div>
     </div>
+    </BanksProvider>
+    </PurchasePlacesProvider>
     </GoldTypesProvider>
     </BeneficiariesProvider>
     </PlanProvider>

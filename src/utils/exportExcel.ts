@@ -20,6 +20,7 @@ export function exportTransactionsToExcel(
     [t('export.colBeneficiary')]: tx.beneficiaryName ?? '',
     [t('export.colGoldType')]: tx.goldTypeName ?? '',
     [t('export.colGoldQuantity')]: tx.goldQuantity ?? '',
+    [t('export.colSavingsBank')]: tx.savingsBank ?? '',
     [t('form.isAdvance')]: tx.isAdvance ? 'x' : '',
     [t('form.note')]: tx.note ?? '',
   }))
@@ -37,6 +38,7 @@ export function exportTransactionsToExcel(
     [t('export.colBeneficiary')]: '',
     [t('export.colGoldType')]: '',
     [t('export.colGoldQuantity')]: '',
+    [t('export.colSavingsBank')]: '',
     [t('form.isAdvance')]: '',
     [t('form.note')]: `${t('transactions.net')}: ${totalCredit - totalDebit}`,
   })
@@ -53,6 +55,7 @@ export function exportTransactionsToExcel(
     { wch: 14 },
     { wch: 14 },
     { wch: 10 },
+    { wch: 16 },
     { wch: 10 },
     { wch: 30 },
   ]

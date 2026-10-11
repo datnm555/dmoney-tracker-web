@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
@@ -41,10 +41,30 @@ vi.mock('../gold/GoldTypesContext', () => ({
   }),
 }))
 
+vi.mock('../purchasePlaces/PurchasePlacesContext', () => ({
+  usePurchasePlaces: () => ({
+    purchasePlaces: [{ id: 'p-sjc', name: 'SJC' }],
+    refresh: vi.fn(),
+  }),
+}))
+
+vi.mock('../banks/BanksContext', () => ({
+  useBanks: () => ({
+    banks: [
+      { id: 'b-momo', name: 'MoMo', isDefault: false },
+      { id: 'b-tcb', name: 'Techcombank', isDefault: true },
+    ],
+    refresh: vi.fn(),
+  }),
+}))
+
 vi.mock('../categories/CategoriesContext', () => ({
   CategoriesProvider: ({ children }: { children: ReactNode }) => children,
   useCategories: () => ({
-    customCategories: [{ id: 'cat-bills', name: 'Hóa đơn', icon: 'zap', code: 'bills', kind: 'expense' }],
+    customCategories: [
+      { id: 'cat-bills', name: 'Hóa đơn', icon: 'zap', code: 'bills', kind: 'expense' },
+      { id: 'cat-savings', name: 'Tích luỹ', icon: 'piggy-bank', code: 'savings', kind: 'both' },
+    ],
     refresh: vi.fn().mockResolvedValue(undefined),
   }),
 }))
@@ -105,6 +125,9 @@ const baseEditingFixture = {
   goldTypeId: null,
   goldTypeName: null,
   goldQuantity: null,
+  purchasePlaceId: null,
+  purchasePlaceName: null,
+  savingsBank: null,
 }
 
 async function pickCategory() {
@@ -166,6 +189,19 @@ describe('TransactionFormModal', () => {
     )
   })
 
+  it('renders bank chips from the user catalog and submits the picked name', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Cà phê')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
+    // Both catalog entries render as chips; MoMo comes from the user's list.
+    await userEvent.click(screen.getByRole('button', { name: 'MoMo' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ bank: 'MoMo' }))
+  })
+
   it('defaults to transfer money-out with no card fields', async () => {
     const onSubmit = renderModal()
 
@@ -180,7 +216,8 @@ describe('TransactionFormModal', () => {
         amount: 50000,
         paymentMethod: 'transfer',
         cardType: null,
-        bank: null,
+        // The default bank from the catalog is preselected on a new transaction.
+        bank: 'Techcombank',
       }),
     )
   })
@@ -391,6 +428,9 @@ describe('TransactionFormModal', () => {
             goldTypeId: null,
             goldTypeName: null,
             goldQuantity: null,
+            purchasePlaceId: null,
+            purchasePlaceName: null,
+            savingsBank: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}
@@ -435,9 +475,10 @@ describe('TransactionFormModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ goldTypeId: null, goldQuantity: null }),
+      expect.objectContaining({ goldTypeId: null, goldQuantity: null, purchasePlaceId: null }),
     )
     expect(screen.queryByRole('combobox', { name: 'form.goldType' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'form.purchasePlace' })).not.toBeInTheDocument()
   })
 
   it('submits the picked gold type and quantity on a money-out transaction', async () => {
@@ -453,8 +494,41 @@ describe('TransactionFormModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ goldTypeId: 'g-ring', goldQuantity: 0.5 }),
+      expect.objectContaining({ goldTypeId: 'g-ring', goldQuantity: 0.5, purchasePlaceId: null }),
     )
+  })
+
+  it('submits the picked purchase place while the gold toggle is on', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Nhẫn trơn' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    await userEvent.type(screen.getByLabelText('form.goldQuantity'), '0.5')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ purchasePlaceId: 'p-sjc' }),
+    )
+  })
+
+  it('turning off the gold toggle clears the picked purchase place', async () => {
+    renderModal()
+
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    expect(screen.getByRole('combobox', { name: 'form.purchasePlace' })).toHaveTextContent('SJC')
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+
+    expect(screen.getByRole('combobox', { name: 'form.purchasePlace' })).not.toHaveTextContent('SJC')
   })
 
   it('gold toggle also works on a money-in transaction (sell)', async () => {
@@ -488,12 +562,19 @@ describe('TransactionFormModal', () => {
     expect(onSubmit).not.toHaveBeenCalled()
   })
 
-  it('edit mode prefills the gold toggle, type and quantity', async () => {
+  it('edit mode prefills the gold toggle, type, quantity and purchase place', async () => {
     render(
       <Wrapper>
         <TransactionFormModal
           open
-          editing={{ ...baseEditingFixture, goldTypeId: 'g-ring', goldTypeName: 'Nhẫn trơn', goldQuantity: 2 }}
+          editing={{
+            ...baseEditingFixture,
+            goldTypeId: 'g-ring',
+            goldTypeName: 'Nhẫn trơn',
+            goldQuantity: 2,
+            purchasePlaceId: 'p-sjc',
+            purchasePlaceName: 'SJC',
+          }}
           submitting={false}
           onSubmit={vi.fn()}
           onCancel={() => {}}
@@ -503,5 +584,158 @@ describe('TransactionFormModal', () => {
 
     expect(await screen.findByRole('checkbox', { name: 'form.goldToggle' })).toBeChecked()
     expect(screen.getByLabelText('form.goldQuantity')).toHaveValue('2')
+    expect(screen.getByRole('combobox', { name: 'form.purchasePlace' })).toHaveTextContent('SJC')
+  })
+
+  it('save-and-continue clears the picked purchase place along with the rest of the gold block', async () => {
+    const onSubmit = renderModal()
+
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
+    await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
+    await pickCategory()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'Nhẫn trơn' }))
+    await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
+    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    await userEvent.type(screen.getByLabelText('form.goldQuantity'), '0.5')
+    await userEvent.click(screen.getByRole('button', { name: 'form.saveAndContinue' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ purchasePlaceId: 'p-sjc' }),
+      { keepOpen: true },
+    )
+    // Gold block collapses back to off, taking the purchase place select with it.
+    expect(screen.getByRole('checkbox', { name: 'form.goldToggle' })).not.toBeChecked()
+    expect(screen.queryByRole('combobox', { name: 'form.purchasePlace' })).not.toBeInTheDocument()
+  })
+
+  describe('savings account (Nơi gửi)', () => {
+    const savingsGroup = () => screen.getByRole('group', { name: 'form.savingsBank' })
+
+    async function fillSavingsBasics() {
+      await userEvent.type(await screen.findByLabelText('form.content'), 'Gửi tiết kiệm')
+      await userEvent.type(screen.getByLabelText('form.amount'), '10000000')
+      await userEvent.click(screen.getByRole('button', { name: /Tích luỹ/ }))
+    }
+
+    it('is hidden until the savings category is picked', async () => {
+      renderModal()
+
+      await pickCategory()
+      expect(screen.queryByRole('group', { name: 'form.savingsBank' })).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: /Tích luỹ/ }))
+      expect(savingsGroup()).toBeInTheDocument()
+      // No default preselect, even though Techcombank is the default bank.
+      for (const chip of within(savingsGroup()).getAllByRole('button')) {
+        expect(chip.className).not.toContain('border-primary')
+      }
+    })
+
+    it('submits null when nothing is picked', async () => {
+      const onSubmit = renderModal()
+
+      await fillSavingsBasics()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 'cat-savings', savingsBank: null }))
+    })
+
+    it('submits the picked bank chip name', async () => {
+      const onSubmit = renderModal()
+
+      await fillSavingsBasics()
+      await userEvent.click(within(savingsGroup()).getByRole('button', { name: 'MoMo' }))
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        // The source bank stays the default preselect; Nơi gửi is separate.
+        expect.objectContaining({ savingsBank: 'MoMo', bank: 'Techcombank' }),
+      )
+    })
+
+    it('submits trimmed free text from "＋ other"', async () => {
+      const onSubmit = renderModal()
+
+      await fillSavingsBasics()
+      await userEvent.click(within(savingsGroup()).getByRole('button', { name: /payment\.bank\.other/ }))
+      await userEvent.type(screen.getByRole('textbox', { name: 'form.savingsBank' }), '  Vietinbank  ')
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ savingsBank: 'Vietinbank' }))
+    })
+
+    it('submits null after switching to another category', async () => {
+      const onSubmit = renderModal()
+
+      await fillSavingsBasics()
+      await userEvent.click(within(savingsGroup()).getByRole('button', { name: 'MoMo' }))
+      await pickCategory()
+      expect(screen.queryByRole('group', { name: 'form.savingsBank' })).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 'cat-bills', savingsBank: null }))
+    })
+
+    it('edit mode preselects a catalog savings bank', async () => {
+      const onSubmit = vi.fn()
+      render(
+        <Wrapper>
+          <TransactionFormModal
+            open
+            editing={{ ...baseEditingFixture, categoryId: 'cat-savings', savingsBank: 'MoMo' }}
+            submitting={false}
+            onSubmit={onSubmit}
+            onCancel={() => {}}
+          />
+        </Wrapper>,
+      )
+
+      await screen.findByLabelText('form.content')
+      expect(within(savingsGroup()).getByRole('button', { name: 'MoMo' }).className).toContain('border-primary')
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ savingsBank: 'MoMo' }))
+    })
+
+    it('edit mode restores a non-catalog savings bank into the custom input', async () => {
+      render(
+        <Wrapper>
+          <TransactionFormModal
+            open
+            editing={{ ...baseEditingFixture, categoryId: 'cat-savings', savingsBank: 'Vietinbank' }}
+            submitting={false}
+            onSubmit={vi.fn()}
+            onCancel={() => {}}
+          />
+        </Wrapper>,
+      )
+
+      expect(await screen.findByRole('textbox', { name: 'form.savingsBank' })).toHaveValue('Vietinbank')
+    })
+
+    it('edit of an old savings row without Nơi gửi opens empty and keeps null', async () => {
+      const onSubmit = vi.fn()
+      render(
+        <Wrapper>
+          <TransactionFormModal
+            open
+            editing={{ ...baseEditingFixture, categoryId: 'cat-savings', savingsBank: null }}
+            submitting={false}
+            onSubmit={onSubmit}
+            onCancel={() => {}}
+          />
+        </Wrapper>,
+      )
+
+      await screen.findByLabelText('form.content')
+      for (const chip of within(savingsGroup()).getAllByRole('button')) {
+        expect(chip.className).not.toContain('border-primary')
+      }
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ savingsBank: null }))
+    })
   })
 })

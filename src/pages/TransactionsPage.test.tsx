@@ -92,6 +92,9 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   goldTypeId: null,
   goldTypeName: null,
   goldQuantity: null,
+  purchasePlaceId: null,
+  purchasePlaceName: null,
+  savingsBank: null,
   ...overrides,
 })
 
@@ -122,6 +125,33 @@ describe('TransactionsPage summary card', () => {
     expect(await screen.findByText('0,5 gold.unit · Nhẫn trơn')).toBeInTheDocument()
   })
 
+  it('shows the savings account chip next to the source bank', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [
+        tx({
+          id: 't1',
+          content: 'Gửi tiết kiệm',
+          debit: { amount: 10_000_000, currency: 'VND' },
+          paymentMethod: 'transfer',
+          bank: 'VPBank',
+          savingsBank: 'Vietinbank',
+        }),
+      ],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 10_000_000, currency: 'VND' },
+      balance: { amount: -10_000_000, currency: 'VND' },
+    })
+
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    expect(await screen.findByText('→ Vietinbank')).toBeInTheDocument()
+    expect(screen.getByText('VPBank')).toBeInTheDocument()
+  })
+
   it('totals follow the active filters instead of the whole month', async () => {
     vi.mocked(getMonthlySummary).mockResolvedValue({
       items: [
@@ -144,6 +174,7 @@ describe('TransactionsPage summary card', () => {
     // No filter: card shows the whole month.
     expect(await screen.findByText(`+${fmt(13_000_000)}`)).toBeInTheDocument()
     expect(screen.getByText(`−${fmt(2_500_000)}`)).toBeInTheDocument()
+    expect(screen.getByTestId('month-balance')).toHaveTextContent(`summary.balance +${fmt(10_500_000)}`)
 
     // Filters start collapsed; expand before touching the inputs.
     await userEvent.click(screen.getByRole('button', { name: 'filters.expand' }))
@@ -153,9 +184,30 @@ describe('TransactionsPage summary card', () => {
 
     expect(screen.queryByText(`+${fmt(13_000_000)}`)).not.toBeInTheDocument()
     expect(screen.queryByText(`−${fmt(2_500_000)}`)).not.toBeInTheDocument()
-    // Card credit total plus the matching row itself.
-    expect(screen.getAllByText(`+${fmt(10_000_000)}`)).toHaveLength(2)
+    // Card credit total, card balance, plus the matching row itself.
+    expect(screen.getAllByText(`+${fmt(10_000_000)}`)).toHaveLength(3)
     expect(screen.getByText(`−${fmt(0)}`)).toBeInTheDocument()
+  })
+
+  it('shows a negative balance when spending exceeds income', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [
+        tx({ id: 't1', content: 'Lương', credit: { amount: 1_000_000, currency: 'VND' } }),
+        tx({ id: 't2', content: 'Thuê nhà', debit: { amount: 3_000_000, currency: 'VND' } }),
+      ],
+      totalCredit: { amount: 1_000_000, currency: 'VND' },
+      totalDebit: { amount: 3_000_000, currency: 'VND' },
+      balance: { amount: -2_000_000, currency: 'VND' },
+    })
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    const balance = await screen.findByTestId('month-balance')
+    await waitFor(() => expect(balance).toHaveTextContent(`summary.balance −${fmt(2_000_000)}`))
+    expect(balance.querySelector('strong')).toHaveClass('text-expense')
   })
 
   it('filters start collapsed and toggle from the header button', async () => {
@@ -179,6 +231,27 @@ describe('TransactionsPage summary card', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'filters.collapse' }))
     expect(screen.queryByLabelText('filters.amountFrom')).not.toBeInTheDocument()
+  })
+
+  it('collapsed filter card expands on a click anywhere, but clicks inside an open card do not collapse it', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 0, currency: 'VND' },
+      balance: { amount: 0, currency: 'VND' },
+    })
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    await userEvent.click(await screen.findByText('filters.title'))
+    expect(screen.getByLabelText('filters.amountFrom')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByLabelText('filters.amountFrom'))
+    await userEvent.click(screen.getByTestId('filters-card'))
+    expect(screen.getByLabelText('filters.amountFrom')).toBeInTheDocument()
   })
 
   it('loads the summary scoped to the selected plan', async () => {
@@ -231,8 +304,8 @@ describe('TransactionsPage summary card', () => {
     expect(screen.getByText('Ăn trưa')).toBeInTheDocument()
     expect(screen.queryByText('Cafe')).not.toBeInTheDocument()
     // Row amount, the day group's net line, and the summary card debit total —
-    // all three now agree since only this one row remains.
-    expect(screen.getAllByText(`−${fmt(200_000)}`)).toHaveLength(3)
+    // all three now agree since only this one row remains — plus the card balance.
+    expect(screen.getAllByText(`−${fmt(200_000)}`)).toHaveLength(4)
   })
 
   it('filters to beneficiary-less transactions via "beneficiaries.none"', async () => {
