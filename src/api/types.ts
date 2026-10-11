@@ -32,6 +32,7 @@ export interface TransactionResponse {
   goldQuantity: number | null
   purchasePlaceId: string | null
   purchasePlaceName: string | null
+  savingsBank: string | null
 }
 
 export interface LinkedTransactionResponse {
@@ -212,4 +213,33 @@ export interface GoldAcquisitionPayload {
   unitPrice: number
   note: string | null
   purchasePlaceId: string | null
+}
+
+// Mirrors Application/Savings/Data/SavingsSummaryResponse.cs on the backend.
+export interface SavingsAccountResponse {
+  /** Where the savings are held; null = savings rows with no account set. */
+  savingsBank: string | null
+  balance: MoneyResponse
+  totalDeposited: MoneyResponse
+  totalWithdrawn: MoneyResponse
+  transactionCount: number
+}
+
+export interface SavingsTransactionResponse {
+  transactionId: string
+  date: string // YYYY-MM-DD
+  content: string
+  savingsBank: string | null
+  bank: string | null
+  credit: MoneyResponse // withdrawal
+  debit: MoneyResponse // deposit
+  planId: string
+  subCategoryName: string | null
+  note: string | null
+}
+
+export interface SavingsSummaryResponse {
+  totalBalance: MoneyResponse
+  accounts: SavingsAccountResponse[]
+  transactions: SavingsTransactionResponse[]
 }

@@ -116,6 +116,7 @@ export function TransactionsPage() {
       goldTypeId: values.goldTypeId,
       goldQuantity: values.goldQuantity,
       purchasePlaceId: values.purchasePlaceId,
+      savingsBank: values.savingsBank,
     }
     setSubmitting(true)
     try {
@@ -584,6 +585,9 @@ export function TransactionsPage() {
                       )}
                       {tx.bank && (
                         <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700">{tx.bank}</span>
+                      )}
+                      {tx.savingsBank && (
+                        <span className="rounded-md bg-teal-50 px-1.5 py-0.5 text-teal-700">→ {tx.savingsBank}</span>
                       )}
                       <span
                         className={cn(

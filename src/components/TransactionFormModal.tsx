@@ -61,6 +61,8 @@ export interface TransactionFormValues {
   goldTypeId: string | null
   goldQuantity: number | null
   purchasePlaceId: string | null
+  /** Where savings are held ("Nơi gửi"); only set for the savings category. */
+  savingsBank: string | null
 }
 
 export interface SubmitOptions {
@@ -108,7 +110,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   // refreshes, so it reads the latest list through a ref instead of a dep.
   const banksRef = useRef(banks)
   banksRef.current = banks
-  const { options: categoryOptions } = useCategoryDisplay()
+  const { options: categoryOptions, customCategories } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
   const [date, setDate] = useState('')
@@ -119,6 +121,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   const [cardType, setCardType] = useState<CardTypeCode | null>(null)
   const [bank, setBank] = useState<string | null>(null)
   const [customBank, setCustomBank] = useState(false)
+  const [savingsBank, setSavingsBank] = useState<string | null>(null)
+  const [customSavingsBank, setCustomSavingsBank] = useState(false)
   const [isAdvance, setIsAdvance] = useState(false)
   const [reimburse, setReimburse] = useState(false)
   const [advanceIds, setAdvanceIds] = useState<string[]>([])
@@ -182,6 +186,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setGoldTypeId(editing.goldTypeId)
       setGoldQuantityText(editing.goldQuantity !== null ? String(editing.goldQuantity) : '')
       setPurchasePlaceId(editing.purchasePlaceId)
+      setSavingsBank(editing.savingsBank)
+      setCustomSavingsBank(
+        editing.savingsBank !== null && !banksRef.current.some((b) => b.name === editing.savingsBank),
+      )
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -212,6 +220,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       setGoldTypeId(null)
       setGoldQuantityText('')
       setPurchasePlaceId(null)
+      // No default preselect: where savings are held is always a deliberate pick.
+      setSavingsBank(null)
+      setCustomSavingsBank(false)
     }
   }, [open, editing, defaultDate])
 
@@ -272,6 +283,12 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
+  // category state holds the category id; the built-in code lives on the record.
+  const isSavings = useMemo(
+    () => category !== null && customCategories.some((c) => c.id === category && c.code === 'savings'),
+    [category, customCategories],
+  )
+
   // Money-out hides income-only categories (never valid there). Money-in keeps
   // every category — reimbursements and prepaid credits legitimately carry an
   // expense category — but floats income/both categories to the front.
@@ -327,6 +344,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       goldTypeId: isGold ? goldTypeId : null,
       goldQuantity: isGold ? goldQuantity : null,
       purchasePlaceId: isGold ? purchasePlaceId : null,
+      savingsBank: isSavings ? (savingsBank?.trim() || null) : null,
     }
   }
 
@@ -355,6 +373,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
     setGoldTypeId(null)
     setGoldQuantityText('')
     setPurchasePlaceId(null)
+    setSavingsBank(null)
+    setCustomSavingsBank(false)
     setErrors({})
   }
 
@@ -766,6 +786,61 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
               </div>
             )}
           </div>
+
+          {isSavings && (
+            <div role="group" aria-label={t('form.savingsBank')} className="grid gap-2 rounded-lg bg-zinc-50 p-3">
+              <Label>{t('form.savingsBank')}</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {banks.map((catalogBank) => (
+                  <button
+                    key={catalogBank.id}
+                    type="button"
+                    onClick={() => {
+                      setSavingsBank(catalogBank.name)
+                      setCustomSavingsBank(false)
+                    }}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
+                      savingsBank === catalogBank.name && !customSavingsBank && 'border-primary ring-1 ring-primary/30',
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
+                        bankChipColor(catalogBank.name),
+                      )}
+                    >
+                      {catalogBank.name.charAt(0).toUpperCase()}
+                    </span>
+                    {catalogBank.name}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomSavingsBank(true)
+                    setSavingsBank(null)
+                  }}
+                  className={cn(
+                    'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                    customSavingsBank && 'border-primary text-primary ring-1 ring-primary/30',
+                  )}
+                >
+                  ＋ {t('payment.bank.other')}
+                </button>
+              </div>
+              {customSavingsBank && (
+                <Input
+                  aria-label={t('form.savingsBank')}
+                  maxLength={100}
+                  className="bg-background"
+                  value={savingsBank ?? ''}
+                  onChange={(e) => setSavingsBank(e.target.value)}
+                />
+              )}
+            </div>
+          )}
 
           <div className="grid gap-2">
             <Label>{t('payment.method')}</Label>

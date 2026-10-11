@@ -94,6 +94,7 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   goldQuantity: null,
   purchasePlaceId: null,
   purchasePlaceName: null,
+  savingsBank: null,
   ...overrides,
 })
 
@@ -122,6 +123,33 @@ describe('TransactionsPage summary card', () => {
     )
 
     expect(await screen.findByText('0,5 gold.unit · Nhẫn trơn')).toBeInTheDocument()
+  })
+
+  it('shows the savings account chip next to the source bank', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [
+        tx({
+          id: 't1',
+          content: 'Gửi tiết kiệm',
+          debit: { amount: 10_000_000, currency: 'VND' },
+          paymentMethod: 'transfer',
+          bank: 'VPBank',
+          savingsBank: 'Vietinbank',
+        }),
+      ],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 10_000_000, currency: 'VND' },
+      balance: { amount: -10_000_000, currency: 'VND' },
+    })
+
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    expect(await screen.findByText('→ Vietinbank')).toBeInTheDocument()
+    expect(screen.getByText('VPBank')).toBeInTheDocument()
   })
 
   it('totals follow the active filters instead of the whole month', async () => {

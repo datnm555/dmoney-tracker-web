@@ -24,6 +24,7 @@ export interface TransactionPayload {
   goldTypeId: string | null
   goldQuantity: number | null
   purchasePlaceId: string | null
+  savingsBank: string | null
 }
 
 export async function getMonthlySummary(month: string, planId: string): Promise<MonthlySummaryResponse> {
