@@ -475,6 +475,7 @@ export function TransactionsPage() {
             const credit = items.reduce((sum, tx) => sum + tx.credit.amount, 0)
             const debit = items.reduce((sum, tx) => sum + tx.debit.amount, 0)
             const total = credit + debit
+            const balance = credit - debit
             const creditPct = total > 0 ? (credit / total) * 100 : 0
             return (
               <>
@@ -486,11 +487,17 @@ export function TransactionsPage() {
                     </>
                   )}
                 </div>
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
                   <span>
                     <span className="text-muted-foreground">{t('summary.colCredit')} </span>
                     <strong className="text-income underline decoration-income/30 underline-offset-4">
                       +{summary ? formatMoney({ amount: credit, currency }) : '—'}
+                    </strong>
+                  </span>
+                  <span data-testid="month-balance">
+                    <span className="text-muted-foreground">{t('summary.balance')} </span>
+                    <strong className={balance >= 0 ? 'text-income' : 'text-expense'}>
+                      {summary ? `${balance >= 0 ? '+' : '−'}${formatMoney({ amount: Math.abs(balance), currency })}` : '—'}
                     </strong>
                   </span>
                   <span>
