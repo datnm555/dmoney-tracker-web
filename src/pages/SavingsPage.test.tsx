@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
@@ -123,6 +123,56 @@ function renderPage(data: SavingsSummaryResponse = summary) {
 const accountCard = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}`) })
 
 describe('SavingsPage', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // Fake only Date so Testing Library's timers keep working.
+  const setToday = (iso: string) => vi.useFakeTimers({ toFake: ['Date'], now: new Date(iso) })
+
+  it('shows the default plan name under the title', async () => {
+    renderPage()
+
+    expect(await screen.findByText('savings.plan:')).toBeInTheDocument()
+    expect(screen.getByTestId('savings-plan')).toHaveTextContent('Sổ chính')
+  })
+
+  it('renders stat tiles computed from the transactions', async () => {
+    setToday('2026-10-11T09:00:00')
+    renderPage()
+
+    await screen.findByText('savings.total')
+    expect(norm(screen.getByTestId('savings-stat-deposited').textContent)).toContain(fmt(22_000_000))
+    expect(screen.getByTestId('savings-stat-deposited')).toHaveTextContent('savings.totalDeposited')
+    expect(norm(screen.getByTestId('savings-stat-withdrawn').textContent)).toContain(fmt(9_000_000))
+    expect(screen.getByTestId('savings-stat-withdrawn')).toHaveTextContent('savings.totalWithdrawn')
+    expect(norm(screen.getByTestId('savings-stat-this-month').textContent)).toContain(fmt(22_000_000))
+    expect(screen.getByTestId('savings-stat-this-month')).toHaveTextContent('savings.thisMonth')
+    expect(screen.getByTestId('savings-stat-count')).toHaveTextContent('5')
+  })
+
+  it('this-month tile only counts deposits dated in the current local month', async () => {
+    setToday('2026-11-03T09:00:00')
+    renderPage({
+      ...summary,
+      transactions: [
+        ...summary.transactions,
+        { ...summary.transactions[0], transactionId: 'tx-nov', date: '2026-11-01', debit: vnd(3_000_000) },
+        { ...summary.transactions[1], transactionId: 'tx-nov-out', date: '2026-11-02', credit: vnd(500_000) },
+      ],
+    })
+
+    await screen.findByText('savings.total')
+    expect(norm(screen.getByTestId('savings-stat-this-month').textContent)).toContain(fmt(3_000_000))
+    expect(norm(screen.getByTestId('savings-stat-deposited').textContent)).toContain(fmt(25_000_000))
+  })
+
+  it('renders the monthly deposit/withdrawal chart card', async () => {
+    renderPage()
+
+    expect(await screen.findByText('savings.monthlyChart')).toBeInTheDocument()
+  })
+
   it('renders the total savings', async () => {
     renderPage()
 
