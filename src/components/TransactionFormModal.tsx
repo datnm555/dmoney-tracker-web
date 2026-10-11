@@ -61,7 +61,7 @@ export interface TransactionFormValues {
   goldTypeId: string | null
   goldQuantity: number | null
   purchasePlaceId: string | null
-  /** Where savings are held ("Nơi gửi"); only set for the savings category. */
+  /** Where savings are held ("Nơi gửi"); only set for the savings-book sub-category. */
   savingsBank: string | null
 }
 
@@ -79,6 +79,9 @@ interface Props {
   onSubmit: (values: TransactionFormValues, options?: SubmitOptions) => void
   onCancel: () => void
 }
+
+// Keep in sync with SubCategoryCodes.SavingsBook in the be repo.
+const SAVINGS_BOOK_CODE = 'savings_book'
 
 const formatThousands = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 
@@ -110,7 +113,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   // refreshes, so it reads the latest list through a ref instead of a dep.
   const banksRef = useRef(banks)
   banksRef.current = banks
-  const { options: categoryOptions, customCategories } = useCategoryDisplay()
+  const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
   const [date, setDate] = useState('')
@@ -283,11 +286,23 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
 
   const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
 
-  // category state holds the category id; the built-in code lives on the record.
+  // "Nơi gửi" belongs to the savings-book sub-category only (Tích luỹ also holds gold).
   const isSavings = useMemo(
-    () => category !== null && customCategories.some((c) => c.id === category && c.code === 'savings'),
-    [category, customCategories],
+    () =>
+      category !== null &&
+      subCategoryId !== null &&
+      subCategories.some((s) => s.id === subCategoryId && s.categoryId === category && s.code === SAVINGS_BOOK_CODE),
+    [category, subCategoryId, subCategories],
   )
+
+  // Picking a sub-category (or category) that is not the savings book drops any Nơi gửi pick.
+  const selectSubCategory = (next: string | null) => {
+    setSubCategoryId(next)
+    if (!subCategories.some((s) => s.id === next && s.code === SAVINGS_BOOK_CODE)) {
+      setSavingsBank(null)
+      setCustomSavingsBank(false)
+    }
+  }
 
   // Money-out hides income-only categories (never valid there). Money-in keeps
   // every category — reimbursements and prepaid credits legitimately carry an
@@ -742,7 +757,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                       const next = selected ? null : code
                       setCategory(next)
                       // Auto-pick the default sub-category of the chosen parent, if any.
-                      setSubCategoryId(
+                      selectSubCategory(
                         next !== null
                           ? (subCategories.find((s) => s.categoryId === next && s.isDefault)?.id ?? null)
                           : null,
@@ -771,7 +786,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
                       <button
                         key={s.id}
                         type="button"
-                        onClick={() => setSubCategoryId(subCategoryId === s.id ? null : s.id)}
+                        onClick={() => selectSubCategory(subCategoryId === s.id ? null : s.id)}
                         className={cn(
                           'rounded-lg border px-2.5 py-1 text-xs font-medium',
                           subCategoryId === s.id

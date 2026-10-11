@@ -1,4 +1,5 @@
-import type { DailyStat, MonthlyStat } from '../api/types'
+import type { Dayjs } from 'dayjs'
+import type { DailyStat, MonthlyStat, SavingsTransactionResponse } from '../api/types'
 
 export interface MonthlyBarDatum {
   month: string
@@ -84,4 +85,33 @@ export function toCategorySpending(
       return { category, amount, subs }
     })
     .sort((a, b) => b.amount - a.amount)
+}
+
+export interface SavingsMonthDatum {
+  /** 'MM/YYYY' — the 12-month window spans two years, so the year is kept. */
+  month: string
+  deposited: number
+  withdrawn: number
+}
+
+/**
+ * Deposits (debit) and withdrawals (credit) per month over the 12 months ending at
+ * `today`'s month, oldest first; empty months are 0, rows outside the window ignored.
+ */
+export function savingsMonthly(transactions: SavingsTransactionResponse[], today: Dayjs): SavingsMonthDatum[] {
+  const months: SavingsMonthDatum[] = []
+  const index = new Map<string, SavingsMonthDatum>()
+  for (let offset = 11; offset >= 0; offset--) {
+    const m = today.subtract(offset, 'month')
+    const datum = { month: m.format('MM/YYYY'), deposited: 0, withdrawn: 0 }
+    months.push(datum)
+    index.set(m.format('YYYY-MM'), datum)
+  }
+  for (const tx of transactions) {
+    const datum = index.get(tx.date.slice(0, 7))
+    if (!datum) continue
+    datum.deposited += tx.debit.amount
+    datum.withdrawn += tx.credit.amount
+  }
+  return months
 }

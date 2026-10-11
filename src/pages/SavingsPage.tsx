@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { PiggyBank, Wallet } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, CalendarDays, PiggyBank, Receipt, Wallet } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,6 +12,7 @@ import { getApiErrorMessage } from '../api/client'
 import { getSavingsSummary } from '../api/savingsApi'
 import type { MoneyResponse, SavingsSummaryResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
+import { savingsMonthly } from '../utils/chartData'
 import { formatMoney } from '../utils/money'
 
 // Select values: 'all', the unassigned bucket sentinel, or an account name.
@@ -17,6 +20,34 @@ const ALL = 'all'
 const UNASSIGNED = '__unassigned__'
 
 const accountKey = (savingsBank: string | null) => savingsBank ?? UNASSIGNED
+
+const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
+
+function StatTile({
+  testId,
+  label,
+  value,
+  icon: Icon,
+  valueClass,
+}: {
+  testId: string
+  label: string
+  value: string
+  icon: LucideIcon
+  valueClass?: string
+}) {
+  return (
+    <Card data-testid={testId}>
+      <CardContent className="grid gap-1 p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-xs text-muted-foreground">{label}</span>
+          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </div>
+        <div className={cn('truncate text-base font-bold tabular-nums sm:text-lg', valueClass)}>{value}</div>
+      </CardContent>
+    </Card>
+  )
+}
 
 /** Balances can go negative (withdrew more than recorded deposits): show "−" + abs, never "+-". */
 function formatBalance(money: MoneyResponse): string {
@@ -44,6 +75,21 @@ export function SavingsPage() {
   const transactions = useMemo(() => summary?.transactions ?? [], [summary])
   const totalBalance = summary?.totalBalance ?? { amount: 0, currency: 'VND' }
 
+  const stats = useMemo(() => {
+    const currentMonth = dayjs().format('YYYY-MM')
+    let deposited = 0
+    let withdrawn = 0
+    let thisMonth = 0
+    for (const tx of transactions) {
+      deposited += tx.debit.amount
+      withdrawn += tx.credit.amount
+      if (tx.date.slice(0, 7) === currentMonth) thisMonth += tx.debit.amount
+    }
+    return { deposited, withdrawn, thisMonth, count: transactions.length }
+  }, [transactions])
+
+  const monthly = useMemo(() => savingsMonthly(transactions, dayjs()), [transactions])
+
   const accountLabel = (savingsBank: string | null) => savingsBank ?? t('savings.unassigned')
 
   const visibleTransactions = useMemo(
@@ -53,7 +99,17 @@ export function SavingsPage() {
 
   return (
     <div className="grid gap-4">
-      <h1 className="text-xl font-bold">{t('savings.title')}</h1>
+      <div className="grid gap-0.5">
+        <h1 className="text-xl font-bold">{t('savings.title')}</h1>
+        {summary && (
+          <p className="text-sm text-muted-foreground">
+            <span>{t('savings.plan')}:</span>{' '}
+            <span data-testid="savings-plan" className="font-medium text-foreground">
+              {summary.planName}
+            </span>
+          </p>
+        )}
+      </div>
 
       <Card className="border-primary/30 bg-primary/5">
         <CardHeader className="flex-row items-center justify-between pb-2">
@@ -79,6 +135,72 @@ export function SavingsPage() {
         </Card>
       ) : (
         <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile
+              testId="savings-stat-deposited"
+              label={t('savings.totalDeposited')}
+              value={vnd(stats.deposited)}
+              icon={ArrowDownToLine}
+              valueClass="text-income"
+            />
+            <StatTile
+              testId="savings-stat-withdrawn"
+              label={t('savings.totalWithdrawn')}
+              value={vnd(stats.withdrawn)}
+              icon={ArrowUpFromLine}
+              valueClass="text-expense"
+            />
+            <StatTile
+              testId="savings-stat-this-month"
+              label={t('savings.thisMonth')}
+              value={vnd(stats.thisMonth)}
+              icon={CalendarDays}
+            />
+            <StatTile
+              testId="savings-stat-count"
+              label={t('savings.count')}
+              value={String(stats.count)}
+              icon={Receipt}
+            />
+          </div>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">{t('savings.monthlyChart')}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthly} barGap={4}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+                    {/* Ticks show "T10"; the tooltip keeps the full MM/YYYY label. */}
+                    <XAxis
+                      dataKey="month"
+                      tickFormatter={(month: string) => `T${Number(month.slice(0, 2))}`}
+                      tickLine={false}
+                      axisLine={false}
+                      fontSize={12}
+                    />
+                    <YAxis tickFormatter={vnd} tickLine={false} axisLine={false} fontSize={11} width={86} />
+                    <Tooltip formatter={(value) => vnd(Number(value))} />
+                    <Bar dataKey="deposited" name={t('savings.deposited')} fill="#16a34a" radius={[7, 7, 7, 7]} barSize={10} />
+                    <Bar dataKey="withdrawn" name={t('savings.withdrawn')} fill="#dc2626" radius={[7, 7, 7, 7]} barSize={10} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-income" />
+                  {t('savings.deposited')}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-expense" />
+                  {t('savings.withdrawn')}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+
           {accounts.length > 0 && (
             <>
               <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
