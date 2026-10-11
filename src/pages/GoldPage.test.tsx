@@ -183,4 +183,19 @@ describe('GoldPage', () => {
     render(<GoldPage />)
     expect(await screen.findByText('gold.empty')).toBeInTheDocument()
   })
+
+  it('shows the monthly buy/sell chart when there are gold transactions', async () => {
+    render(<GoldPage />)
+    expect(await screen.findByText('gold.monthlyChart')).toBeInTheDocument()
+    // Legend names the unit so the bars read as chỉ, not money.
+    expect(screen.getByText('gold.bought (gold.unit)')).toBeInTheDocument()
+    expect(screen.getByText('gold.sold (gold.unit)')).toBeInTheDocument()
+  })
+
+  it('hides the monthly chart when there are no gold transactions', async () => {
+    vi.mocked(getGoldSummary).mockResolvedValueOnce({ types: [], transactions: [], acquisitions: [] })
+    render(<GoldPage />)
+    await screen.findByText('gold.empty')
+    expect(screen.queryByText('gold.monthlyChart')).not.toBeInTheDocument()
+  })
 })

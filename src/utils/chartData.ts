@@ -1,5 +1,5 @@
 import type { Dayjs } from 'dayjs'
-import type { DailyStat, MonthlyStat, SavingsTransactionResponse } from '../api/types'
+import type { DailyStat, GoldTransactionResponse, MonthlyStat, SavingsTransactionResponse } from '../api/types'
 
 export interface MonthlyBarDatum {
   month: string
@@ -112,6 +112,48 @@ export function savingsMonthly(transactions: SavingsTransactionResponse[], today
     if (!datum) continue
     datum.deposited += tx.debit.amount
     datum.withdrawn += tx.credit.amount
+  }
+  return months
+}
+
+export interface GoldMonthDatum {
+  /** 'MM/YYYY' — the chart shows "T10" ticks, the tooltip the full label. */
+  month: string
+  /** Chỉ bought (debit rows) / sold (credit rows) in the month. */
+  bought: number
+  sold: number
+  /** Money paid for the buys / received for the sells, for the tooltip. */
+  spent: number
+  received: number
+}
+
+// Quantities are decimal chỉ (0.1 + 0.2); round to the 4 places the backend stores.
+const roundChi = (value: number) => Math.round(value * 10_000) / 10_000
+
+/**
+ * Last 12 months (oldest → newest, ending at `today`'s month) of gold buy/sell
+ * transactions. Pre-owned acquisitions are deliberately excluded — they are
+ * not purchases made in that month.
+ */
+export function goldMonthly(transactions: GoldTransactionResponse[], today: Dayjs): GoldMonthDatum[] {
+  const months: GoldMonthDatum[] = []
+  const index = new Map<string, GoldMonthDatum>()
+  for (let offset = 11; offset >= 0; offset--) {
+    const m = today.subtract(offset, 'month')
+    const datum = { month: m.format('MM/YYYY'), bought: 0, sold: 0, spent: 0, received: 0 }
+    months.push(datum)
+    index.set(m.format('YYYY-MM'), datum)
+  }
+  for (const tx of transactions) {
+    const datum = index.get(tx.date.slice(0, 7))
+    if (!datum) continue
+    if (tx.debit.amount > 0) {
+      datum.bought = roundChi(datum.bought + tx.goldQuantity)
+      datum.spent += tx.debit.amount
+    } else if (tx.credit.amount > 0) {
+      datum.sold = roundChi(datum.sold + tx.goldQuantity)
+      datum.received += tx.credit.amount
+    }
   }
   return months
 }

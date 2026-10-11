@@ -19,6 +19,7 @@ import { getApiErrorMessage } from '../api/client'
 import { deleteGoldAcquisition, getGoldSummary } from '../api/goldApi'
 import type { GoldAcquisitionResponse, GoldSummaryResponse } from '../api/types'
 import { GoldAcquisitionDialog } from '../gold/GoldAcquisitionDialog'
+import { GoldMonthlyChart } from '../gold/GoldMonthlyChart'
 import { useI18n } from '../i18n/I18nContext'
 import { formatGoldQuantity } from '../utils/gold'
 import { formatMoney } from '../utils/money'
@@ -160,6 +161,8 @@ export function GoldPage() {
           </CardContent>
         </Card>
       </div>
+
+      {transactions.length > 0 && <GoldMonthlyChart transactions={transactions} />}
 
       {types.length > 0 && (
         <>
