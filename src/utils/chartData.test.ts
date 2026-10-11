@@ -1,6 +1,14 @@
+import dayjs from 'dayjs'
 import { describe, expect, it } from 'vitest'
-import type { DailyStat, MonthlyStat } from '../api/types'
-import { toBalanceLine, toCategorySpending, toDailyBars, toIncomeExpenseBars, toMonthlyBars } from './chartData'
+import type { DailyStat, MonthlyStat, SavingsTransactionResponse } from '../api/types'
+import {
+  savingsMonthly,
+  toBalanceLine,
+  toCategorySpending,
+  toDailyBars,
+  toIncomeExpenseBars,
+  toMonthlyBars,
+} from './chartData'
 
 const vnd = (amount: number) => ({ amount, currency: 'VND' })
 
@@ -72,5 +80,55 @@ describe('chartData', () => {
         ],
       },
     ])
+  })
+})
+
+describe('savingsMonthly', () => {
+  const tx = (date: string, debit: number, credit: number): SavingsTransactionResponse => ({
+    transactionId: `${date}-${debit}-${credit}`,
+    date,
+    content: 'x',
+    savingsBank: null,
+    bank: null,
+    credit: vnd(credit),
+    debit: vnd(debit),
+    planId: 'p-1',
+    subCategoryName: null,
+    note: null,
+  })
+  const today = dayjs('2026-10-11')
+
+  it('returns 12 zeroed months oldest→newest ending at the current month when empty', () => {
+    const months = savingsMonthly([], today)
+    expect(months).toHaveLength(12)
+    expect(months[0]).toEqual({ month: '11/2025', deposited: 0, withdrawn: 0 })
+    expect(months[11]).toEqual({ month: '10/2026', deposited: 0, withdrawn: 0 })
+    expect(months.map((m) => m.month)).toContain('01/2026')
+  })
+
+  it('sums deposits (debit) and withdrawals (credit) per month', () => {
+    const months = savingsMonthly(
+      [
+        tx('2026-10-05', 20_000_000, 0),
+        tx('2026-10-01', 1_000_000, 0),
+        tx('2026-10-04', 0, 5_000_000),
+        tx('2026-03-31', 0, 2_000_000),
+        tx('2025-11-01', 7_000_000, 0),
+      ],
+      today,
+    )
+    const byMonth = Object.fromEntries(months.map((m) => [m.month, m]))
+    expect(byMonth['10/2026']).toEqual({ month: '10/2026', deposited: 21_000_000, withdrawn: 5_000_000 })
+    expect(byMonth['03/2026']).toEqual({ month: '03/2026', deposited: 0, withdrawn: 2_000_000 })
+    expect(byMonth['11/2025']).toEqual({ month: '11/2025', deposited: 7_000_000, withdrawn: 0 })
+    expect(byMonth['09/2026']).toEqual({ month: '09/2026', deposited: 0, withdrawn: 0 })
+  })
+
+  it('ignores rows older than 12 months and rows after the current month', () => {
+    const months = savingsMonthly(
+      [tx('2025-10-31', 9_000_000, 0), tx('2024-10-05', 1, 1), tx('2026-11-01', 3, 3)],
+      today,
+    )
+    expect(months.every((m) => m.deposited === 0 && m.withdrawn === 0)).toBe(true)
   })
 })
