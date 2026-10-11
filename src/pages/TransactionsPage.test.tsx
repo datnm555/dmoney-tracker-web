@@ -205,6 +205,27 @@ describe('TransactionsPage summary card', () => {
     expect(screen.queryByLabelText('filters.amountFrom')).not.toBeInTheDocument()
   })
 
+  it('collapsed filter card expands on a click anywhere, but clicks inside an open card do not collapse it', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [],
+      totalCredit: { amount: 0, currency: 'VND' },
+      totalDebit: { amount: 0, currency: 'VND' },
+      balance: { amount: 0, currency: 'VND' },
+    })
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    await userEvent.click(await screen.findByText('filters.title'))
+    expect(screen.getByLabelText('filters.amountFrom')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByLabelText('filters.amountFrom'))
+    await userEvent.click(screen.getByTestId('filters-card'))
+    expect(screen.getByLabelText('filters.amountFrom')).toBeInTheDocument()
+  })
+
   it('loads the summary scoped to the selected plan', async () => {
     vi.mocked(getMonthlySummary).mockResolvedValue({
       items: [],

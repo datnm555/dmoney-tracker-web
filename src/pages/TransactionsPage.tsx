@@ -273,7 +273,12 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      <Card>
+      {/* Collapsed: the whole card is the expand target, not just the chevron. */}
+      <Card
+        data-testid="filters-card"
+        className={cn(!filtersOpen && 'cursor-pointer transition-colors hover:bg-zinc-50')}
+        onClick={filtersOpen ? undefined : () => setFiltersOpen(true)}
+      >
         <CardContent className="grid gap-4 p-4 md:p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm font-medium">
