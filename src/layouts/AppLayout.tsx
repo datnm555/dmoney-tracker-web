@@ -13,6 +13,7 @@ import {
   ListTree,
   LogOut,
   PieChart,
+  PiggyBank,
   Settings,
   Store,
   Tags,
@@ -49,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/app/dashboard', key: 'menu.dashboard', icon: LayoutDashboard },
   { to: '/app/transactions', key: 'menu.transactions', icon: List },
   { to: '/app/gold', key: 'menu.gold', icon: Coins },
+  { to: '/app/savings', key: 'menu.savings', icon: PiggyBank },
 ]
 
 // Children of the "Settings" tree node in the sidebar.
