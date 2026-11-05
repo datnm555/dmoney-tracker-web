@@ -94,7 +94,10 @@ describe('GoldPage', () => {
     // stat-card value nodes directly (same approach as the acq value test).
     const money = (amount: number) => formatMoney({ amount, currency: 'VND' })
     const values = Array.from(document.querySelectorAll('div.text-2xl')).map((el) => el.textContent)
-    expect(values).toContain(`−${money(31_000_000)}`) // total spent
+    // Buying gold is saving, so the spent total shows unsigned under the savings label.
+    expect(values).toContain(money(31_000_000)) // total saved
+    expect(values).not.toContain(`−${money(31_000_000)}`)
+    expect(screen.getByText('gold.totalSaved')).toBeInTheDocument()
     expect(values).toContain(`+${money(12_000_000)}`) // total received
     expect(values).toContain(money(31_000_000 / 3)) // weighted avg cost per chỉ
 
