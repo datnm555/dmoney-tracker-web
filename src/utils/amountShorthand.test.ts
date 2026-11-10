@@ -17,6 +17,10 @@ describe('parseAmountShorthand', () => {
     ['50K', 50000],
     ['2TR', 2000000],
     ['1.5k', 1500],
+    ['1.200k', 1200000],
+    ['1.500tr', 1500000000],
+    ['2,5tr', 2500000],
+    ['2.25m', 2250000],
   ])('parses %s as %i', (input, expected) => {
     expect(parseAmountShorthand(input)).toBe(expected)
   })

@@ -963,6 +963,24 @@ describe('TransactionFormModal quick-entry layout', () => {
     expect(await screen.findByRole('button', { name: 'form.moreOptions' })).toHaveAttribute('aria-expanded', 'true')
   })
 
+  it('edits a transaction with a fractional stored amount (rounded)', async () => {
+    const onSubmit = vi.fn()
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, debit: { amount: 1500.5, currency: 'VND' } }}
+          submitting={false}
+          onSubmit={onSubmit}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await screen.findByLabelText('form.amount')).toHaveValue('1.501')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 1501 }))
+  })
+
   it('keeps edit values intact for an advance', async () => {
     renderEditing({ isAdvance: true })
     expect(await screen.findByRole('checkbox', { name: 'form.isAdvance' })).toBeChecked()
@@ -1013,6 +1031,19 @@ describe('TransactionFormModal quick-entry layout', () => {
       await userEvent.type(amount, typed)
       await userEvent.tab()
       expect(amount).toHaveValue(formatVi(expected))
+    })
+
+    it.each([
+      ['1200k', 1200000],
+      ['1500k', 1500000],
+      ['2000m', 2000000000],
+    ])('typing %s (auto-formatted) submits the full amount', async (typed, expected) => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), typed)
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: expected }))
     })
 
     it('converts shorthand on submit', async () => {

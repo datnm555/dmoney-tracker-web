@@ -92,18 +92,17 @@ const formatThousands = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))
 // Pure digits render with thousand separators; anything else (shorthand like 1tr5) shows as typed.
 const displayAmount = (text: string) => (/^\d*$/.test(text) ? formatThousands(text) : text)
 
-// Digits are stored without separators. Dots are only stripped when they came from the thousand
-// formatting (appending/deleting at the end of a formatted number, or pasting a grouped number);
-// otherwise text is kept verbatim for shorthand parsing ("1.5" is the start of "1.5tr").
+// Digits are stored without separators. The dots the form itself inserts while formatting a plain
+// number are stripped (so "1.200" + "k" is stored as "1200k"); pasted/other text is kept verbatim
+// for the shorthand parser ("1.5" is the start of "1.5tr").
 function normalizeAmountInput(value: string, previous: string): string {
   if (/^\d*$/.test(value)) return value
-  if (!/^[\d.]*$/.test(value)) return value
-  if (/^\d{1,3}(\.\d{3})+$/.test(value)) return value.replace(/\D/g, '')
   if (/^\d*$/.test(previous)) {
     const shown = displayAmount(previous)
-    if (shown.startsWith(value)) return value.replace(/\D/g, '')
-    if (value.startsWith(shown) && /^\d*$/.test(value.slice(shown.length))) return value.replace(/\D/g, '')
+    if (value.startsWith(shown)) return previous + value.slice(shown.length)
+    if (/^[\d.]*$/.test(value) && shown.startsWith(value)) return value.replace(/\D/g, '')
   }
+  if (/^\d{1,3}(\.\d{3})+$/.test(value)) return value.replace(/\D/g, '')
   return value
 }
 
@@ -185,7 +184,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       setType(isIncome ? 'in' : 'out')
       setDate(editing.date)
       setContent(editing.content)
-      setAmountText(String(isIncome ? editing.credit.amount : editing.debit.amount))
+      setAmountText(String(Math.round(isIncome ? editing.credit.amount : editing.debit.amount)))
       setCategory(editing.categoryId)
       setPaymentMethod((editing.paymentMethod as PaymentMethodCode) ?? 'transfer')
       setCardType((editing.cardType as CardTypeCode) ?? null)
@@ -453,7 +452,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const handleKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
     if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return
     if ((event.target as HTMLElement).tagName !== 'INPUT') return
-    if (event.currentTarget.querySelector('[role="combobox"][aria-expanded="true"], [aria-haspopup][aria-expanded="true"]')) return
+    if (event.currentTarget.querySelector('[role="combobox"][aria-expanded="true"], [aria-haspopup][aria-expanded="true"]')) {
+      event.preventDefault()
+      return
+    }
     event.preventDefault()
     if (!submitting) submit()
   }

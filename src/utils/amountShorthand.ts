@@ -12,7 +12,13 @@ export function parseAmountShorthand(input: string): number | null {
   if (/^\d+$/.test(s)) return Number(s)
   if (/^\d{1,3}([.,]\d{3})+$/.test(s)) return Number(s.replace(/[.,]/g, ''))
 
-  const match = /^(\d+)(?:[.,](\d+))?(k|tr|m)(\d+)?$/.exec(s)
+  // Before a unit, a dot/comma followed by exactly 3 digits is a thousand separator
+  // (1.200k = 1,200,000; 1.500tr = 1,500,000,000); a single dot/comma followed by 1-2 digits is a
+  // decimal (1.5tr, 1,5tr, 2.25m).
+  const grouped = /^(\d{1,3}(?:[.,]\d{3})+)(k|tr|m)$/.exec(s)
+  if (grouped) return Number(grouped[1].replace(/[.,]/g, '')) * UNIT_MULTIPLIER[grouped[2]]
+
+  const match = /^(\d+)(?:[.,](\d{1,2}))?(k|tr|m)(\d+)?$/.exec(s)
   if (!match) return null
   const [, whole, decimals, unit, trailing] = match
   if (decimals !== undefined && trailing !== undefined) return null
