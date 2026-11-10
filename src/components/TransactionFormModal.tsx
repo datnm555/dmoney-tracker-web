@@ -290,21 +290,19 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     }
   }, [open, editing, defaultDate])
 
-  // Once the accounts are known: a failed load shows the manual controls; an
-  // edited row whose payment values match no chip opens "Khác" so they stay visible.
+  // Once the accounts are known: a failed load shows the manual controls, and
+  // so does any payment value (edit or create) that matches no chip, so what
+  // will be saved is always visible.
+  const payWithRef = useRef<PayWithFields>({ paymentMethod, cardType, bank })
+  payWithRef.current = { paymentMethod, cardType, bank }
   useEffect(() => {
     if (!open) return
     if (accountsStatus === 'error') {
       setPayOtherOpen(true)
-    } else if (accountsStatus === 'ready' && editing) {
-      const current: PayWithFields = {
-        paymentMethod: (editing.paymentMethod as PaymentMethodCode) ?? 'transfer',
-        cardType: (editing.cardType as CardTypeCode) ?? null,
-        bank: editing.bank,
-      }
-      setPayOtherOpen(selectedPayWithKey(payWithChips, current) === null)
+    } else if (accountsStatus === 'ready') {
+      setPayOtherOpen(selectedPayWithKey(payWithChips, payWithRef.current) === null)
     }
-  }, [open, editing, accountsStatus, payWithChips])
+  }, [open, accountsStatus, payWithChips])
 
   useEffect(() => {
     if (!open || !reimburse || !selectedPlanId) return
@@ -729,134 +727,134 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
               </div>
             )}
             {(payOtherOpen || accountsStatus === 'error') && (
-            <div className="grid gap-4">
-            <div className="grid gap-2">
-              <RadioGroup
-                value={paymentMethod}
-                onValueChange={(value) => {
-                  setPaymentMethod(value as PaymentMethodCode)
-                  if (value !== 'card') setCardType(null)
-                  if (value === 'cash') {
-                    setBank(null)
-                    setCustomBank(false)
-                  }
-                }}
-                className="grid grid-cols-3 gap-2"
-              >
-                {PAYMENT_METHOD_CODES.map((code) => {
-                  const Icon = PAYMENT_ICONS[code]
-                  const selected = paymentMethod === code
-                  return (
-                    <Label
-                      key={code}
-                      htmlFor={`tx-pm-${code}`}
-                      className={cn(
-                        'relative flex cursor-pointer flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-sm',
-                        selected ? 'border-primary bg-primary/5 text-primary' : 'text-muted-foreground',
-                      )}
-                    >
-                      <RadioGroupItem id={`tx-pm-${code}`} value={code} className="sr-only" />
-                      {selected && (
-                        <CircleCheck className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-background fill-primary text-primary-foreground" />
-                      )}
-                      <Icon className="h-4 w-4" />
-                      {t(`payment.${code}`)}
-                    </Label>
-                  )
-                })}
-              </RadioGroup>
-            </div>
-
-            {paymentMethod !== 'cash' && (
-              <div className="grid gap-3 rounded-lg bg-zinc-50 p-3">
-                {paymentMethod === 'card' && (
+              <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label>{t('payment.cardType')}</Label>
                   <RadioGroup
-                    value={cardType ?? ''}
-                    onValueChange={(value) => setCardType(value as CardTypeCode)}
-                    className="grid grid-cols-2 gap-2"
+                    value={paymentMethod}
+                    onValueChange={(value) => {
+                      setPaymentMethod(value as PaymentMethodCode)
+                      if (value !== 'card') setCardType(null)
+                      if (value === 'cash') {
+                        setBank(null)
+                        setCustomBank(false)
+                      }
+                    }}
+                    className="grid grid-cols-3 gap-2"
                   >
-                    {CARD_TYPE_CODES.map((code) => (
-                      <Label
-                        key={code}
-                        htmlFor={`tx-ct-${code}`}
-                        className={cn(
-                          'flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm',
-                          cardType === code && 'border-primary ring-1 ring-primary/30',
-                        )}
-                      >
-                        <RadioGroupItem id={`tx-ct-${code}`} value={code} />
-                        {code === 'debit' ? (
-                          <span>{t(`payment.cardType.${code}`)}</span>
-                        ) : (
-                          <span className="flex items-center">
-                            <span className="h-3 w-3 rounded-full bg-red-500" />
-                            <span className="-ml-1 h-3 w-3 rounded-full bg-amber-400 opacity-90" />
-                            <span className="ml-1.5">{t(`payment.cardType.${code}`)}</span>
-                          </span>
-                        )}
-                      </Label>
-                    ))}
-                  </RadioGroup>
-                  {errors.cardType && <p className="text-xs text-expense">{errors.cardType}</p>}
-                </div>
-                )}
-                <div className="grid gap-2">
-                  <Label>{t('payment.bank')}</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {banks.map((catalogBank) => (
-                      <button
-                        key={catalogBank.id}
-                        type="button"
-                        onClick={() => {
-                          setBank(catalogBank.name)
-                          setCustomBank(false)
-                        }}
-                        className={cn(
-                          'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
-                          bank === catalogBank.name && !customBank && 'border-primary ring-1 ring-primary/30',
-                        )}
-                      >
-                        <span
-                          aria-hidden="true"
+                    {PAYMENT_METHOD_CODES.map((code) => {
+                      const Icon = PAYMENT_ICONS[code]
+                      const selected = paymentMethod === code
+                      return (
+                        <Label
+                          key={code}
+                          htmlFor={`tx-pm-${code}`}
                           className={cn(
-                            'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
-                            bankChipColor(catalogBank.name),
+                            'relative flex cursor-pointer flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-sm',
+                            selected ? 'border-primary bg-primary/5 text-primary' : 'text-muted-foreground',
                           )}
                         >
-                          {catalogBank.name.charAt(0).toUpperCase()}
-                        </span>
-                        {catalogBank.name}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCustomBank(true)
-                        setBank(null)
-                      }}
-                      className={cn(
-                        'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
-                        customBank && 'border-primary text-primary ring-1 ring-primary/30',
-                      )}
-                    >
-                      ＋ {t('payment.bank.other')}
-                    </button>
-                  </div>
-                  {customBank && (
-                    <Input
-                      aria-label={t('payment.bank')}
-                      maxLength={100}
-                      className="bg-background"
-                      value={bank ?? ''}
-                      onChange={(e) => setBank(e.target.value)}
-                    />
-                  )}
+                          <RadioGroupItem id={`tx-pm-${code}`} value={code} className="sr-only" />
+                          {selected && (
+                            <CircleCheck className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-background fill-primary text-primary-foreground" />
+                          )}
+                          <Icon className="h-4 w-4" />
+                          {t(`payment.${code}`)}
+                        </Label>
+                      )
+                    })}
+                  </RadioGroup>
                 </div>
+
+                {paymentMethod !== 'cash' && (
+                  <div className="grid gap-3 rounded-lg bg-zinc-50 p-3">
+                    {paymentMethod === 'card' && (
+                    <div className="grid gap-2">
+                      <Label>{t('payment.cardType')}</Label>
+                      <RadioGroup
+                        value={cardType ?? ''}
+                        onValueChange={(value) => setCardType(value as CardTypeCode)}
+                        className="grid grid-cols-2 gap-2"
+                      >
+                        {CARD_TYPE_CODES.map((code) => (
+                          <Label
+                            key={code}
+                            htmlFor={`tx-ct-${code}`}
+                            className={cn(
+                              'flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm',
+                              cardType === code && 'border-primary ring-1 ring-primary/30',
+                            )}
+                          >
+                            <RadioGroupItem id={`tx-ct-${code}`} value={code} />
+                            {code === 'debit' ? (
+                              <span>{t(`payment.cardType.${code}`)}</span>
+                            ) : (
+                              <span className="flex items-center">
+                                <span className="h-3 w-3 rounded-full bg-red-500" />
+                                <span className="-ml-1 h-3 w-3 rounded-full bg-amber-400 opacity-90" />
+                                <span className="ml-1.5">{t(`payment.cardType.${code}`)}</span>
+                              </span>
+                            )}
+                          </Label>
+                        ))}
+                      </RadioGroup>
+                      {errors.cardType && <p className="text-xs text-expense">{errors.cardType}</p>}
+                    </div>
+                    )}
+                    <div className="grid gap-2">
+                      <Label>{t('payment.bank')}</Label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {banks.map((catalogBank) => (
+                          <button
+                            key={catalogBank.id}
+                            type="button"
+                            onClick={() => {
+                              setBank(catalogBank.name)
+                              setCustomBank(false)
+                            }}
+                            className={cn(
+                              'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
+                              bank === catalogBank.name && !customBank && 'border-primary ring-1 ring-primary/30',
+                            )}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
+                                bankChipColor(catalogBank.name),
+                              )}
+                            >
+                              {catalogBank.name.charAt(0).toUpperCase()}
+                            </span>
+                            {catalogBank.name}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomBank(true)
+                            setBank(null)
+                          }}
+                          className={cn(
+                            'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                            customBank && 'border-primary text-primary ring-1 ring-primary/30',
+                          )}
+                        >
+                          ＋ {t('payment.bank.other')}
+                        </button>
+                      </div>
+                      {customBank && (
+                        <Input
+                          aria-label={t('payment.bank')}
+                          maxLength={100}
+                          className="bg-background"
+                          value={bank ?? ''}
+                          onChange={(e) => setBank(e.target.value)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-            </div>
             )}
           </div>
 

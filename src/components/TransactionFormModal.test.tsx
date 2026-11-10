@@ -1248,6 +1248,47 @@ describe('TransactionFormModal pay-with chips', () => {
     expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
   })
 
+  it('auto-opens Khác on create when the default values match no chip', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([acct({ id: 'x', name: 'Other', bankName: 'ACB' })] as never)
+    renderModal()
+    expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+  })
+
+  it('picking a card chip then a transfer chip clears cardType', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = await fill(renderModal())
+    await userEvent.click(await screen.findByRole('button', { name: /Visa VPBank/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Techcombank CK/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'transfer', cardType: null, bank: 'Techcombank' }),
+    )
+  })
+
+  it('does not reuse a failed previous open: reopen shows chips and keeps Khác collapsed', async () => {
+    vi.mocked(getAccounts).mockRejectedValueOnce(new Error('boom'))
+    const props = { editing: null, submitting: false, onSubmit: vi.fn(), onCancel: () => {} }
+    const { rerender } = render(
+      <Wrapper>
+        <TransactionFormModal open {...props} />
+      </Wrapper>,
+    )
+    expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+    rerender(
+      <Wrapper>
+        <TransactionFormModal open={false} {...props} />
+      </Wrapper>,
+    )
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    rerender(
+      <Wrapper>
+        <TransactionFormModal open {...props} />
+      </Wrapper>,
+    )
+    expect(await screen.findByRole('button', { name: /Visa VPBank/ })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
   it('keeps Khác collapsed on create', async () => {
     vi.mocked(getAccounts).mockResolvedValue(accounts as never)
     renderModal()
