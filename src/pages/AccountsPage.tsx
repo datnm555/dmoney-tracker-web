@@ -169,7 +169,10 @@ export function AccountsPage() {
                 )}
               >
                 <div className="min-w-0">
-                  <div className="truncate font-medium">{d.account.name}</div>
+                  <div className="truncate font-medium">
+                    {d.account.name}
+                    {d.account.lastDigits && <span className="ml-1 text-xs font-normal">•••{d.account.lastDigits}</span>}
+                  </div>
                   <div className="text-xs">
                     {d.daysLeft === 0
                       ? t('accounts.dueToday')

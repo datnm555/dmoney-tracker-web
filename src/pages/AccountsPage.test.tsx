@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
-import { createSnapshot, getAccounts, updateSnapshot } from '../api/accountApi'
+import { createSnapshot, getAccounts, getSnapshots, updateSnapshot } from '../api/accountApi'
 import type { AccountResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { AccountsPage } from './AccountsPage'
@@ -65,6 +65,7 @@ const accounts: AccountResponse[] = [
     id: 'a-cc',
     name: 'Visa',
     type: 'credit_card',
+    lastDigits: '5678',
     creditLimit: vnd(50_000_000),
     latestSnapshot: snap({
       id: 'snap-cc',
@@ -115,6 +116,7 @@ describe('AccountsPage', () => {
     renderPage()
     const due = await screen.findByTestId('due-a-cc')
     expect(norm(due.textContent)).toContain('accounts.left 2 accounts.days')
+    expect(due).toHaveTextContent('•••5678')
     await user.click(within(due).getByRole('button', { name: 'accounts.markPaid' }))
     expect(updateSnapshot).toHaveBeenCalledWith('snap-cc', {
       date: '2026-11-09',
@@ -142,6 +144,20 @@ describe('AccountsPage', () => {
     expect(screen.getByLabelText('accounts.statementDay')).toBeInTheDocument()
     expect(screen.getByLabelText('accounts.dueDay')).toBeInTheDocument()
     expect(screen.getByLabelText('accounts.interestRate')).toBeInTheDocument()
+  })
+
+  it('does not show the previous account rows while another history loads', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Techcombank')
+    vi.mocked(getSnapshots).mockResolvedValueOnce([snap({ id: 'h1', accountId: 'a-check', balance: vnd(77_000_000) })])
+    await user.click(screen.getByRole('button', { name: 'accounts.history Techcombank' }))
+    expect(await screen.findByText(fmt(77_000_000))).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    vi.mocked(getSnapshots).mockReturnValueOnce(new Promise(() => {}))
+    await user.click(screen.getByRole('button', { name: 'accounts.history Visa' }))
+    expect(await screen.findByText(/accounts.history · Visa/)).toBeInTheDocument()
+    expect(screen.queryByText(fmt(77_000_000))).not.toBeInTheDocument()
   })
 
   it('derives owed from available when typing available', async () => {

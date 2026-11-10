@@ -28,17 +28,26 @@ export function SnapshotHistoryDialog({
   const [rows, setRows] = useState<AccountSnapshotResponse[]>([])
   const accountId = account?.id
 
-  const load = useCallback(async () => {
-    if (!accountId) return
-    try {
-      setRows(await getSnapshots(accountId))
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, t('error.network')))
-    }
-  }, [accountId, t])
+  const load = useCallback(
+    async (isStale: () => boolean = () => false) => {
+      if (!accountId) return
+      try {
+        const data = await getSnapshots(accountId)
+        if (!isStale()) setRows(data)
+      } catch (error) {
+        if (!isStale()) toast.error(getApiErrorMessage(error, t('error.network')))
+      }
+    },
+    [accountId, t],
+  )
 
   useEffect(() => {
-    void load()
+    let cancelled = false
+    setRows([])
+    void load(() => cancelled)
+    return () => {
+      cancelled = true
+    }
   }, [load, refreshKey])
 
   if (!account) return null
