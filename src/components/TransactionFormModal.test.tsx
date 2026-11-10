@@ -1256,6 +1256,8 @@ describe('TransactionFormModal pay-with chips', () => {
   it('auto-opens Khác on create when the default values match no chip', async () => {
     vi.mocked(getAccounts).mockResolvedValue([acct({ id: 'x', name: 'Other', bankName: 'ACB' })] as never)
     renderModal()
+    // Manual controls are visible while loading, so wait for the chips first.
+    await screen.findByRole('button', { name: /Other/ })
     expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
   })
 
@@ -1338,6 +1340,7 @@ describe('TransactionFormModal pay-with chips', () => {
         />
       </Wrapper>,
     )
+    await screen.findByRole('button', { name: /Visa VPBank/ })
     expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
   })
 })
@@ -1556,5 +1559,109 @@ describe('TransactionFormModal suggestions', () => {
     await advance(300)
     fireEvent.keyDown(input, { key: 'Enter' })
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+  })
+})
+
+describe('TransactionFormModal final-review fixes', () => {
+  const suggestion = (over: Partial<TransactionSuggestionResponse> = {}): TransactionSuggestionResponse => ({
+    content: 'Cà phê sáng',
+    type: 'out',
+    amount: { amount: 45000, currency: 'VND' },
+    categoryId: 'cat-bills',
+    subCategoryId: 'sub-1',
+    paymentMethod: 'cash',
+    cardType: null,
+    bank: null,
+    ...over,
+  })
+  const typeContent = async (text: string) => {
+    const input = await screen.findByLabelText('form.content')
+    act(() => input.focus())
+    fireEvent.change(input, { target: { value: text } })
+    return input
+  }
+  const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
+
+  describe('suggestion vs typed amount', () => {
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
+    afterEach(() => vi.useRealTimers())
+
+    it('keeps an amount the owner already typed when a suggestion is picked', async () => {
+      vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+      const onSubmit = renderModal()
+      const amount = await screen.findByLabelText('form.amount')
+      fireEvent.change(amount, { target: { value: '50k' } })
+      const input = await typeContent('cà')
+      await advance(300)
+      await screen.findByRole('option')
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(screen.getByLabelText('form.amount')).toHaveValue('50.000')
+      fireEvent.keyDown(input, { key: 'Enter' })
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 50000 }))
+    })
+
+    it('fills the suggestion amount when the amount field is empty', async () => {
+      vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+      renderModal()
+      await typeContent('cà')
+      await advance(300)
+      fireEvent.mouseDown(await screen.findByRole('option'))
+      expect(screen.getByLabelText('form.amount')).toHaveValue('45.000')
+    })
+
+    it('leaves an empty amount empty when the suggestion amount is 0', async () => {
+      vi.mocked(getTransactionSuggestions).mockResolvedValue([
+        suggestion({ amount: { amount: 0, currency: 'VND' } }),
+      ])
+      renderModal()
+      await typeContent('cà')
+      await advance(300)
+      fireEvent.mouseDown(await screen.findByRole('option'))
+      expect(screen.getByLabelText('form.amount')).toHaveValue('')
+    })
+
+    it('ignores Enter with keyCode 229 (Safari IME) in the suggestion list', async () => {
+      vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+      renderModal()
+      const input = await typeContent('cà')
+      await advance(300)
+      await screen.findByRole('option')
+      fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+      expect(input).toHaveValue('cà')
+      expect(screen.getByRole('option')).toBeInTheDocument()
+    })
+  })
+
+  it('ignores Enter with keyCode 229 (Safari IME) in the form handler', async () => {
+    const onSubmit = renderModal()
+    await pickCategory()
+    const input = await screen.findByLabelText('form.content')
+    fireEvent.change(input, { target: { value: 'Cà phê' } })
+    fireEvent.change(screen.getByLabelText('form.amount'), { target: { value: '45000' } })
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('opens Khác when a card-type error appears so the error is visible', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([acct({ id: 'c', name: 'Ví tiền', type: 'cash' })] as never)
+    const onSubmit = renderModal()
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
+    await userEvent.type(screen.getByLabelText('form.amount'), '260000')
+    await pickCategory()
+    await openPayWithOther()
+    await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
+    await userEvent.click(screen.getByRole('button', { name: 'form.payWithOther' }))
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(await screen.findByText('form.cardTypeRequired')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'form.payWithOther' })).toHaveAttribute('aria-expanded', 'true')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('shows the manual payment controls while accounts are still loading', async () => {
+    vi.mocked(getAccounts).mockReturnValue(new Promise(() => {}) as never)
+    renderModal()
+    expect(await screen.findByRole('radio', { name: 'payment.transfer' })).toBeChecked()
   })
 })

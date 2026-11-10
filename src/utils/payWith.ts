@@ -29,12 +29,19 @@ export function payWithFields(account: AccountResponse): PayWithFields {
   }
 }
 
+/** What validateAndBuild would save: no bank for cash, no card type unless paying by card. */
+function normalise(f: PayWithFields): PayWithFields {
+  return {
+    paymentMethod: f.paymentMethod,
+    cardType: f.paymentMethod === 'card' ? (f.cardType ?? null) : null,
+    bank: f.paymentMethod === 'cash' ? null : f.bank?.trim() || null,
+  }
+}
+
 function sameFields(a: PayWithFields, b: PayWithFields): boolean {
-  return (
-    a.paymentMethod === b.paymentMethod &&
-    (a.cardType ?? null) === (b.cardType ?? null) &&
-    (a.bank?.trim() || null) === (b.bank?.trim() || null)
-  )
+  const x = normalise(a)
+  const y = normalise(b)
+  return x.paymentMethod === y.paymentMethod && x.cardType === y.cardType && x.bank === y.bank
 }
 
 /** Selected-state of an account chip for the form's current payment fields. */

@@ -99,3 +99,15 @@ describe('buildPayWithChips / selectedPayWithKey', () => {
     expect(selectedPayWithKey(chips, { paymentMethod: 'transfer', cardType: null, bank: 'Zzz' })).toBeNull()
   })
 })
+
+describe('selectedPayWithKey normalisation', () => {
+  it('a cash state with a leftover bank still matches the cash chip', () => {
+    const chips = buildPayWithChips([], 'Tiền mặt')
+    expect(selectedPayWithKey(chips, { paymentMethod: 'cash', cardType: null, bank: 'Techcombank' })).toBe('__cash__')
+  })
+
+  it('a non-card state with a leftover cardType matches the transfer chip', () => {
+    const chips = buildPayWithChips([account({ bankName: 'Techcombank' })], 'Tiền mặt')
+    expect(selectedPayWithKey(chips, { paymentMethod: 'transfer', cardType: 'credit', bank: 'Techcombank' })).toBe('a1')
+  })
+})

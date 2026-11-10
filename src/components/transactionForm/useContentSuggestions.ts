@@ -73,7 +73,7 @@ export function useContentSuggestions(
       setTimeout(() => setOpen(false), 0)
     },
     onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => {
-      if (!visible || event.nativeEvent.isComposing) return
+      if (!visible || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
       if (event.key === 'ArrowDown') {
         event.preventDefault()
         setHighlight((h) => (h + 1) % items.length)

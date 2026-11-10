@@ -417,7 +417,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const applySuggestion = (s: TransactionSuggestionResponse) => {
     if (s.type !== type) changeType(s.type)
     setContent(s.content)
-    setAmountText(String(Math.round(s.amount.amount)))
+    // Never clobber an amount the owner already typed.
+    if (amountText.trim() === '' && s.amount.amount > 0) setAmountText(String(Math.round(s.amount.amount)))
     setCategory(s.categoryId)
     selectSubCategory(s.subCategoryId)
     const fields: PayWithFields = {
@@ -453,6 +454,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) {
       // Errors inside the collapsed "Tuỳ chọn khác" would otherwise be invisible.
+      if (nextErrors.cardType) setPayOtherOpen(true)
       if (nextErrors.advance || nextErrors.prepaid || nextErrors.goldType || nextErrors.goldQuantity) setMoreOpen(true)
       return null
     }
@@ -517,7 +519,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   // Enter submits from single-line inputs. Skipped for the note textarea, buttons (Enter activates
   // them), an open Select/popover, and anything that already handled the key (e.g. a suggestion list).
   const handleKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
-    if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return
+    if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return
     if ((event.target as HTMLElement).tagName !== 'INPUT') return
     if (event.currentTarget.querySelector('[role="combobox"][aria-expanded="true"], [aria-haspopup][aria-expanded="true"]')) {
       event.preventDefault()
@@ -784,7 +786,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                 </button>
               </div>
             )}
-            {(payOtherOpen || accountsStatus === 'error') && (
+            {(payOtherOpen || accountsStatus !== 'ready') && (
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <RadioGroup
