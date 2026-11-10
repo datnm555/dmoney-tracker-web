@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dayjs from 'dayjs'
 import { Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -50,15 +50,19 @@ export function RecurringPage() {
   const [historyItem, setHistoryItem] = useState<RecurringPaymentResponse | null>(null)
   const today = dayjs().format('YYYY-MM-DD')
 
+  const loadSeq = useRef(0)
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current
     try {
       const [schedule, accs] = await Promise.all([getSchedule(month), getAccounts().catch(() => [] as AccountResponse[])])
+      if (seq !== loadSeq.current) return
       setRows(schedule)
       setAccounts(accs)
     } catch (error) {
+      if (seq !== loadSeq.current) return
       toast.error(getApiErrorMessage(error, t('error.network')))
     } finally {
-      setLoaded(true)
+      if (seq === loadSeq.current) setLoaded(true)
     }
   }, [month, t])
 
@@ -87,7 +91,7 @@ export function RecurringPage() {
   }
 
   const submitRecord = async (values: TransactionFormValues) => {
-    if (!recording || !selectedPlanId) return
+    if (!recording || !selectedPlanId) return // Record button is disabled without a plan
     setSubmitting(true)
     let transactionId: string
     try {
@@ -97,9 +101,10 @@ export function RecurringPage() {
       setSubmitting(false)
       return
     }
+    // The transaction exists now: close the form either way so a retry cannot duplicate it.
+    setRecording(null)
     try {
       await createRecord(recording.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
-      setRecording(null)
     } catch (error) {
       // The transaction stays; the record conflict (e.g. already paid) is surfaced.
       toast.error(getApiErrorMessage(error, t('error.network')))
@@ -177,6 +182,7 @@ export function RecurringPage() {
               key={entry.key}
               row={entry.row}
               today={today}
+              canRecord={selectedPlanId !== null}
               onRecord={() => setRecording(entry.row.item)}
               onMarkPaid={() => setMarkPaidItem(entry.row.item)}
               onUndo={() => void guarded(() => deleteRecord(entry.row.record!.id))}

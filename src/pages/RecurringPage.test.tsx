@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
@@ -220,7 +220,24 @@ describe('RecurringPage', () => {
     vi.mocked(getSchedule).mockClear()
     await user.click(await screen.findByText('tx-submit'))
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('AlreadyPaid'))
+    expect(screen.queryByTestId('tx-form')).not.toBeInTheDocument()
+    expect(createTransaction).toHaveBeenCalledTimes(1)
     await waitFor(() => expect(getSchedule).toHaveBeenCalled())
+  })
+
+  it('ignores a late response from a previously selected month', async () => {
+    let resolveFirst!: (v: RecurringScheduleItemResponse[]) => void
+    vi.mocked(getSchedule)
+      .mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)))
+      .mockResolvedValueOnce([{ item: item({ id: 'i-dec', name: 'Tháng sau' }), dueDate: '2026-12-03', record: null }])
+    renderPage()
+    const input = await screen.findByLabelText('recurring.title')
+    fireEvent.change(input, { target: { value: '2026-12' } })
+    await screen.findByTestId('row-i-dec')
+    resolveFirst(schedule)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(screen.getByTestId('row-i-dec')).toBeInTheDocument()
+    expect(screen.queryByTestId('row-i-paid')).not.toBeInTheDocument()
   })
 
   it('marks paid without a transaction', async () => {

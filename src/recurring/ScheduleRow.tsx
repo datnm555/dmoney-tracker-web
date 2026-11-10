@@ -32,6 +32,7 @@ function dueText(t: (k: string) => string, daysLeft: number) {
 export function ScheduleItemRow({
   row,
   today,
+  canRecord,
   onRecord,
   onMarkPaid,
   onUndo,
@@ -39,6 +40,7 @@ export function ScheduleItemRow({
 }: {
   row: RecurringScheduleItemResponse
   today: string
+  canRecord: boolean
   onRecord: () => void
   onMarkPaid: () => void
   onUndo: () => void
@@ -75,7 +77,7 @@ export function ScheduleItemRow({
           <div className="ml-auto flex flex-wrap gap-1.5">
             {unpaid && (
               <>
-                <Button size="sm" onClick={onRecord}>
+                <Button size="sm" disabled={!canRecord} onClick={onRecord}>
                   {t('recurring.record')}
                 </Button>
                 <Button size="sm" variant="outline" onClick={onMarkPaid}>
