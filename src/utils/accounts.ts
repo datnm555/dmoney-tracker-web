@@ -46,3 +46,33 @@ export function upcomingDues(
   }
   return result.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 }
+
+export interface BankGroup {
+  bankName: string | null
+  total: number
+  accounts: AccountResponse[]
+}
+
+/**
+ * Groups accounts by free-text bank name. total = sum of latest balances (for credit cards that is the amount
+ * owed); accounts without a snapshot are listed but count 0. Sorted by total desc, then name; no-bank last.
+ * Callers pass only the accounts of one page group (money types, or credit cards).
+ */
+export function groupByBank(accounts: AccountResponse[]): BankGroup[] {
+  const map = new Map<string | null, BankGroup>()
+  for (const a of accounts) {
+    const key = a.bankName?.trim() || null
+    let group = map.get(key)
+    if (!group) {
+      group = { bankName: key, total: 0, accounts: [] }
+      map.set(key, group)
+    }
+    group.total += latestBalance(a)
+    group.accounts.push(a)
+  }
+  return [...map.values()].sort((x, y) => {
+    if (x.bankName === null) return y.bankName === null ? 0 : 1
+    if (y.bankName === null) return -1
+    return y.total - x.total || x.bankName.localeCompare(y.bankName)
+  })
+}

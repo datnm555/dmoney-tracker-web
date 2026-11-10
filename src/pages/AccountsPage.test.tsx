@@ -2,13 +2,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
-import { createSnapshot, deleteSnapshot, getAccounts, getSnapshots, updateAccount, updateSnapshot } from '../api/accountApi'
+import { createAccount, createSnapshot, deleteSnapshot, getAccounts, getSnapshots, updateAccount, updateSnapshot } from '../api/accountApi'
 import type { AccountResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { AccountsPage } from './AccountsPage'
 
 vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
+}))
+
+vi.mock('../banks/BanksContext', () => ({
+  useBanks: () => ({
+    banks: [
+      { id: 'b1', name: 'Techcombank', isDefault: false },
+      { id: 'b2', name: 'VPBank', isDefault: false },
+    ],
+    refresh: async () => {},
+  }),
 }))
 
 vi.mock('../api/accountApi', () => ({
@@ -33,6 +43,7 @@ const base = {
   dueDay: null,
   interestRatePercent: null,
   latestSnapshot: null,
+  bankName: null,
 }
 
 const snap = (over: Partial<NonNullable<AccountResponse['latestSnapshot']>>) => ({
@@ -249,5 +260,86 @@ describe('AccountsPage', () => {
     expect(deleteSnapshot).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'summary.delete' }))
     expect(deleteSnapshot).toHaveBeenCalledWith('h1')
+  })
+
+  describe('bank grouping', () => {
+    const grouped: AccountResponse[] = [
+      { ...base, id: 'm1', name: 'Lương', type: 'checking', bankName: 'Techcombank', latestSnapshot: snap({ id: 'x1', accountId: 'm1', balance: vnd(3_000_000) }) },
+      { ...base, id: 'm2', name: 'Tiết kiệm', type: 'ewallet', bankName: 'Techcombank', latestSnapshot: snap({ id: 'x2', accountId: 'm2', balance: vnd(2_000_000) }) },
+      { ...base, id: 'm3', name: 'Chi tiêu', type: 'checking', bankName: 'VPBank', latestSnapshot: snap({ id: 'x3', accountId: 'm3', balance: vnd(9_000_000) }) },
+      { ...base, id: 'm4', name: 'Ví mặt', type: 'cash', latestSnapshot: snap({ id: 'x4', accountId: 'm4', balance: vnd(50_000_000) }) },
+      { ...base, id: 'c1', name: 'Thẻ A', type: 'credit_card', bankName: 'Techcombank', latestSnapshot: snap({ id: 'y1', accountId: 'c1', balance: vnd(1_000_000) }) },
+      { ...base, id: 'c2', name: 'Thẻ B', type: 'credit_card', bankName: 'VPBank', latestSnapshot: snap({ id: 'y2', accountId: 'c2', balance: vnd(4_000_000) }) },
+      { ...base, id: 'c3', name: 'Thẻ C', type: 'credit_card', bankName: 'VPBank', latestSnapshot: snap({ id: 'y3', accountId: 'c3', balance: vnd(2_000_000) }) },
+      { ...base, id: 'o1', name: 'Thấu chi', type: 'overdraft', bankName: 'VPBank', latestSnapshot: snap({ id: 'z1', accountId: 'o1', balance: vnd(7_000_000) }) },
+    ]
+
+    const sections = (group: string) =>
+      Array.from(document.querySelectorAll(`[data-testid^="bank-section-${group}-"]`)).map((el) => ({
+        id: el.getAttribute('data-testid'),
+        header: norm(within(el as HTMLElement).getByTestId('bank-header').textContent),
+        names: within(el as HTMLElement).getAllByTestId(/^account-/).map((c) => c.textContent),
+      }))
+
+    it('splits the money group into per-bank sections ordered by subtotal, no-bank last', async () => {
+      renderPage(grouped)
+      await screen.findByText('Lương')
+      const money = sections('money')
+      expect(money.map((s) => s.id)).toEqual([
+        'bank-section-money-VPBank',
+        'bank-section-money-Techcombank',
+        'bank-section-money-none',
+      ])
+      expect(money[0].header).toContain('VPBank')
+      expect(money[0].header).toContain(fmt(9_000_000))
+      expect(money[1].header).toContain(fmt(5_000_000))
+      expect(money[1].names).toHaveLength(2)
+      expect(money[2].header).toContain('accounts.noBank')
+      expect(money[2].header).toContain(fmt(50_000_000))
+    })
+
+    it('splits the credit-card group per bank with debt-styled subtotals; overdraft stays flat', async () => {
+      renderPage(grouped)
+      await screen.findByText('Thẻ A')
+      const cards = sections('credit')
+      expect(cards.map((s) => s.id)).toEqual(['bank-section-credit-VPBank', 'bank-section-credit-Techcombank'])
+      expect(cards[0].header).toContain(fmt(6_000_000))
+      expect(cards[1].header).toContain(fmt(1_000_000))
+      expect(within(screen.getByTestId('bank-section-credit-VPBank')).getByTestId('bank-total')).toHaveClass('text-expense')
+      expect(within(screen.getByTestId('bank-section-money-VPBank')).getByTestId('bank-total')).not.toHaveClass('text-expense')
+      expect(sections('overdraft')).toHaveLength(0)
+      expect(screen.getByText('Thấu chi')).toBeInTheDocument()
+    })
+
+    it('sends bankName when a bank chip is picked in the account dialog', async () => {
+      const user = userEvent.setup()
+      renderPage(grouped)
+      await screen.findByText('Lương')
+      await user.click(screen.getByRole('button', { name: 'accounts.edit Lương' }))
+      await user.click(await screen.findByRole('button', { name: 'VPBank' }))
+      await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(updateAccount).toHaveBeenCalledWith('m1', expect.objectContaining({ bankName: 'VPBank' }))
+    })
+
+    it('pre-fills the bank on edit and sends null when none is chosen', async () => {
+      const user = userEvent.setup()
+      renderPage(grouped)
+      await screen.findByText('Lương')
+      await user.click(screen.getByRole('button', { name: 'accounts.edit Lương' }))
+      await user.click(await screen.findByRole('button', { name: 'accounts.noBank' }))
+      await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(updateAccount).toHaveBeenCalledWith('m1', expect.objectContaining({ bankName: null }))
+    })
+
+    it('creates an account with a custom free-text bank', async () => {
+      const user = userEvent.setup()
+      renderPage([])
+      await user.click(await screen.findByRole('button', { name: /accounts.add/ }))
+      await user.type(await screen.findByLabelText('accounts.name'), 'Mới')
+      await user.click(screen.getByRole('button', { name: /payment.bank.other/ }))
+      await user.type(screen.getByRole('textbox', { name: 'accounts.bank' }), 'ACB')
+      await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(createAccount).toHaveBeenCalledWith(expect.objectContaining({ name: 'Mới', bankName: 'ACB' }))
+    })
   })
 })

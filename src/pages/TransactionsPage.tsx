@@ -40,6 +40,7 @@ import { groupTransactionsByDay } from '../utils/transactionGroups'
 import { matchesSearch } from '../utils/transactionSearch'
 import { exportTransactionsToExcel } from '../utils/exportExcel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
+import { toTransactionPayload } from '../utils/transactionPayload'
 
 type Filter = 'all' | 'in' | 'out' | 'advance'
 
@@ -91,33 +92,7 @@ export function TransactionsPage() {
   }, [t])
 
   const handleSubmit = async (values: TransactionFormValues, options?: SubmitOptions) => {
-    const payload = {
-      date: values.date,
-      content: values.content,
-      creditAmount: values.type === 'in' ? values.amount : 0,
-      debitAmount: values.type === 'out' ? values.amount : 0,
-      note: values.note,
-      categoryId: values.categoryId,
-      paymentMethod: values.paymentMethod,
-      cardType: values.cardType,
-      bank: values.bank,
-      isAdvance: values.isAdvance,
-      advanceTransactionIds: values.advanceTransactionIds,
-      isPrepaid: values.isPrepaid,
-      prepaidFrom: values.prepaidFrom,
-      prepaidTo: values.prepaidTo,
-      prepaidTransactionId: values.prepaidTransactionId,
-      subCategoryId: values.subCategoryId,
-      // Create mode never sets a plan on the form, so it always falls back
-      // to the selected plan; edit mode carries the picked plan (a move).
-      planId: values.planId ?? selectedPlanId!,
-      reimbursedByTransactionId: values.reimbursedByTransactionId,
-      beneficiaryId: values.beneficiaryId,
-      goldTypeId: values.goldTypeId,
-      goldQuantity: values.goldQuantity,
-      purchasePlaceId: values.purchasePlaceId,
-      savingsBank: values.savingsBank,
-    }
+    const payload = toTransactionPayload(values, selectedPlanId!)
     setSubmitting(true)
     try {
       if (editing) {

@@ -1,9 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import dayjs from 'dayjs'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
 import { TransactionFormModal } from './TransactionFormModal'
+import { getAccounts } from '../api/accountApi'
+import { getTransactionSuggestions } from '../api/transactionApi'
+import type { TransactionSuggestionResponse } from '../api/types'
+import { beforeEach } from 'vitest'
 
 vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
@@ -77,7 +82,13 @@ vi.mock('../api/subCategoryApi', () => ({
   ]),
 }))
 
+vi.mock('../api/accountApi', () => ({
+  getAccounts: vi.fn(),
+}))
+
 vi.mock('../api/transactionApi', () => ({
+  getTransactionSuggestions: vi.fn().mockResolvedValue([]),
+  getCredits: vi.fn().mockResolvedValue([]),
   getOpenAdvances: vi.fn().mockResolvedValue([
     {
       id: 'adv-1',
@@ -139,16 +150,87 @@ async function pickCategory() {
   await userEvent.click(await screen.findByRole('button', { name: /Hóa đơn/ }))
 }
 
-function renderModal(onSubmit = vi.fn()) {
+async function openPayWithOther() {
+  const toggle = await screen.findByRole('button', { name: 'form.payWithOther' })
+  if (toggle.getAttribute('aria-expanded') !== 'true') await userEvent.click(toggle)
+}
+
+beforeEach(() => {
+  vi.mocked(getAccounts).mockReset()
+  vi.mocked(getAccounts).mockResolvedValue([])
+  vi.mocked(getTransactionSuggestions).mockReset()
+  vi.mocked(getTransactionSuggestions).mockResolvedValue([])
+})
+
+async function openMoreOptions() {
+  await userEvent.click(await screen.findByRole('button', { name: 'form.moreOptions' }))
+}
+
+function renderModal(onSubmit = vi.fn(), extra: Partial<React.ComponentProps<typeof TransactionFormModal>> = {}) {
   render(
     <Wrapper>
-      <TransactionFormModal open editing={null} submitting={false} onSubmit={onSubmit} onCancel={() => {}} />
+      <TransactionFormModal open editing={null} submitting={false} onSubmit={onSubmit} onCancel={() => {}} {...extra} />
     </Wrapper>,
   )
   return onSubmit
 }
 
 describe('TransactionFormModal', () => {
+  it('applies prefill in create mode (keeping a prefilled sub-category) and submits it', async () => {
+    const onSubmit = renderModal(vi.fn(), {
+      prefill: {
+        content: 'Netflix',
+        amount: 260000,
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-gold',
+        paymentMethod: 'transfer',
+        bank: 'MoMo',
+        date: '2026-11-15',
+        note: 'tháng 11',
+      },
+    })
+
+    expect(await screen.findByLabelText('form.content')).toHaveValue('Netflix')
+    await waitFor(() => expect(screen.getByLabelText('form.amount')).toHaveValue('260.000'))
+    // Let the sub-category list load so the default auto-pick could fire.
+    await new Promise((r) => setTimeout(r, 50))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Netflix',
+        amount: 260000,
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-gold',
+        paymentMethod: 'transfer',
+        bank: 'MoMo',
+        date: '2026-11-15',
+        note: 'tháng 11',
+      }),
+    )
+  })
+
+  it('rounds a fractional prefill amount to an integer', async () => {
+    renderModal(vi.fn(), { prefill: { amount: 165556.5 } })
+    await waitFor(() => expect(screen.getByLabelText('form.amount')).toHaveValue('165.557'))
+  })
+
+  it('ignores prefill in edit mode', async () => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={baseEditingFixture}
+          submitting={false}
+          prefill={{ content: 'Other', amount: 1 }}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await screen.findByLabelText('form.content')).toHaveValue('Netflix')
+  })
+
   it('rejects submit when amount is empty', async () => {
     const onSubmit = renderModal()
 
@@ -164,6 +246,7 @@ describe('TransactionFormModal', () => {
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
     await userEvent.type(screen.getByLabelText('form.amount'), '260000')
+    await openPayWithOther()
     await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
@@ -177,6 +260,7 @@ describe('TransactionFormModal', () => {
     await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
     await userEvent.type(screen.getByLabelText('form.amount'), '260000')
     await pickCategory()
+    await openPayWithOther()
     await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
     await userEvent.click(await screen.findByRole('radio', { name: 'payment.cardType.debit' }))
     await userEvent.click(screen.getByRole('button', { name: 'Techcombank' }))
@@ -200,6 +284,7 @@ describe('TransactionFormModal', () => {
     await userEvent.type(await screen.findByLabelText('form.content'), 'Cà phê')
     await userEvent.type(screen.getByLabelText('form.amount'), '50000')
     await pickCategory()
+    await openPayWithOther()
     // Both catalog entries render as chips; MoMo comes from the user's list.
     await userEvent.click(screen.getByRole('button', { name: 'MoMo' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
@@ -229,6 +314,7 @@ describe('TransactionFormModal', () => {
 
   it('preselects the default beneficiary on a money-out transaction', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     expect(await screen.findByRole('combobox', { name: 'form.beneficiary' })).toHaveTextContent('Tôi')
 
@@ -242,6 +328,7 @@ describe('TransactionFormModal', () => {
 
   it('clears the beneficiary when switching to money-in', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await screen.findByRole('combobox', { name: 'form.beneficiary' })
     await userEvent.click(screen.getByRole('button', { name: /form\.moneyIn/ }))
@@ -258,6 +345,7 @@ describe('TransactionFormModal', () => {
 
   it('submits the picked beneficiary', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('combobox', { name: 'form.beneficiary' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Con' }))
@@ -272,6 +360,7 @@ describe('TransactionFormModal', () => {
 
   it('submits isAdvance when the advance checkbox is ticked', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Tiền xe bus ứng trước')
     await userEvent.type(screen.getByLabelText('form.amount'), '2000000')
@@ -284,6 +373,7 @@ describe('TransactionFormModal', () => {
 
   it('money-in shows the reimburse checkbox instead of the advance checkbox', async () => {
     renderModal()
+    await openMoreOptions()
 
     await screen.findByLabelText('form.content')
     expect(screen.getByRole('checkbox', { name: 'form.isAdvance' })).toBeInTheDocument()
@@ -296,6 +386,7 @@ describe('TransactionFormModal', () => {
 
   it('links a money-in to a selected open advance', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Nhận hoàn ứng')
@@ -318,6 +409,7 @@ describe('TransactionFormModal', () => {
 
   it('money-in prepaid submits the period computed from the date and month count', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Sinh hoạt 5 tháng')
@@ -342,6 +434,7 @@ describe('TransactionFormModal', () => {
 
   it('already-prepaid money-out allows an empty amount and links the prepaid credit', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Sinh hoạt tháng 2')
     await pickCategory()
@@ -365,6 +458,7 @@ describe('TransactionFormModal', () => {
 
   it('save-and-continue submits with keepOpen and clears the per-record fields', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     fireEvent.change(await screen.findByLabelText('form.date'), { target: { value: '2026-07-10' } })
     await userEvent.type(screen.getByLabelText('form.content'), 'Ăn trưa')
@@ -489,6 +583,7 @@ describe('TransactionFormModal', () => {
 
   it('submits the picked gold type and quantity on a money-out transaction', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
     await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
@@ -506,6 +601,7 @@ describe('TransactionFormModal', () => {
 
   it('submits the picked purchase place while the gold toggle is on', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
     await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
@@ -525,6 +621,7 @@ describe('TransactionFormModal', () => {
 
   it('turning off the gold toggle clears the picked purchase place', async () => {
     renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('checkbox', { name: 'form.goldToggle' }))
     await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
@@ -539,6 +636,7 @@ describe('TransactionFormModal', () => {
 
   it('gold toggle also works on a money-in transaction (sell)', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Bán vàng')
@@ -557,6 +655,7 @@ describe('TransactionFormModal', () => {
 
   it('requires a gold quantity when the gold toggle is on', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
     await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
@@ -595,6 +694,7 @@ describe('TransactionFormModal', () => {
 
   it('save-and-continue clears the picked purchase place along with the rest of the gold block', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
     await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
@@ -817,5 +917,751 @@ describe('TransactionFormModal', () => {
 
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ savingsBank: null }))
     })
+  })
+})
+
+describe('TransactionFormModal quick-entry layout', () => {
+  const before = (a: HTMLElement, b: HTMLElement) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+  it('orders the fields amount, content, category, pay-with, date, note', async () => {
+    renderModal()
+    const amount = await screen.findByLabelText('form.amount')
+    const content = screen.getByLabelText('form.content')
+    const category = screen.getByText('form.category')
+    const payWith = screen.getByText('form.payWith')
+    const date = screen.getByLabelText('form.date')
+    const note = screen.getByLabelText('form.note')
+    expect(before(amount, content)).toBe(true)
+    expect(before(content, category)).toBe(true)
+    expect(before(category, payWith)).toBe(true)
+    expect(before(payWith, date)).toBe(true)
+    expect(before(date, note)).toBe(true)
+  })
+
+  it('focuses the amount input on create', async () => {
+    renderModal()
+    const amount = await screen.findByLabelText('form.amount')
+    await waitFor(() => expect(amount).toHaveFocus())
+  })
+
+  it('keeps the more-options section collapsed on create', async () => {
+    renderModal()
+    const toggle = await screen.findByRole('button', { name: 'form.moreOptions' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('checkbox', { name: 'form.goldToggle' })).not.toBeInTheDocument()
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('checkbox', { name: 'form.goldToggle' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'form.isAdvance' })).toBeInTheDocument()
+  })
+
+  const renderEditing = (extra: Partial<typeof baseEditingFixture> | Record<string, unknown>) => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, ...extra } as typeof baseEditingFixture}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+  }
+
+  it('stays collapsed when editing a plain transaction (default beneficiary)', async () => {
+    renderEditing({ beneficiaryId: 'b-me' })
+    expect(await screen.findByRole('button', { name: 'form.moreOptions' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it.each([
+    ['gold', { goldTypeId: 'g-ring', goldQuantity: 1 }],
+    ['non-default beneficiary', { beneficiaryId: 'b-con' }],
+    ['advance', { isAdvance: true }],
+    ['already prepaid', { prepaidTransactionId: 'pre-1' }],
+    ['reimburse', { credit: { amount: 1000, currency: 'VND' }, debit: { amount: 0, currency: 'VND' }, advanceTransactionIds: ['adv-1'] }],
+    ['prepaid', { credit: { amount: 1000, currency: 'VND' }, debit: { amount: 0, currency: 'VND' }, isPrepaid: true, prepaidFrom: '2026-07-01', prepaidTo: '2026-07-31' }],
+  ])('auto-expands when editing a transaction with %s', async (_name, extra) => {
+    renderEditing(extra)
+    expect(await screen.findByRole('button', { name: 'form.moreOptions' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('edits a transaction with a fractional stored amount (rounded)', async () => {
+    const onSubmit = vi.fn()
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, debit: { amount: 1500.5, currency: 'VND' } }}
+          submitting={false}
+          onSubmit={onSubmit}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await screen.findByLabelText('form.amount')).toHaveValue('1.501')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 1501 }))
+  })
+
+  it('keeps edit values intact for an advance', async () => {
+    renderEditing({ isAdvance: true })
+    expect(await screen.findByRole('checkbox', { name: 'form.isAdvance' })).toBeChecked()
+  })
+
+  it('expands the section when a validation error lives inside it', async () => {
+    const onSubmit = renderModal()
+    await userEvent.type(await screen.findByLabelText('form.amount'), '100')
+    await userEvent.type(screen.getByLabelText('form.content'), 'Mua vàng')
+    await pickCategory()
+    const toggle = screen.getByRole('button', { name: 'form.moreOptions' })
+    await userEvent.click(toggle)
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(toggle) // collapse again
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(await screen.findByText('form.goldTypeRequired')).toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('Hôm nay / Hôm qua chips set the date', async () => {
+    renderModal(vi.fn(), { defaultDate: '2026-01-01' })
+    const date = await screen.findByLabelText('form.date')
+    await userEvent.click(screen.getByRole('button', { name: 'form.yesterday' }))
+    expect(date).toHaveValue(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))
+    await userEvent.click(screen.getByRole('button', { name: 'form.today' }))
+    expect(date).toHaveValue(dayjs().format('YYYY-MM-DD'))
+  })
+
+  describe('amount shorthand', () => {
+    it('shows digits with thousand separators while typing', async () => {
+      renderModal()
+      const amount = await screen.findByLabelText('form.amount')
+      await userEvent.type(amount, '1500000')
+      expect(amount).toHaveValue('1.500.000')
+    })
+
+    it.each([
+      ['50k', 50000],
+      ['1tr5', 1500000],
+      ['1,5tr', 1500000],
+      ['2m', 2000000],
+      ['15', 15],
+    ])('converts %s on blur', async (typed, expected) => {
+      renderModal()
+      const amount = await screen.findByLabelText('form.amount')
+      await userEvent.type(amount, typed)
+      await userEvent.tab()
+      expect(amount).toHaveValue(formatVi(expected))
+    })
+
+    it.each([
+      ['1200k', 1200000],
+      ['1500k', 1500000],
+      ['2000m', 2000000000],
+    ])('typing %s (auto-formatted) submits the full amount', async (typed, expected) => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), typed)
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: expected }))
+    })
+
+    it('never turns a typed 1.2345tr into a huge amount', async () => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), '1.2345tr')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(await screen.findByText('form.amountRequired')).toBeInTheDocument()
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it('reads a typed 0.125tr as 125,000', async () => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), '0.125tr')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 125000 }))
+    })
+
+    it('shows a live preview for shorthand only', async () => {
+      renderModal()
+      const amount = await screen.findByLabelText('form.amount')
+      await userEvent.type(amount, '1500')
+      expect(screen.queryByText(/^=/)).not.toBeInTheDocument()
+      await userEvent.type(amount, 'k')
+      expect(screen.getByText(/^= .*1\.500\.000/)).toBeInTheDocument()
+      await userEvent.type(amount, 'x')
+      expect(screen.queryByText(/^=/)).not.toBeInTheDocument()
+    })
+
+    it('converts shorthand on submit', async () => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), '1tr250')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 1250000 }))
+    })
+
+    it('rejects invalid shorthand with the amount-required error', async () => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), '12abc')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(await screen.findByText('form.amountRequired')).toBeInTheDocument()
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Enter key', () => {
+    async function fillValid() {
+      await userEvent.type(await screen.findByLabelText('form.amount'), '50k')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Cafe')
+      await pickCategory()
+    }
+
+    it('submits from a text input', async () => {
+      const onSubmit = renderModal()
+      await fillValid()
+      await userEvent.type(screen.getByLabelText('form.content'), '{Enter}')
+      expect(onSubmit).toHaveBeenCalledTimes(1)
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 50000, content: 'Cafe' }))
+    })
+
+    it('does not submit from the note textarea', async () => {
+      const onSubmit = renderModal()
+      await fillValid()
+      await userEvent.type(screen.getByLabelText('form.note'), 'a{Enter}b')
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(screen.getByLabelText('form.note')).toHaveValue('a\nb')
+    })
+
+    it('does not submit when a handler already prevented the key', async () => {
+      const onSubmit = renderModal()
+      await fillValid()
+      const content = screen.getByLabelText('form.content')
+      content.addEventListener('keydown', (e) => e.preventDefault())
+      await userEvent.type(content, '{Enter}')
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it('does not submit while a select is open', async () => {
+      const onSubmit = renderModal()
+      await fillValid()
+      await userEvent.click(screen.getByRole('button', { name: 'form.moreOptions' }))
+      await userEvent.click(screen.getByRole('combobox', { name: 'form.beneficiary' }))
+      expect(await screen.findByRole('option', { name: 'Con' })).toBeInTheDocument()
+      fireEvent.keyDown(screen.getByLabelText('form.content'), { key: 'Enter' })
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+  })
+})
+
+function formatVi(n: number) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+const acct = (over: Record<string, unknown>) => ({
+  id: 'a1',
+  name: 'Acc',
+  type: 'checking',
+  lastDigits: null,
+  creditLimit: null,
+  statementDay: null,
+  dueDay: null,
+  interestRatePercent: null,
+  latestSnapshot: null,
+  bankName: null,
+  ...over,
+})
+
+describe('TransactionFormModal pay-with chips', () => {
+  const accounts = [
+    acct({ id: 'a-tcb', name: 'Techcombank CK', type: 'checking', bankName: 'Techcombank' }),
+    acct({ id: 'a-visa', name: 'Visa VPBank', type: 'credit_card', lastDigits: '4321', bankName: 'VPBank' }),
+  ]
+
+  async function fill(onSubmit: ReturnType<typeof vi.fn>) {
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
+    return onSubmit
+  }
+
+  it('renders a chip per account with last digits and a Tiền mặt chip when no cash account', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    renderModal()
+    expect(await screen.findByRole('button', { name: /Techcombank CK/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Visa VPBank/ })).toHaveTextContent('•••4321')
+    expect(screen.getByRole('button', { name: 'form.cashChip' })).toBeInTheDocument()
+  })
+
+  it('omits the synthetic cash chip when a cash account exists', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([acct({ id: 'c', name: 'Ví tiền', type: 'cash' })] as never)
+    renderModal()
+    expect(await screen.findByRole('button', { name: 'Ví tiền' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'form.cashChip' })).not.toBeInTheDocument()
+  })
+
+  it('picking a credit card chip sets card/credit/bank and submits them', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = await fill(renderModal())
+    await userEvent.click(await screen.findByRole('button', { name: /Visa VPBank/ }))
+    expect(screen.getByRole('button', { name: /Visa VPBank/ })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'card', cardType: 'credit', bank: 'VPBank' }),
+    )
+  })
+
+  it('picking the cash chip sets cash with no bank', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = await fill(renderModal())
+    await userEvent.click(await screen.findByRole('button', { name: 'form.cashChip' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'cash', cardType: null, bank: null }),
+    )
+  })
+
+  it('manually changing the bank in Khác deselects the chip and submits the manual value', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = await fill(renderModal())
+    const chip = await screen.findByRole('button', { name: /Techcombank CK/ })
+    await userEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    await openPayWithOther()
+    await userEvent.click(screen.getByRole('button', { name: 'MoMo' }))
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ paymentMethod: 'transfer', bank: 'MoMo' }))
+  })
+
+  it('picking a chip collapses Khác', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    renderModal()
+    await openPayWithOther()
+    expect(screen.getByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /Visa VPBank/ }))
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
+  it('auto-opens Khác on create when the default values match no chip', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([acct({ id: 'x', name: 'Other', bankName: 'ACB' })] as never)
+    renderModal()
+    // Manual controls are visible while loading, so wait for the chips first.
+    await screen.findByRole('button', { name: /Other/ })
+    expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+  })
+
+  it('picking a card chip then a transfer chip clears cardType', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = await fill(renderModal())
+    await userEvent.click(await screen.findByRole('button', { name: /Visa VPBank/ }))
+    await userEvent.click(screen.getByRole('button', { name: /Techcombank CK/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'transfer', cardType: null, bank: 'Techcombank' }),
+    )
+  })
+
+  it('does not reuse a failed previous open: reopen shows chips and keeps Khác collapsed', async () => {
+    vi.mocked(getAccounts).mockRejectedValueOnce(new Error('boom'))
+    const props = { editing: null, submitting: false, onSubmit: vi.fn(), onCancel: () => {} }
+    const { rerender } = render(
+      <Wrapper>
+        <TransactionFormModal open {...props} />
+      </Wrapper>,
+    )
+    expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+    rerender(
+      <Wrapper>
+        <TransactionFormModal open={false} {...props} />
+      </Wrapper>,
+    )
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    rerender(
+      <Wrapper>
+        <TransactionFormModal open {...props} />
+      </Wrapper>,
+    )
+    expect(await screen.findByRole('button', { name: /Visa VPBank/ })).toBeInTheDocument()
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
+  it('keeps Khác collapsed on create', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    renderModal()
+    await screen.findByRole('button', { name: /Visa VPBank/ })
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
+  it('hides chips and shows the manual controls expanded when accounts fail to load', async () => {
+    vi.mocked(getAccounts).mockRejectedValue(new Error('boom'))
+    renderModal()
+    expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'form.cashChip' })).not.toBeInTheDocument()
+  })
+
+  it('edit mode: selects the matching chip and keeps Khác closed', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, paymentMethod: 'card', cardType: 'credit', bank: 'VPBank' }}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await screen.findByRole('button', { name: /Visa VPBank/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
+  it('edit mode: opens Khác when no chip matches', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, paymentMethod: 'card', cardType: 'debit', bank: 'MoMo' }}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    await screen.findByRole('button', { name: /Visa VPBank/ })
+    expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+  })
+})
+
+describe('TransactionFormModal suggestions', () => {
+  const suggestion = (over: Partial<TransactionSuggestionResponse> = {}): TransactionSuggestionResponse => ({
+    content: 'Cà phê sáng',
+    type: 'out',
+    amount: { amount: 45000, currency: 'VND' },
+    categoryId: 'cat-bills',
+    subCategoryId: 'sub-1',
+    paymentMethod: 'cash',
+    cardType: null,
+    bank: null,
+    ...over,
+  })
+
+  const typeContent = async (text: string) => {
+    const input = await screen.findByLabelText('form.content')
+    act(() => input.focus())
+    fireEvent.change(input, { target: { value: text } })
+    return input
+  }
+  const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
+
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
+  afterEach(() => vi.useRealTimers())
+
+  it('fetches once after 250 ms and shows rows under the header', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+    renderModal()
+    await typeContent('cà')
+    await advance(249)
+    expect(getTransactionSuggestions).not.toHaveBeenCalled()
+    await advance(2)
+    expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
+    expect(getTransactionSuggestions).toHaveBeenCalledWith('cà', 8)
+    expect(await screen.findByText('form.suggestions')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Cà phê sáng/ })).toBeInTheDocument()
+  })
+
+  it('coalesces typing within the debounce window', async () => {
+    renderModal()
+    await typeContent('cà')
+    await advance(100)
+    await typeContent('cà phê')
+    await advance(300)
+    expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
+    expect(getTransactionSuggestions).toHaveBeenCalledWith('cà phê', 8)
+  })
+
+  it('does not fetch for fewer than 2 characters', async () => {
+    renderModal()
+    await typeContent('c')
+    await advance(500)
+    expect(getTransactionSuggestions).not.toHaveBeenCalled()
+  })
+
+  it('never fetches in edit mode', async () => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={baseEditingFixture as never}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    await typeContent('Netflix pro')
+    await advance(500)
+    expect(getTransactionSuggestions).not.toHaveBeenCalled()
+  })
+
+  it('stays silent when the fetch fails', async () => {
+    vi.mocked(getTransactionSuggestions).mockRejectedValue(new Error('boom'))
+    renderModal()
+    await typeContent('cà phê')
+    await advance(300)
+    expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('form.suggestions')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('form.content')).toHaveValue('cà phê')
+  })
+
+  it('ignores a stale response', async () => {
+    let resolveFirst: (v: TransactionSuggestionResponse[]) => void = () => {}
+    vi.mocked(getTransactionSuggestions)
+      .mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)))
+      .mockResolvedValueOnce([suggestion({ content: 'Mới' })])
+    renderModal()
+    await typeContent('cà')
+    await advance(300)
+    await typeContent('cà phê')
+    await advance(300)
+    expect(await screen.findByRole('option', { name: /Mới/ })).toBeInTheDocument()
+    await act(async () => resolveFirst([suggestion({ content: 'Cũ' })]))
+    expect(screen.queryByRole('option', { name: /Cũ/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Mới/ })).toBeInTheDocument()
+  })
+
+  it('picking fills the fields but not date or note, and lets the new values show in the chips', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+    const onSubmit = renderModal(vi.fn(), { defaultDate: '2026-11-15' })
+    await typeContent('cà')
+    await advance(300)
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Cà phê sáng/ }))
+    expect(screen.getByLabelText('form.content')).toHaveValue('Cà phê sáng')
+    expect(screen.getByLabelText('form.amount')).toHaveValue('45.000')
+    expect(screen.queryByText('form.suggestions')).not.toBeInTheDocument()
+    // No refetch for the picked text.
+    await advance(400)
+    expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'summary.submit' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Cà phê sáng',
+        type: 'out',
+        amount: 45000,
+        categoryId: 'cat-bills',
+        subCategoryId: 'sub-1',
+        paymentMethod: 'cash',
+        bank: null,
+        date: '2026-11-15',
+        note: null,
+      }),
+    )
+  })
+
+  it('an income suggestion switches Chi to Thu and keeps its category and sub-category', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([
+      suggestion({
+        content: 'Lãi tiết kiệm',
+        type: 'in',
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-gold',
+        paymentMethod: 'transfer',
+        bank: 'Vietcombank',
+      }),
+    ])
+    const onSubmit = renderModal()
+    await typeContent('lãi')
+    await advance(300)
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Lãi tiết kiệm/ }))
+    await advance(50)
+    expect(screen.getByRole('button', { name: /form.moneyIn/ })).toHaveClass('bg-foreground')
+    expect(screen.getByRole('button', { name: /Tích luỹ/ })).toHaveClass('text-primary')
+    fireEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'in',
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-gold',
+        paymentMethod: 'transfer',
+        bank: 'Vietcombank',
+      }),
+    )
+  })
+
+  it('opens Khác when the suggested payment matches no chip', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([
+      suggestion({ paymentMethod: 'transfer', bank: 'Vietcombank' }),
+    ])
+    renderModal()
+    await advance(50)
+    await typeContent('cà')
+    await advance(300)
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Cà phê sáng/ }))
+    expect(screen.getByRole('button', { name: 'form.payWithOther' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('supports ArrowDown/ArrowUp, Enter to pick, and Esc to close', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([
+      suggestion({ content: 'Một' }),
+      suggestion({ content: 'Hai' }),
+    ])
+    const onSubmit = renderModal()
+    const input = await typeContent('ab')
+    await advance(300)
+    const rows = await screen.findAllByRole('option')
+    expect(rows[0]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(screen.getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    expect(screen.getAllByRole('option')[0]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(input).toHaveValue('Hai')
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+
+    await typeContent('xy')
+    await advance(300)
+    await screen.findAllByRole('option')
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+  })
+
+  it('closes on blur after a tick', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+    renderModal()
+    const input = await typeContent('cà')
+    await advance(300)
+    await screen.findByRole('option')
+    fireEvent.blur(input)
+    await advance(200)
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+  })
+
+  it('Enter with the dropdown closed submits the form', async () => {
+    const onSubmit = renderModal()
+    await pickCategory()
+    const input = await typeContent('Cà phê')
+    fireEvent.change(screen.getByLabelText('form.amount'), { target: { value: '45000' } })
+    await advance(300)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+  })
+})
+
+describe('TransactionFormModal final-review fixes', () => {
+  const suggestion = (over: Partial<TransactionSuggestionResponse> = {}): TransactionSuggestionResponse => ({
+    content: 'Cà phê sáng',
+    type: 'out',
+    amount: { amount: 45000, currency: 'VND' },
+    categoryId: 'cat-bills',
+    subCategoryId: 'sub-1',
+    paymentMethod: 'cash',
+    cardType: null,
+    bank: null,
+    ...over,
+  })
+  const typeContent = async (text: string) => {
+    const input = await screen.findByLabelText('form.content')
+    act(() => input.focus())
+    fireEvent.change(input, { target: { value: text } })
+    return input
+  }
+  const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
+
+  describe('suggestion vs typed amount', () => {
+    beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
+    afterEach(() => vi.useRealTimers())
+
+    it('keeps an amount the owner already typed when a suggestion is picked', async () => {
+      vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+      const onSubmit = renderModal()
+      const amount = await screen.findByLabelText('form.amount')
+      fireEvent.change(amount, { target: { value: '50k' } })
+      const input = await typeContent('cà')
+      await advance(300)
+      await screen.findByRole('option')
+      fireEvent.keyDown(input, { key: 'Enter' })
+      expect(screen.getByLabelText('form.amount')).toHaveValue('50.000')
+      fireEvent.keyDown(input, { key: 'Enter' })
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 50000 }))
+    })
+
+    it('fills the suggestion amount when the amount field is empty', async () => {
+      vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+      renderModal()
+      await typeContent('cà')
+      await advance(300)
+      fireEvent.mouseDown(await screen.findByRole('option'))
+      expect(screen.getByLabelText('form.amount')).toHaveValue('45.000')
+    })
+
+    it('leaves an empty amount empty when the suggestion amount is 0', async () => {
+      vi.mocked(getTransactionSuggestions).mockResolvedValue([
+        suggestion({ amount: { amount: 0, currency: 'VND' } }),
+      ])
+      renderModal()
+      await typeContent('cà')
+      await advance(300)
+      fireEvent.mouseDown(await screen.findByRole('option'))
+      expect(screen.getByLabelText('form.amount')).toHaveValue('')
+    })
+
+    it('ignores Enter with keyCode 229 (Safari IME) in the suggestion list', async () => {
+      vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+      renderModal()
+      const input = await typeContent('cà')
+      await advance(300)
+      await screen.findByRole('option')
+      fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+      expect(input).toHaveValue('cà')
+      expect(screen.getByRole('option')).toBeInTheDocument()
+    })
+  })
+
+  it('ignores Enter with keyCode 229 (Safari IME) in the form handler', async () => {
+    const onSubmit = renderModal()
+    await pickCategory()
+    const input = await screen.findByLabelText('form.content')
+    fireEvent.change(input, { target: { value: 'Cà phê' } })
+    fireEvent.change(screen.getByLabelText('form.amount'), { target: { value: '45000' } })
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('opens Khác when a card-type error appears so the error is visible', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([acct({ id: 'c', name: 'Ví tiền', type: 'cash' })] as never)
+    const onSubmit = renderModal()
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
+    await userEvent.type(screen.getByLabelText('form.amount'), '260000')
+    await pickCategory()
+    await openPayWithOther()
+    await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
+    await userEvent.click(screen.getByRole('button', { name: 'form.payWithOther' }))
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(await screen.findByText('form.cardTypeRequired')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'form.payWithOther' })).toHaveAttribute('aria-expanded', 'true')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('shows the manual payment controls while accounts are still loading', async () => {
+    vi.mocked(getAccounts).mockReturnValue(new Promise(() => {}) as never)
+    renderModal()
+    expect(await screen.findByRole('radio', { name: 'payment.transfer' })).toBeChecked()
   })
 })
