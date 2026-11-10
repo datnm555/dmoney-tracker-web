@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   Bell,
   BookOpen,
+  CalendarClock,
   ChevronDown,
   ChevronRight,
   Coins,
@@ -53,6 +54,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/app/gold', key: 'menu.gold', icon: Coins },
   { to: '/app/savings', key: 'menu.savings', icon: PiggyBank },
   { to: '/app/accounts', key: 'menu.accounts', icon: WalletCards },
+  { to: '/app/recurring', key: 'menu.recurring', icon: CalendarClock },
 ]
 
 // Children of the "Settings" tree node in the sidebar.

@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { I18nProvider } from '../i18n/I18nContext'
 import { getAccounts } from '../api/accountApi'
+import { getSchedule } from '../api/recurringPaymentApi'
 import { getDashboardStats, getMonthlySummary } from '../api/transactionApi'
-import type { AccountResponse } from '../api/types'
+import type { AccountResponse, RecurringScheduleItemResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { DashboardPage } from './DashboardPage'
 
@@ -12,6 +13,7 @@ vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
 }))
 vi.mock('../api/accountApi', () => ({ getAccounts: vi.fn() }))
+vi.mock('../api/recurringPaymentApi', () => ({ getSchedule: vi.fn() }))
 vi.mock('../api/transactionApi', () => ({
   getDashboardStats: vi.fn(),
   getMonthlySummary: vi.fn(),
@@ -66,6 +68,7 @@ function renderPage() {
 describe('DashboardPage due banner', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-10T08:00:00') })
+    vi.mocked(getSchedule).mockResolvedValue([])
     vi.mocked(getDashboardStats).mockResolvedValue({ monthly: [] } as never)
     vi.mocked(getMonthlySummary).mockResolvedValue({
       items: [],
@@ -115,5 +118,116 @@ describe('DashboardPage due banner', () => {
     expect(await screen.findByText('dashboard.title')).toBeInTheDocument()
     expect(screen.queryByTestId('due-banner')).not.toBeInTheDocument()
     expect(toast.error).not.toHaveBeenCalled()
+  })
+})
+
+const row = (
+  id: string,
+  name: string,
+  dueDate: string,
+  o: { amount?: number; isVariable?: boolean; paid?: boolean } = {},
+): RecurringScheduleItemResponse => ({
+  item: {
+    id,
+    name,
+    categoryId: null,
+    subCategoryId: null,
+    amount: money(o.amount ?? 100_000),
+    isVariable: o.isVariable ?? false,
+    dayOfMonth: 1,
+    paymentMethod: null,
+    bank: null,
+    note: null,
+    isActive: true,
+  },
+  dueDate,
+  record: o.paid
+    ? { id: `r-${id}`, recurringPaymentId: id, period: '2026-11', amount: money(1), paidDate: dueDate, transactionId: null }
+    : null,
+})
+
+describe('DashboardPage recurring dues in banner', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-10T08:00:00') })
+    vi.mocked(getAccounts).mockResolvedValue([])
+    vi.mocked(getDashboardStats).mockResolvedValue({ monthly: [] } as never)
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [],
+      balance: money(0),
+      totalCredit: money(0),
+      totalDebit: money(0),
+    } as never)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+
+  it('lists dueSoon and overdue recurring rows, sorted, linking to /app/recurring', async () => {
+    vi.mocked(getSchedule).mockResolvedValue([
+      row('z', 'Netflix', '2026-11-12'),
+      row('y', 'Rent', '2026-11-10', { amount: 5_000_000 }),
+      row('x', 'Internet', '2026-11-07', { amount: 300_000 }),
+      row('w', 'Gym', '2026-11-25'),
+      row('v', 'Paid', '2026-11-11', { paid: true }),
+      row('u', 'Electric', '2026-11-11', { amount: 0, isVariable: true }),
+      row('t', 'Water', '2026-11-13', { amount: 150_000, isVariable: true }),
+    ])
+    renderPage()
+
+    const x = await screen.findByTestId('due-banner-recurring-x')
+    expect(getSchedule).toHaveBeenCalledWith('2026-11')
+    expect(norm(x.textContent)).toBe(`Internet accounts.overdue 3 accounts.days: ${norm(formatMoney(money(300_000)))}`)
+    expect(norm(screen.getByTestId('due-banner-recurring-y').textContent)).toBe(
+      `Rent accounts.dueTodayFull: ${norm(formatMoney(money(5_000_000)))}`,
+    )
+    expect(norm(screen.getByTestId('due-banner-recurring-u').textContent)).toBe(
+      'Electric recurring.dueIn 1 accounts.days: recurring.enterAmount',
+    )
+    expect(norm(screen.getByTestId('due-banner-recurring-z').textContent)).toBe(
+      `Netflix recurring.dueIn 2 accounts.days: ${norm(formatMoney(money(100_000)))}`,
+    )
+    expect(norm(screen.getByTestId('due-banner-recurring-t').textContent)).toBe(
+      `Water recurring.dueIn 3 accounts.days: ≈ ${norm(formatMoney(money(150_000)))}`,
+    )
+    expect(screen.queryByTestId('due-banner-recurring-w')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('due-banner-recurring-v')).not.toBeInTheDocument()
+    expect(x.closest('a')).toHaveAttribute('href', '/app/recurring')
+    const ids = screen.getAllByTestId(/^due-banner-recurring-/).map((e) => e.dataset.testid)
+    expect(ids).toEqual(['due-banner-recurring-x', 'due-banner-recurring-y', 'due-banner-recurring-u', 'due-banner-recurring-z', 'due-banner-recurring-t'])
+  })
+
+  it('shows card lines (to /app/accounts) before recurring lines', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([card('a', 'Visa', '2026-11-12')])
+    vi.mocked(getSchedule).mockResolvedValue([row('z', 'Netflix', '2026-11-11')])
+    renderPage()
+
+    const r = await screen.findByTestId('due-banner-recurring-z')
+    const a = await screen.findByTestId('due-banner-a')
+    expect(a.closest('a')).toHaveAttribute('href', '/app/accounts')
+    expect(r.closest('a')).toHaveAttribute('href', '/app/recurring')
+    expect(a.compareDocumentPosition(r) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('keeps card lines and does not toast when getSchedule fails', async () => {
+    const { toast } = await import('sonner')
+    vi.mocked(getAccounts).mockResolvedValue([card('a', 'Visa', '2026-11-12')])
+    vi.mocked(getSchedule).mockRejectedValue(new Error('boom'))
+    renderPage()
+
+    expect(await screen.findByTestId('due-banner-a')).toBeInTheDocument()
+    await waitFor(() => expect(getSchedule).toHaveBeenCalled())
+    await act(async () => {})
+    expect(screen.queryByTestId(/^due-banner-recurring-/)).not.toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('shows no banner when nothing recurring is due soon', async () => {
+    vi.mocked(getSchedule).mockResolvedValue([row('w', 'Gym', '2026-11-25'), row('v', 'Paid', '2026-11-11', { paid: true })])
+    renderPage()
+
+    await waitFor(() => expect(getSchedule).toHaveBeenCalled())
+    await act(async () => {})
+    expect(screen.queryByTestId('due-banner')).not.toBeInTheDocument()
   })
 })

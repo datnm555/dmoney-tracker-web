@@ -76,6 +76,8 @@ interface Props {
   submitting: boolean
   /** Initial date for create mode (YYYY-MM-DD); defaults to today. */
   defaultDate?: string
+  /** Create-mode only: overrides the defaults for the fields it defines (e.g. paying a recurring bill). */
+  prefill?: Partial<TransactionFormValues>
   onSubmit: (values: TransactionFormValues, options?: SubmitOptions) => void
   onCancel: () => void
 }
@@ -102,7 +104,7 @@ function bankChipColor(name: string): string {
   return BANK_CHIP_COLORS[hash % BANK_CHIP_COLORS.length]
 }
 
-export function TransactionFormModal({ open, editing, submitting, defaultDate, onSubmit, onCancel }: Props) {
+export function TransactionFormModal({ open, editing, submitting, defaultDate, prefill, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
   const { plans, selectedPlanId } = usePlans()
   const { beneficiaries } = useBeneficiaries()
@@ -113,6 +115,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
   // refreshes, so it reads the latest list through a ref instead of a dep.
   const banksRef = useRef(banks)
   banksRef.current = banks
+  // Prefill objects are usually re-created each render; the reset effect reads
+  // the latest one through a ref so it only re-runs when the dialog opens.
+  const prefillRef = useRef(prefill)
+  prefillRef.current = prefill
   const { options: categoryOptions } = useCategoryDisplay()
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
@@ -226,6 +232,21 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, o
       // No default preselect: where savings are held is always a deliberate pick.
       setSavingsBank(null)
       setCustomSavingsBank(false)
+      const p = prefillRef.current
+      if (p) {
+        if (p.content !== undefined) setContent(p.content)
+        if (p.amount !== undefined) setAmountDigits(String(Math.round(p.amount)))
+        if (p.type !== undefined) setType(p.type)
+        if (p.categoryId !== undefined) setCategory(p.categoryId)
+        if (p.subCategoryId !== undefined) setSubCategoryId(p.subCategoryId)
+        if (p.paymentMethod !== undefined) setPaymentMethod(p.paymentMethod)
+        if (p.bank !== undefined) {
+          setBank(p.bank)
+          setCustomBank(p.bank !== null && !banksRef.current.some((b) => b.name === p.bank))
+        }
+        if (p.date !== undefined) setDate(p.date)
+        if (p.note !== undefined) setNote(p.note ?? '')
+      }
     }
   }, [open, editing, defaultDate])
 

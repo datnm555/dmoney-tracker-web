@@ -139,16 +139,71 @@ async function pickCategory() {
   await userEvent.click(await screen.findByRole('button', { name: /Hóa đơn/ }))
 }
 
-function renderModal(onSubmit = vi.fn()) {
+function renderModal(onSubmit = vi.fn(), extra: Partial<React.ComponentProps<typeof TransactionFormModal>> = {}) {
   render(
     <Wrapper>
-      <TransactionFormModal open editing={null} submitting={false} onSubmit={onSubmit} onCancel={() => {}} />
+      <TransactionFormModal open editing={null} submitting={false} onSubmit={onSubmit} onCancel={() => {}} {...extra} />
     </Wrapper>,
   )
   return onSubmit
 }
 
 describe('TransactionFormModal', () => {
+  it('applies prefill in create mode (keeping a prefilled sub-category) and submits it', async () => {
+    const onSubmit = renderModal(vi.fn(), {
+      prefill: {
+        content: 'Netflix',
+        amount: 260000,
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-gold',
+        paymentMethod: 'transfer',
+        bank: 'MoMo',
+        date: '2026-11-15',
+        note: 'tháng 11',
+      },
+    })
+
+    expect(await screen.findByLabelText('form.content')).toHaveValue('Netflix')
+    await waitFor(() => expect(screen.getByLabelText('form.amount')).toHaveValue('260.000'))
+    // Let the sub-category list load so the default auto-pick could fire.
+    await new Promise((r) => setTimeout(r, 50))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Netflix',
+        amount: 260000,
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-gold',
+        paymentMethod: 'transfer',
+        bank: 'MoMo',
+        date: '2026-11-15',
+        note: 'tháng 11',
+      }),
+    )
+  })
+
+  it('rounds a fractional prefill amount to an integer', async () => {
+    renderModal(vi.fn(), { prefill: { amount: 165556.5 } })
+    await waitFor(() => expect(screen.getByLabelText('form.amount')).toHaveValue('165.557'))
+  })
+
+  it('ignores prefill in edit mode', async () => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={baseEditingFixture}
+          submitting={false}
+          prefill={{ content: 'Other', amount: 1 }}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await screen.findByLabelText('form.content')).toHaveValue('Netflix')
+  })
+
   it('rejects submit when amount is empty', async () => {
     const onSubmit = renderModal()
 
