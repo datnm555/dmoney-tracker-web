@@ -478,8 +478,11 @@ export function TransactionsPage() {
             // Totals over the filtered rows, not the raw month — the card must
             // agree with the list it sits above.
             const currency = summary?.totalCredit.currency ?? 'VND'
-            const credit = items.reduce((sum, tx) => sum + tx.credit.amount, 0)
-            const debit = items.reduce((sum, tx) => sum + tx.debit.amount, 0)
+            // Rows flagged excludedFromStats (internal transfers, loan principal)
+            // still list below but are not real income/spending.
+            const counted = items.filter((tx) => !tx.excludedFromStats)
+            const credit = counted.reduce((sum, tx) => sum + tx.credit.amount, 0)
+            const debit = counted.reduce((sum, tx) => sum + tx.debit.amount, 0)
             const total = credit + debit
             const balance = credit - debit
             const creditPct = total > 0 ? (credit / total) * 100 : 0
@@ -604,6 +607,11 @@ export function TransactionsPage() {
                       {tx.isAdvance && (
                         <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-amber-700">
                           {t('form.isAdvance')}
+                        </span>
+                      )}
+                      {tx.excludedFromStats && (
+                        <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-zinc-500">
+                          {t('summary.excludedBadge')}
                         </span>
                       )}
                     </div>
