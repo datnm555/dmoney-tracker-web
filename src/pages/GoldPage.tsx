@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
-import { ArrowDownRight, ArrowUpRight, Coins, Pencil, Plus, Scale, Trash2 } from 'lucide-react'
+import { ArrowUpRight, Coins, Pencil, PiggyBank, Plus, Scale, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -19,6 +19,7 @@ import { getApiErrorMessage } from '../api/client'
 import { deleteGoldAcquisition, getGoldSummary } from '../api/goldApi'
 import type { GoldAcquisitionResponse, GoldSummaryResponse } from '../api/types'
 import { GoldAcquisitionDialog } from '../gold/GoldAcquisitionDialog'
+import { GoldMonthlyChart } from '../gold/GoldMonthlyChart'
 import { useI18n } from '../i18n/I18nContext'
 import { formatGoldQuantity } from '../utils/gold'
 import { formatMoney } from '../utils/money'
@@ -114,15 +115,16 @@ export function GoldPage() {
         </Card>
         <Card>
           <CardHeader className="flex-row items-center justify-between pb-2">
+            {/* Money put into gold is savings, not spending — shown unsigned in green. */}
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              {t('gold.totalSpent')}
+              {t('gold.totalSaved')}
             </CardTitle>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-expense/10">
-              <ArrowDownRight className="h-4 w-4 text-expense" />
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-income/10">
+              <PiggyBank className="h-4 w-4 text-income" />
             </span>
           </CardHeader>
           <CardContent className="grid gap-1.5">
-            <div className="text-2xl font-bold text-expense">−{formatMoney(totalSpent)}</div>
+            <div className="text-2xl font-bold text-income">{formatMoney(totalSpent)}</div>
             <p className="text-xs text-muted-foreground">
               {t('gold.bought')} {formatGoldQuantity(totalBought)} {t('gold.unit')}
             </p>
@@ -161,6 +163,8 @@ export function GoldPage() {
         </Card>
       </div>
 
+      {transactions.length > 0 && <GoldMonthlyChart transactions={transactions} />}
+
       {types.length > 0 && (
         <>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
@@ -198,7 +202,7 @@ export function GoldPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">{t('gold.totalSpent')}</dt>
-                      <dd className="font-medium text-expense">{formatMoney(type.totalSpent)}</dd>
+                      <dd className="font-medium text-income">{formatMoney(type.totalSpent)}</dd>
                     </div>
                     <div className="flex items-center justify-between">
                       <dt className="text-muted-foreground">{t('gold.totalReceived')}</dt>

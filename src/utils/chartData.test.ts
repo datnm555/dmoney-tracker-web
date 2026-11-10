@@ -1,7 +1,8 @@
 import dayjs from 'dayjs'
 import { describe, expect, it } from 'vitest'
-import type { DailyStat, MonthlyStat, SavingsTransactionResponse } from '../api/types'
+import type { DailyStat, GoldTransactionResponse, MonthlyStat, SavingsTransactionResponse } from '../api/types'
 import {
+  goldMonthly,
   savingsMonthly,
   toBalanceLine,
   toCategorySpending,
@@ -130,5 +131,53 @@ describe('savingsMonthly', () => {
       today,
     )
     expect(months.every((m) => m.deposited === 0 && m.withdrawn === 0)).toBe(true)
+  })
+})
+
+describe('goldMonthly', () => {
+  const tx = (date: string, quantity: number, debit: number, credit: number): GoldTransactionResponse => ({
+    transactionId: `${date}-${quantity}-${debit}-${credit}`,
+    date,
+    content: 'x',
+    goldTypeId: 'g-1',
+    goldTypeName: 'SJC',
+    goldQuantity: quantity,
+    credit: vnd(credit),
+    debit: vnd(debit),
+    pricePerChi: vnd(0),
+    purchasePlaceId: null,
+    purchasePlaceName: null,
+  })
+  const today = dayjs('2026-10-11')
+
+  it('returns 12 zeroed months oldest→newest ending at the current month', () => {
+    const months = goldMonthly([], today)
+    expect(months).toHaveLength(12)
+    expect(months[0]).toEqual({ month: '11/2025', bought: 0, sold: 0, spent: 0, received: 0 })
+    expect(months[11].month).toBe('10/2026')
+  })
+
+  it('sums chỉ and money per month: debit = buy, credit = sell', () => {
+    const months = goldMonthly(
+      [
+        tx('2026-10-01', 1, 8_000_000, 0),
+        tx('2026-10-20', 0.5, 4_100_000, 0),
+        tx('2026-10-05', 0.3, 0, 2_500_000),
+        tx('2026-08-02', 2, 15_000_000, 0),
+      ],
+      today,
+    )
+    expect(months[11]).toEqual({ month: '10/2026', bought: 1.5, sold: 0.3, spent: 12_100_000, received: 2_500_000 })
+    expect(months[9]).toEqual({ month: '08/2026', bought: 2, sold: 0, spent: 15_000_000, received: 0 })
+  })
+
+  it('ignores rows older than 12 months or after the current month', () => {
+    const months = goldMonthly([tx('2025-10-31', 1, 1, 0), tx('2026-11-01', 1, 1, 0)], today)
+    expect(months.every((m) => m.bought === 0 && m.sold === 0)).toBe(true)
+  })
+
+  it('does not accumulate float noise on decimal quantities', () => {
+    const months = goldMonthly([tx('2026-10-01', 0.1, 1, 0), tx('2026-10-02', 0.2, 1, 0)], today)
+    expect(months[11].bought).toBe(0.3)
   })
 })

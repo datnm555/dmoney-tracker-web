@@ -18,8 +18,10 @@ export function groupTransactionsByDay(items: TransactionResponse[]): DayGroup[]
   return [...byDate.entries()]
     .sort(([a], [b]) => (a < b ? 1 : -1))
     .map(([date, dayItems]) => {
-      const credit = dayItems.reduce((sum, i) => sum + i.credit.amount, 0)
-      const debit = dayItems.reduce((sum, i) => sum + i.debit.amount, 0)
+      // Excluded-from-stats rows stay listed but don't count, same as the month card.
+      const counted = dayItems.filter((i) => !i.excludedFromStats)
+      const credit = counted.reduce((sum, i) => sum + i.credit.amount, 0)
+      const debit = counted.reduce((sum, i) => sum + i.debit.amount, 0)
       return { date, credit, debit, net: credit - debit, items: dayItems }
     })
 }

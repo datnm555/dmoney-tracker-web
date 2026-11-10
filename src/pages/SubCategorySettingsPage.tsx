@@ -44,6 +44,7 @@ export function SubCategorySettingsPage() {
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
   const [isDefault, setIsDefault] = useState(false)
+  const [excludeFromStats, setExcludeFromStats] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const load = useCallback(async () => {
@@ -64,14 +65,15 @@ export function SubCategorySettingsPage() {
     setSubmitting(true)
     try {
       if (editingSub) {
-        await updateSubCategory(editingSub.id, name.trim(), isDefault, icon)
+        await updateSubCategory(editingSub.id, name.trim(), isDefault, icon, excludeFromStats)
       } else {
-        await createSubCategory(category, name.trim(), isDefault, icon)
+        await createSubCategory(category, name.trim(), isDefault, icon, excludeFromStats)
       }
       toast.success(t(editingSub ? 'toast.updated' : 'toast.created'))
       setName('')
       setIcon(null)
       setIsDefault(false)
+      setExcludeFromStats(false)
       setOpen(false)
       setEditingSub(null)
       await load()
@@ -88,6 +90,7 @@ export function SubCategorySettingsPage() {
     setName(sub.name)
     setIcon(sub.icon)
     setIsDefault(sub.isDefault)
+    setExcludeFromStats(sub.excludeFromStats)
     setOpen(true)
   }
 
@@ -124,6 +127,7 @@ export function SubCategorySettingsPage() {
             setName('')
             setIcon(null)
             setIsDefault(false)
+            setExcludeFromStats(false)
             // Categories come from the db; make sure the select holds a valid one.
             setCategory((prev) =>
               options.some((o) => o.code === prev) ? prev : (options[0]?.code ?? ''),
@@ -174,6 +178,11 @@ export function SubCategorySettingsPage() {
                       {sub.isDefault && (
                         <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                           {t('subcat.default')}
+                        </span>
+                      )}
+                      {sub.excludeFromStats && (
+                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                          {t('summary.excludedBadge')}
                         </span>
                       )}
                       <button
@@ -256,6 +265,17 @@ export function SubCategorySettingsPage() {
               />
               {t('subcat.default')}
             </label>
+            <div className="grid gap-1">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={excludeFromStats}
+                  onCheckedChange={(checked) => setExcludeFromStats(checked === true)}
+                  aria-label={t('cat.excludeFromStats')}
+                />
+                {t('cat.excludeFromStats')}
+              </label>
+              <p className="pl-6 text-xs text-muted-foreground">{t('cat.excludeFromStatsHint')}</p>
+            </div>
             <Button type="submit" disabled={submitting || !name.trim()}>
               {t('summary.submit')}
             </Button>

@@ -95,6 +95,7 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   purchasePlaceId: null,
   purchasePlaceName: null,
   savingsBank: null,
+  excludedFromStats: false,
   ...overrides,
 })
 
@@ -187,6 +188,50 @@ describe('TransactionsPage summary card', () => {
     // Card credit total, card balance, plus the matching row itself.
     expect(screen.getAllByText(`+${fmt(10_000_000)}`)).toHaveLength(3)
     expect(screen.getByText(`−${fmt(0)}`)).toBeInTheDocument()
+  })
+
+  it('month card totals skip excludedFromStats rows, which still list with a badge', async () => {
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [
+        tx({ id: 't1', content: 'Lương', credit: { amount: 10_000_000, currency: 'VND' } }),
+        tx({
+          id: 't2',
+          content: 'Thu hồi nợ',
+          credit: { amount: 50_000_000, currency: 'VND' },
+          excludedFromStats: true,
+        }),
+        tx({ id: 't3', content: 'Ăn trưa', debit: { amount: 2_000_000, currency: 'VND' } }),
+        tx({
+          id: 't4',
+          content: 'Chuyển tiền nội bộ',
+          debit: { amount: 20_000_000, currency: 'VND' },
+          excludedFromStats: true,
+        }),
+      ],
+      totalCredit: { amount: 10_000_000, currency: 'VND' },
+      totalDebit: { amount: 2_000_000, currency: 'VND' },
+      balance: { amount: 8_000_000, currency: 'VND' },
+    })
+
+    render(
+      <I18nProvider>
+        <TransactionsPage />
+      </I18nProvider>,
+    )
+
+    const balance = await screen.findByTestId('month-balance')
+    await waitFor(() => expect(balance).toHaveTextContent(`summary.balance +${fmt(8_000_000)}`))
+    // Card credit total + the salary row itself; the 60M sum never appears.
+    expect(screen.getAllByText(`+${fmt(10_000_000)}`)).toHaveLength(2)
+    expect(screen.queryByText(`+${fmt(60_000_000)}`)).not.toBeInTheDocument()
+    // Card debit total + the lunch row itself.
+    expect(screen.getAllByText(`−${fmt(2_000_000)}`)).toHaveLength(2)
+    expect(screen.queryByText(`−${fmt(22_000_000)}`)).not.toBeInTheDocument()
+
+    // Excluded rows still list, each with the "not counted" chip.
+    expect(screen.getByText('Thu hồi nợ')).toBeInTheDocument()
+    expect(screen.getByText('Chuyển tiền nội bộ')).toBeInTheDocument()
+    expect(screen.getAllByText('summary.excludedBadge')).toHaveLength(2)
   })
 
   it('shows a negative balance when spending exceeds income', async () => {

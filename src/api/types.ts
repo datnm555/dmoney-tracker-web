@@ -33,6 +33,8 @@ export interface TransactionResponse {
   purchasePlaceId: string | null
   purchasePlaceName: string | null
   savingsBank: string | null
+  /** True when the row's category or sub-category is flagged excludeFromStats. */
+  excludedFromStats: boolean
 }
 
 export interface LinkedTransactionResponse {
@@ -107,6 +109,8 @@ export interface SubCategoryResponse {
   icon: string | null
   /** Stable system code (e.g. 'savings_book' for "Sổ tiết kiệm"); null for user-made ones. */
   code: string | null
+  /** Transactions under this sub-category are left out of totals and charts. */
+  excludeFromStats: boolean
 }
 
 // Mirrors Application/Transactions/Data/CreditResponse.cs on the backend.
@@ -126,6 +130,8 @@ export interface CategoryResponse {
   code: string | null
   /** Which transaction direction the category applies to: 'expense' | 'income' | 'both'. */
   kind: string
+  /** Transactions under this category are left out of totals and charts. */
+  excludeFromStats: boolean
 }
 
 // Mirrors Application/Plans/Data/PlanResponse.cs on the backend.

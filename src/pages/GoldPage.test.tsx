@@ -94,7 +94,10 @@ describe('GoldPage', () => {
     // stat-card value nodes directly (same approach as the acq value test).
     const money = (amount: number) => formatMoney({ amount, currency: 'VND' })
     const values = Array.from(document.querySelectorAll('div.text-2xl')).map((el) => el.textContent)
-    expect(values).toContain(`−${money(31_000_000)}`) // total spent
+    // Buying gold is saving, so the spent total shows unsigned under the savings label.
+    expect(values).toContain(money(31_000_000)) // total saved
+    expect(values).not.toContain(`−${money(31_000_000)}`)
+    expect(screen.getByText('gold.totalSaved')).toBeInTheDocument()
     expect(values).toContain(`+${money(12_000_000)}`) // total received
     expect(values).toContain(money(31_000_000 / 3)) // weighted avg cost per chỉ
 
@@ -182,5 +185,20 @@ describe('GoldPage', () => {
     vi.mocked(getGoldSummary).mockResolvedValueOnce({ types: [], transactions: [], acquisitions: [] })
     render(<GoldPage />)
     expect(await screen.findByText('gold.empty')).toBeInTheDocument()
+  })
+
+  it('shows the monthly buy/sell chart when there are gold transactions', async () => {
+    render(<GoldPage />)
+    expect(await screen.findByText('gold.monthlyChart')).toBeInTheDocument()
+    // Legend names the unit so the bars read as chỉ, not money.
+    expect(screen.getByText('gold.bought (gold.unit)')).toBeInTheDocument()
+    expect(screen.getByText('gold.sold (gold.unit)')).toBeInTheDocument()
+  })
+
+  it('hides the monthly chart when there are no gold transactions', async () => {
+    vi.mocked(getGoldSummary).mockResolvedValueOnce({ types: [], transactions: [], acquisitions: [] })
+    render(<GoldPage />)
+    await screen.findByText('gold.empty')
+    expect(screen.queryByText('gold.monthlyChart')).not.toBeInTheDocument()
   })
 })

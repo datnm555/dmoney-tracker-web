@@ -13,8 +13,15 @@ export async function createSubCategory(
   name: string,
   isDefault = false,
   icon: string | null = null,
+  excludeFromStats = false,
 ): Promise<{ id: string }> {
-  const { data } = await apiClient.post<{ id: string }>('/subcategories', { categoryId, name, isDefault, icon })
+  const { data } = await apiClient.post<{ id: string }>('/subcategories', {
+    categoryId,
+    name,
+    isDefault,
+    icon,
+    excludeFromStats,
+  })
   return data
 }
 
@@ -23,8 +30,9 @@ export async function updateSubCategory(
   name: string,
   isDefault = false,
   icon: string | null = null,
+  excludeFromStats = false,
 ): Promise<void> {
-  await apiClient.put(`/subcategories/${id}`, { name, isDefault, icon })
+  await apiClient.put(`/subcategories/${id}`, { name, isDefault, icon, excludeFromStats })
 }
 
 export async function deleteSubCategory(id: string): Promise<void> {
