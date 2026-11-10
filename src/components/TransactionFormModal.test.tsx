@@ -1,11 +1,13 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import dayjs from 'dayjs'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
 import { TransactionFormModal } from './TransactionFormModal'
 import { getAccounts } from '../api/accountApi'
+import { getTransactionSuggestions } from '../api/transactionApi'
+import type { TransactionSuggestionResponse } from '../api/types'
 import { beforeEach } from 'vitest'
 
 vi.mock('../api/resourceApi', () => ({
@@ -85,6 +87,7 @@ vi.mock('../api/accountApi', () => ({
 }))
 
 vi.mock('../api/transactionApi', () => ({
+  getTransactionSuggestions: vi.fn().mockResolvedValue([]),
   getCredits: vi.fn().mockResolvedValue([]),
   getOpenAdvances: vi.fn().mockResolvedValue([
     {
@@ -155,6 +158,8 @@ async function openPayWithOther() {
 beforeEach(() => {
   vi.mocked(getAccounts).mockReset()
   vi.mocked(getAccounts).mockResolvedValue([])
+  vi.mocked(getTransactionSuggestions).mockReset()
+  vi.mocked(getTransactionSuggestions).mockResolvedValue([])
 })
 
 async function openMoreOptions() {
@@ -1334,5 +1339,222 @@ describe('TransactionFormModal pay-with chips', () => {
       </Wrapper>,
     )
     expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+  })
+})
+
+describe('TransactionFormModal suggestions', () => {
+  const suggestion = (over: Partial<TransactionSuggestionResponse> = {}): TransactionSuggestionResponse => ({
+    content: 'Cà phê sáng',
+    type: 'out',
+    amount: { amount: 45000, currency: 'VND' },
+    categoryId: 'cat-bills',
+    subCategoryId: 'sub-1',
+    paymentMethod: 'cash',
+    cardType: null,
+    bank: null,
+    ...over,
+  })
+
+  const typeContent = async (text: string) => {
+    const input = await screen.findByLabelText('form.content')
+    act(() => input.focus())
+    fireEvent.change(input, { target: { value: text } })
+    return input
+  }
+  const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms))
+
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }))
+  afterEach(() => vi.useRealTimers())
+
+  it('fetches once after 250 ms and shows rows under the header', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+    renderModal()
+    await typeContent('cà')
+    await advance(249)
+    expect(getTransactionSuggestions).not.toHaveBeenCalled()
+    await advance(2)
+    expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
+    expect(getTransactionSuggestions).toHaveBeenCalledWith('cà', 8)
+    expect(await screen.findByText('form.suggestions')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Cà phê sáng/ })).toBeInTheDocument()
+  })
+
+  it('coalesces typing within the debounce window', async () => {
+    renderModal()
+    await typeContent('cà')
+    await advance(100)
+    await typeContent('cà phê')
+    await advance(300)
+    expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
+    expect(getTransactionSuggestions).toHaveBeenCalledWith('cà phê', 8)
+  })
+
+  it('does not fetch for fewer than 2 characters', async () => {
+    renderModal()
+    await typeContent('c')
+    await advance(500)
+    expect(getTransactionSuggestions).not.toHaveBeenCalled()
+  })
+
+  it('never fetches in edit mode', async () => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={baseEditingFixture as never}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    await typeContent('Netflix pro')
+    await advance(500)
+    expect(getTransactionSuggestions).not.toHaveBeenCalled()
+  })
+
+  it('stays silent when the fetch fails', async () => {
+    vi.mocked(getTransactionSuggestions).mockRejectedValue(new Error('boom'))
+    renderModal()
+    await typeContent('cà phê')
+    await advance(300)
+    expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('form.suggestions')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('form.content')).toHaveValue('cà phê')
+  })
+
+  it('ignores a stale response', async () => {
+    let resolveFirst: (v: TransactionSuggestionResponse[]) => void = () => {}
+    vi.mocked(getTransactionSuggestions)
+      .mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)))
+      .mockResolvedValueOnce([suggestion({ content: 'Mới' })])
+    renderModal()
+    await typeContent('cà')
+    await advance(300)
+    await typeContent('cà phê')
+    await advance(300)
+    expect(await screen.findByRole('option', { name: /Mới/ })).toBeInTheDocument()
+    await act(async () => resolveFirst([suggestion({ content: 'Cũ' })]))
+    expect(screen.queryByRole('option', { name: /Cũ/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Mới/ })).toBeInTheDocument()
+  })
+
+  it('picking fills the fields but not date or note, and lets the new values show in the chips', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+    const onSubmit = renderModal(vi.fn(), { defaultDate: '2026-11-15' })
+    await typeContent('cà')
+    await advance(300)
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Cà phê sáng/ }))
+    expect(screen.getByLabelText('form.content')).toHaveValue('Cà phê sáng')
+    expect(screen.getByLabelText('form.amount')).toHaveValue('45.000')
+    expect(screen.queryByText('form.suggestions')).not.toBeInTheDocument()
+    // No refetch for the picked text.
+    await advance(400)
+    expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'summary.submit' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'Cà phê sáng',
+        type: 'out',
+        amount: 45000,
+        categoryId: 'cat-bills',
+        subCategoryId: 'sub-1',
+        paymentMethod: 'cash',
+        bank: null,
+        date: '2026-11-15',
+        note: null,
+      }),
+    )
+  })
+
+  it('an income suggestion switches Chi to Thu and keeps its category and sub-category', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([
+      suggestion({
+        content: 'Lãi tiết kiệm',
+        type: 'in',
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-gold',
+        paymentMethod: 'transfer',
+        bank: 'Vietcombank',
+      }),
+    ])
+    const onSubmit = renderModal()
+    await typeContent('lãi')
+    await advance(300)
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Lãi tiết kiệm/ }))
+    await advance(50)
+    expect(screen.getByRole('button', { name: /form.moneyIn/ })).toHaveClass('bg-foreground')
+    expect(screen.getByRole('button', { name: /Tích luỹ/ })).toHaveClass('text-primary')
+    fireEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'in',
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-gold',
+        paymentMethod: 'transfer',
+        bank: 'Vietcombank',
+      }),
+    )
+  })
+
+  it('opens Khác when the suggested payment matches no chip', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([
+      suggestion({ paymentMethod: 'transfer', bank: 'Vietcombank' }),
+    ])
+    renderModal()
+    await advance(50)
+    await typeContent('cà')
+    await advance(300)
+    fireEvent.mouseDown(await screen.findByRole('option', { name: /Cà phê sáng/ }))
+    expect(screen.getByRole('button', { name: 'form.payWithOther' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('supports ArrowDown/ArrowUp, Enter to pick, and Esc to close', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([
+      suggestion({ content: 'Một' }),
+      suggestion({ content: 'Hai' }),
+    ])
+    const onSubmit = renderModal()
+    const input = await typeContent('ab')
+    await advance(300)
+    const rows = await screen.findAllByRole('option')
+    expect(rows[0]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    expect(screen.getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'ArrowUp' })
+    expect(screen.getAllByRole('option')[0]).toHaveAttribute('aria-selected', 'true')
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(input).toHaveValue('Hai')
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+
+    await typeContent('xy')
+    await advance(300)
+    await screen.findAllByRole('option')
+    fireEvent.keyDown(input, { key: 'Escape' })
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+  })
+
+  it('closes on blur after a tick', async () => {
+    vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
+    renderModal()
+    const input = await typeContent('cà')
+    await advance(300)
+    await screen.findByRole('option')
+    fireEvent.blur(input)
+    await advance(200)
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+  })
+
+  it('Enter with the dropdown closed submits the form', async () => {
+    const onSubmit = renderModal()
+    await pickCategory()
+    const input = await typeContent('Cà phê')
+    fireEvent.change(screen.getByLabelText('form.amount'), { target: { value: '45000' } })
+    await advance(300)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
   })
 })

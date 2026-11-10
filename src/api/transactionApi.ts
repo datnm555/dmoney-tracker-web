@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { AdvanceResponse, CreditResponse, DashboardStatsResponse, MonthlySummaryResponse, PrepaidCreditResponse } from './types'
+import type { AdvanceResponse, CreditResponse, DashboardStatsResponse, MonthlySummaryResponse, PrepaidCreditResponse, TransactionSuggestionResponse } from './types'
 
 export interface TransactionPayload {
   date: string // YYYY-MM-DD
@@ -76,5 +76,12 @@ export async function getCredits(planId: string): Promise<CreditResponse[]> {
 
 export async function getPrepaidCredits(planId: string): Promise<PrepaidCreditResponse[]> {
   const { data } = await apiClient.get<PrepaidCreditResponse[]>('/transactions/prepaid', { params: { planId } })
+  return data
+}
+
+export async function getTransactionSuggestions(q: string, limit?: number): Promise<TransactionSuggestionResponse[]> {
+  const { data } = await apiClient.get<TransactionSuggestionResponse[]>('/transactions/suggestions', {
+    params: { q, limit },
+  })
   return data
 }

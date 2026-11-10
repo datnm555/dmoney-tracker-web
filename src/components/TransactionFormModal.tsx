@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { MoreOptionsSection } from './transactionForm/MoreOptionsSection'
+import { ContentSuggestions, useContentSuggestions } from './transactionForm/ContentSuggestions'
 import { PayWithChips } from './transactionForm/PayWithChips'
 import { usePayWithAccounts } from './transactionForm/usePayWithAccounts'
 import { buildPayWithChips, selectedPayWithKey } from '../utils/payWith'
@@ -28,7 +29,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getApiErrorMessage } from '../api/client'
 import { getSubCategories } from '../api/subCategoryApi'
 import { getCredits, getOpenAdvances, getPrepaidCredits } from '../api/transactionApi'
-import type { AdvanceResponse, CreditResponse, PrepaidCreditResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
+import type {
+  AdvanceResponse,
+  CreditResponse,
+  PrepaidCreditResponse,
+  SubCategoryResponse,
+  TransactionResponse,
+  TransactionSuggestionResponse,
+} from '../api/types'
 import { formatMoney } from '../utils/money'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
@@ -391,6 +399,40 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   // Live "= 1.250.000 ₫" preview for shorthand / decimal text (plain digits need none).
   const amountPreview = /^\d*$/.test(amountText) ? null : parseAmountShorthand(amountText)
 
+  const changeType = (value: 'in' | 'out') => {
+    setType(value)
+    if (value === 'in') {
+      setIsAdvance(false)
+      setAlreadyPrepaid(false)
+      setPrepaidId(null)
+    } else {
+      setReimburse(false)
+      setAdvanceIds([])
+      setIsPrepaid(false)
+    }
+  }
+
+  // Fill the form from a past transaction (never date or note).
+  const applySuggestion = (s: TransactionSuggestionResponse) => {
+    if (s.type !== type) changeType(s.type)
+    setContent(s.content)
+    setAmountText(String(Math.round(s.amount.amount)))
+    setCategory(s.categoryId)
+    selectSubCategory(s.subCategoryId)
+    const fields: PayWithFields = {
+      paymentMethod: s.paymentMethod as PaymentMethodCode,
+      cardType: s.cardType as CardTypeCode | null,
+      bank: s.bank,
+    }
+    setPaymentMethod(fields.paymentMethod)
+    setCardType(fields.cardType)
+    setBank(fields.bank)
+    setCustomBank(fields.bank !== null && !banksRef.current.some((b) => b.name === fields.bank))
+    setErrors({})
+    if (accountsStatus === 'ready') setPayOtherOpen(selectedPayWithKey(payWithChips, fields) === null)
+  }
+  const suggestions = useContentSuggestions(content, open && !editing, applySuggestion)
+
   const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
     if (!date) nextErrors.date = t('form.dateRequired')
@@ -512,6 +554,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
       <DialogContent
         className="max-h-[90vh] overflow-y-auto sm:max-w-md"
+        // Esc first closes an open suggestion list, not the dialog.
+        onEscapeKeyDown={(event) => {
+          if (suggestions.visible) event.preventDefault()
+        }}
         onOpenAutoFocus={(event) => {
           if (editing) return
           event.preventDefault()
@@ -528,18 +574,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
               <button
                 key={value}
                 type="button"
-                onClick={() => {
-                  setType(value)
-                  if (value === 'in') {
-                    setIsAdvance(false)
-                    setAlreadyPrepaid(false)
-                    setPrepaidId(null)
-                  } else {
-                    setReimburse(false)
-                    setAdvanceIds([])
-                    setIsPrepaid(false)
-                  }
-                }}
+                onClick={() => changeType(value)}
                 className={cn(
                   'flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium',
                   type === value ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground',
@@ -580,7 +615,29 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
 
           <div className="grid gap-2">
             <Label htmlFor="tx-content">{t('form.content')}</Label>
-            <Input id="tx-content" maxLength={500} value={content} onChange={(e) => setContent(e.target.value)} />
+            <div className="relative">
+              <Input
+                id="tx-content"
+                maxLength={500}
+                autoComplete="off"
+                value={content}
+                onChange={(e) => {
+                  suggestions.markFocused()
+                  setContent(e.target.value)
+                }}
+                onFocus={suggestions.inputProps.onFocus}
+                onBlur={suggestions.inputProps.onBlur}
+                onKeyDown={suggestions.inputProps.onKeyDown}
+              />
+              {suggestions.visible && (
+                <ContentSuggestions
+                  items={suggestions.items}
+                  highlight={suggestions.highlight}
+                  onHighlight={suggestions.setHighlight}
+                  onPick={suggestions.pick}
+                />
+              )}
+            </div>
             {errors.content && <p className="text-xs text-expense">{errors.content}</p>}
           </div>
 

@@ -351,3 +351,14 @@ export interface RecurringPaymentInput {
   note: string | null
   isActive: boolean
 }
+
+export interface TransactionSuggestionResponse {
+  content: string
+  type: 'in' | 'out'
+  amount: MoneyResponse
+  categoryId: string | null
+  subCategoryId: string | null
+  paymentMethod: string
+  cardType: string | null
+  bank: string | null
+}
