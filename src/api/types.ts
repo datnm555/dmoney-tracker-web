@@ -307,3 +307,47 @@ export interface SnapshotInput {
   statementPaid: boolean
   note: string | null
 }
+
+// Mirrors Application/RecurringPayments/* responses on the backend.
+export interface RecurringPaymentResponse {
+  id: string
+  name: string
+  categoryId: string | null
+  subCategoryId: string | null
+  amount: MoneyResponse
+  isVariable: boolean
+  dayOfMonth: number
+  paymentMethod: string | null
+  bank: string | null
+  note: string | null
+  isActive: boolean
+}
+
+export interface RecurringPaymentRecordResponse {
+  id: string
+  recurringPaymentId: string
+  period: string // YYYY-MM
+  amount: MoneyResponse
+  paidDate: string // YYYY-MM-DD
+  transactionId: string | null
+}
+
+export interface RecurringScheduleItemResponse {
+  item: RecurringPaymentResponse
+  dueDate: string // YYYY-MM-DD
+  record: RecurringPaymentRecordResponse | null
+}
+
+// Request body for POST/PUT /recurring-payments (money fields are plain numbers).
+export interface RecurringPaymentInput {
+  name: string
+  categoryId: string | null
+  subCategoryId: string | null
+  amount: number
+  isVariable: boolean
+  dayOfMonth: number
+  paymentMethod: string | null
+  bank: string | null
+  note: string | null
+  isActive: boolean
+}
