@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import dayjs from 'dayjs'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
 import { TransactionFormModal } from './TransactionFormModal'
@@ -78,6 +79,7 @@ vi.mock('../api/subCategoryApi', () => ({
 }))
 
 vi.mock('../api/transactionApi', () => ({
+  getCredits: vi.fn().mockResolvedValue([]),
   getOpenAdvances: vi.fn().mockResolvedValue([
     {
       id: 'adv-1',
@@ -137,6 +139,10 @@ const baseEditingFixture = {
 
 async function pickCategory() {
   await userEvent.click(await screen.findByRole('button', { name: /Hóa đơn/ }))
+}
+
+async function openMoreOptions() {
+  await userEvent.click(await screen.findByRole('button', { name: 'form.moreOptions' }))
 }
 
 function renderModal(onSubmit = vi.fn(), extra: Partial<React.ComponentProps<typeof TransactionFormModal>> = {}) {
@@ -284,6 +290,7 @@ describe('TransactionFormModal', () => {
 
   it('preselects the default beneficiary on a money-out transaction', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     expect(await screen.findByRole('combobox', { name: 'form.beneficiary' })).toHaveTextContent('Tôi')
 
@@ -297,6 +304,7 @@ describe('TransactionFormModal', () => {
 
   it('clears the beneficiary when switching to money-in', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await screen.findByRole('combobox', { name: 'form.beneficiary' })
     await userEvent.click(screen.getByRole('button', { name: /form\.moneyIn/ }))
@@ -313,6 +321,7 @@ describe('TransactionFormModal', () => {
 
   it('submits the picked beneficiary', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('combobox', { name: 'form.beneficiary' }))
     await userEvent.click(await screen.findByRole('option', { name: 'Con' }))
@@ -327,6 +336,7 @@ describe('TransactionFormModal', () => {
 
   it('submits isAdvance when the advance checkbox is ticked', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Tiền xe bus ứng trước')
     await userEvent.type(screen.getByLabelText('form.amount'), '2000000')
@@ -339,6 +349,7 @@ describe('TransactionFormModal', () => {
 
   it('money-in shows the reimburse checkbox instead of the advance checkbox', async () => {
     renderModal()
+    await openMoreOptions()
 
     await screen.findByLabelText('form.content')
     expect(screen.getByRole('checkbox', { name: 'form.isAdvance' })).toBeInTheDocument()
@@ -351,6 +362,7 @@ describe('TransactionFormModal', () => {
 
   it('links a money-in to a selected open advance', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Nhận hoàn ứng')
@@ -373,6 +385,7 @@ describe('TransactionFormModal', () => {
 
   it('money-in prepaid submits the period computed from the date and month count', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Sinh hoạt 5 tháng')
@@ -397,6 +410,7 @@ describe('TransactionFormModal', () => {
 
   it('already-prepaid money-out allows an empty amount and links the prepaid credit', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Sinh hoạt tháng 2')
     await pickCategory()
@@ -420,6 +434,7 @@ describe('TransactionFormModal', () => {
 
   it('save-and-continue submits with keepOpen and clears the per-record fields', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     fireEvent.change(await screen.findByLabelText('form.date'), { target: { value: '2026-07-10' } })
     await userEvent.type(screen.getByLabelText('form.content'), 'Ăn trưa')
@@ -544,6 +559,7 @@ describe('TransactionFormModal', () => {
 
   it('submits the picked gold type and quantity on a money-out transaction', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
     await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
@@ -561,6 +577,7 @@ describe('TransactionFormModal', () => {
 
   it('submits the picked purchase place while the gold toggle is on', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
     await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
@@ -580,6 +597,7 @@ describe('TransactionFormModal', () => {
 
   it('turning off the gold toggle clears the picked purchase place', async () => {
     renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('checkbox', { name: 'form.goldToggle' }))
     await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
@@ -594,6 +612,7 @@ describe('TransactionFormModal', () => {
 
   it('gold toggle also works on a money-in transaction (sell)', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.click(await screen.findByRole('button', { name: /form\.moneyIn/ }))
     await userEvent.type(screen.getByLabelText('form.content'), 'Bán vàng')
@@ -612,6 +631,7 @@ describe('TransactionFormModal', () => {
 
   it('requires a gold quantity when the gold toggle is on', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
     await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
@@ -650,6 +670,7 @@ describe('TransactionFormModal', () => {
 
   it('save-and-continue clears the picked purchase place along with the rest of the gold block', async () => {
     const onSubmit = renderModal()
+    await openMoreOptions()
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Mua vàng')
     await userEvent.type(screen.getByLabelText('form.amount'), '5000000')
@@ -874,3 +895,190 @@ describe('TransactionFormModal', () => {
     })
   })
 })
+
+describe('TransactionFormModal quick-entry layout', () => {
+  const before = (a: HTMLElement, b: HTMLElement) =>
+    Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+  it('orders the fields amount, content, category, pay-with, date, note', async () => {
+    renderModal()
+    const amount = await screen.findByLabelText('form.amount')
+    const content = screen.getByLabelText('form.content')
+    const category = screen.getByText('form.category')
+    const payWith = screen.getByText('form.payWith')
+    const date = screen.getByLabelText('form.date')
+    const note = screen.getByLabelText('form.note')
+    expect(before(amount, content)).toBe(true)
+    expect(before(content, category)).toBe(true)
+    expect(before(category, payWith)).toBe(true)
+    expect(before(payWith, date)).toBe(true)
+    expect(before(date, note)).toBe(true)
+  })
+
+  it('focuses the amount input on create', async () => {
+    renderModal()
+    const amount = await screen.findByLabelText('form.amount')
+    await waitFor(() => expect(amount).toHaveFocus())
+  })
+
+  it('keeps the more-options section collapsed on create', async () => {
+    renderModal()
+    const toggle = await screen.findByRole('button', { name: 'form.moreOptions' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('checkbox', { name: 'form.goldToggle' })).not.toBeInTheDocument()
+    await userEvent.click(toggle)
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('checkbox', { name: 'form.goldToggle' })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'form.isAdvance' })).toBeInTheDocument()
+  })
+
+  const renderEditing = (extra: Partial<typeof baseEditingFixture> | Record<string, unknown>) => {
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, ...extra } as typeof baseEditingFixture}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+  }
+
+  it('stays collapsed when editing a plain transaction (default beneficiary)', async () => {
+    renderEditing({ beneficiaryId: 'b-me' })
+    expect(await screen.findByRole('button', { name: 'form.moreOptions' })).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it.each([
+    ['gold', { goldTypeId: 'g-ring', goldQuantity: 1 }],
+    ['non-default beneficiary', { beneficiaryId: 'b-con' }],
+    ['advance', { isAdvance: true }],
+    ['already prepaid', { prepaidTransactionId: 'pre-1' }],
+    ['reimburse', { credit: { amount: 1000, currency: 'VND' }, debit: { amount: 0, currency: 'VND' }, advanceTransactionIds: ['adv-1'] }],
+    ['prepaid', { credit: { amount: 1000, currency: 'VND' }, debit: { amount: 0, currency: 'VND' }, isPrepaid: true, prepaidFrom: '2026-07-01', prepaidTo: '2026-07-31' }],
+  ])('auto-expands when editing a transaction with %s', async (_name, extra) => {
+    renderEditing(extra)
+    expect(await screen.findByRole('button', { name: 'form.moreOptions' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('keeps edit values intact for an advance', async () => {
+    renderEditing({ isAdvance: true })
+    expect(await screen.findByRole('checkbox', { name: 'form.isAdvance' })).toBeChecked()
+  })
+
+  it('expands the section when a validation error lives inside it', async () => {
+    const onSubmit = renderModal()
+    await userEvent.type(await screen.findByLabelText('form.amount'), '100')
+    await userEvent.type(screen.getByLabelText('form.content'), 'Mua vàng')
+    await pickCategory()
+    const toggle = screen.getByRole('button', { name: 'form.moreOptions' })
+    await userEvent.click(toggle)
+    await userEvent.click(screen.getByRole('checkbox', { name: 'form.goldToggle' }))
+    await userEvent.click(toggle) // collapse again
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(await screen.findByText('form.goldTypeRequired')).toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('Hôm nay / Hôm qua chips set the date', async () => {
+    renderModal(vi.fn(), { defaultDate: '2026-01-01' })
+    const date = await screen.findByLabelText('form.date')
+    await userEvent.click(screen.getByRole('button', { name: 'form.yesterday' }))
+    expect(date).toHaveValue(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))
+    await userEvent.click(screen.getByRole('button', { name: 'form.today' }))
+    expect(date).toHaveValue(dayjs().format('YYYY-MM-DD'))
+  })
+
+  describe('amount shorthand', () => {
+    it('shows digits with thousand separators while typing', async () => {
+      renderModal()
+      const amount = await screen.findByLabelText('form.amount')
+      await userEvent.type(amount, '1500000')
+      expect(amount).toHaveValue('1.500.000')
+    })
+
+    it.each([
+      ['50k', 50000],
+      ['1tr5', 1500000],
+      ['1,5tr', 1500000],
+      ['2m', 2000000],
+      ['15', 15],
+    ])('converts %s on blur', async (typed, expected) => {
+      renderModal()
+      const amount = await screen.findByLabelText('form.amount')
+      await userEvent.type(amount, typed)
+      await userEvent.tab()
+      expect(amount).toHaveValue(formatVi(expected))
+    })
+
+    it('converts shorthand on submit', async () => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), '1tr250')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 1250000 }))
+    })
+
+    it('rejects invalid shorthand with the amount-required error', async () => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), '12abc')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(await screen.findByText('form.amountRequired')).toBeInTheDocument()
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('Enter key', () => {
+    async function fillValid() {
+      await userEvent.type(await screen.findByLabelText('form.amount'), '50k')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Cafe')
+      await pickCategory()
+    }
+
+    it('submits from a text input', async () => {
+      const onSubmit = renderModal()
+      await fillValid()
+      await userEvent.type(screen.getByLabelText('form.content'), '{Enter}')
+      expect(onSubmit).toHaveBeenCalledTimes(1)
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 50000, content: 'Cafe' }))
+    })
+
+    it('does not submit from the note textarea', async () => {
+      const onSubmit = renderModal()
+      await fillValid()
+      await userEvent.type(screen.getByLabelText('form.note'), 'a{Enter}b')
+      expect(onSubmit).not.toHaveBeenCalled()
+      expect(screen.getByLabelText('form.note')).toHaveValue('a\nb')
+    })
+
+    it('does not submit when a handler already prevented the key', async () => {
+      const onSubmit = renderModal()
+      await fillValid()
+      const content = screen.getByLabelText('form.content')
+      content.addEventListener('keydown', (e) => e.preventDefault())
+      await userEvent.type(content, '{Enter}')
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it('does not submit while a select is open', async () => {
+      const onSubmit = renderModal()
+      await fillValid()
+      await userEvent.click(screen.getByRole('button', { name: 'form.moreOptions' }))
+      await userEvent.click(screen.getByRole('combobox', { name: 'form.beneficiary' }))
+      expect(await screen.findByRole('option', { name: 'Con' })).toBeInTheDocument()
+      fireEvent.keyDown(screen.getByLabelText('form.content'), { key: 'Enter' })
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+  })
+})
+
+function formatVi(n: number) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}

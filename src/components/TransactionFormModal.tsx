@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, KeyboardEvent } from 'react'
 import dayjs from 'dayjs'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, Banknote, CircleCheck, CreditCard, Landmark } from 'lucide-react'
@@ -18,6 +18,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
+import { MoreOptionsSection } from './transactionForm/MoreOptionsSection'
+import { parseAmountShorthand } from '../utils/amountShorthand'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
 import { getSubCategories } from '../api/subCategoryApi'
@@ -87,6 +89,24 @@ const SAVINGS_BOOK_CODE = 'savings_book'
 
 const formatThousands = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 
+// Pure digits render with thousand separators; anything else (shorthand like 1tr5) shows as typed.
+const displayAmount = (text: string) => (/^\d*$/.test(text) ? formatThousands(text) : text)
+
+// Digits are stored without separators. Dots are only stripped when they came from the thousand
+// formatting (appending/deleting at the end of a formatted number, or pasting a grouped number);
+// otherwise text is kept verbatim for shorthand parsing ("1.5" is the start of "1.5tr").
+function normalizeAmountInput(value: string, previous: string): string {
+  if (/^\d*$/.test(value)) return value
+  if (!/^[\d.]*$/.test(value)) return value
+  if (/^\d{1,3}(\.\d{3})+$/.test(value)) return value.replace(/\D/g, '')
+  if (/^\d*$/.test(previous)) {
+    const shown = displayAmount(previous)
+    if (shown.startsWith(value)) return value.replace(/\D/g, '')
+    if (value.startsWith(shown) && /^\d*$/.test(value.slice(shown.length))) return value.replace(/\D/g, '')
+  }
+  return value
+}
+
 const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
   transfer: Landmark,
   cash: Banknote,
@@ -124,7 +144,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const [type, setType] = useState<'in' | 'out'>('out')
   const [date, setDate] = useState('')
   const [content, setContent] = useState('')
-  const [amountDigits, setAmountDigits] = useState('')
+  const [amountText, setAmountText] = useState('')
+  const amountRef = useRef<HTMLInputElement>(null)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [category, setCategory] = useState<string | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodCode>('transfer')
   const [cardType, setCardType] = useState<CardTypeCode | null>(null)
@@ -163,7 +185,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       setType(isIncome ? 'in' : 'out')
       setDate(editing.date)
       setContent(editing.content)
-      setAmountDigits(String(isIncome ? editing.credit.amount : editing.debit.amount))
+      setAmountText(String(isIncome ? editing.credit.amount : editing.debit.amount))
       setCategory(editing.categoryId)
       setPaymentMethod((editing.paymentMethod as PaymentMethodCode) ?? 'transfer')
       setCardType((editing.cardType as CardTypeCode) ?? null)
@@ -199,11 +221,23 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       setCustomSavingsBank(
         editing.savingsBank !== null && !banksRef.current.some((b) => b.name === editing.savingsBank),
       )
+      // Rarely used sections open by default when the edited row actually uses them.
+      const defaultBeneficiaryId = beneficiaries.find((b) => b.isDefault)?.id ?? null
+      setMoreOpen(
+        editing.goldTypeId !== null ||
+          (editing.beneficiaryId !== null && editing.beneficiaryId !== defaultBeneficiaryId) ||
+          editing.isAdvance ||
+          editing.reimbursedByTransactionId !== null ||
+          editing.advanceTransactionIds.length > 0 ||
+          editing.isPrepaid ||
+          editing.prepaidTransactionId !== null,
+      )
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
       setContent('')
-      setAmountDigits('')
+      setAmountText('')
+      setMoreOpen(false)
       setCategory(null)
       setPaymentMethod('transfer')
       setCardType(null)
@@ -235,7 +269,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       const p = prefillRef.current
       if (p) {
         if (p.content !== undefined) setContent(p.content)
-        if (p.amount !== undefined) setAmountDigits(String(Math.round(p.amount)))
+        if (p.amount !== undefined) setAmountText(String(Math.round(p.amount)))
         if (p.type !== undefined) setType(p.type)
         if (p.categoryId !== undefined) setCategory(p.categoryId)
         if (p.subCategoryId !== undefined) setSubCategoryId(p.subCategoryId)
@@ -305,8 +339,6 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     )
   }, [open, editing, category, subCategories])
 
-  const amount = useMemo(() => Number(amountDigits || '0'), [amountDigits])
-
   // "Nơi gửi" belongs to the savings-book sub-category only (Tích luỹ also holds gold).
   const isSavings = useMemo(
     () =>
@@ -342,7 +374,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     if (!content.trim()) nextErrors.content = t('form.contentRequired')
     if (category === null) nextErrors.category = t('form.categoryRequired')
     const amountOptional = type === 'out' && alreadyPrepaid
-    if (amount <= 0 && !amountOptional) nextErrors.amount = t('form.amountRequired')
+    const amount = amountText.trim() === '' ? 0 : parseAmountShorthand(amountText)
+    if (amount === null || (amount <= 0 && !amountOptional)) nextErrors.amount = t('form.amountRequired')
     if (paymentMethod === 'card' && !cardType) nextErrors.cardType = t('form.cardTypeRequired')
     if (type === 'in' && reimburse && advanceIds.length === 0) nextErrors.advance = t('form.advanceRequired')
     if (type === 'out' && alreadyPrepaid && !prepaidId) nextErrors.prepaid = t('form.prepaidRequired')
@@ -352,7 +385,12 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       nextErrors.goldQuantity = t('form.goldQuantityRequired')
     }
     setErrors(nextErrors)
-    if (Object.keys(nextErrors).length > 0) return null
+    if (Object.keys(nextErrors).length > 0) {
+      // Errors inside the collapsed "Tuỳ chọn khác" would otherwise be invisible.
+      if (nextErrors.advance || nextErrors.prepaid || nextErrors.goldType || nextErrors.goldQuantity) setMoreOpen(true)
+      return null
+    }
+    if (amount === null) return null
 
     return {
       date,
@@ -384,10 +422,40 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     }
   }
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault()
+  const submit = () => {
     const values = validateAndBuild()
     if (values) onSubmit(values)
+  }
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault()
+    submit()
+  }
+
+  // Convert shorthand (50k, 1tr5, ...) into plain digits when leaving the amount field.
+  const handleAmountBlur = () => {
+    if (amountText.trim() === '') return
+    const parsed = parseAmountShorthand(amountText)
+    if (parsed === null) {
+      setErrors((prev) => ({ ...prev, amount: t('form.amountRequired') }))
+      return
+    }
+    setAmountText(String(parsed))
+    setErrors((prev) => {
+      if (!prev.amount) return prev
+      const { amount: _amount, ...rest } = prev
+      return rest
+    })
+  }
+
+  // Enter submits from single-line inputs. Skipped for the note textarea, buttons (Enter activates
+  // them), an open Select/popover, and anything that already handled the key (e.g. a suggestion list).
+  const handleKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
+    if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing) return
+    if ((event.target as HTMLElement).tagName !== 'INPUT') return
+    if (event.currentTarget.querySelector('[role="combobox"][aria-expanded="true"], [aria-haspopup][aria-expanded="true"]')) return
+    event.preventDefault()
+    if (!submitting) submit()
   }
 
   const handleSaveAndContinue = () => {
@@ -396,7 +464,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     onSubmit(values, { keepOpen: true })
     // Clone flow: keep date/type/payment method, clear the per-record fields.
     setContent('')
-    setAmountDigits('')
+    setAmountText('')
     setNote('')
     setCategory(null)
     setSubCategoryId(null)
@@ -416,12 +484,19 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-md"
+        onOpenAutoFocus={(event) => {
+          if (editing) return
+          event.preventDefault()
+          amountRef.current?.focus()
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{editing ? t('summary.editTitle') : t('summary.createTitle')}</DialogTitle>
           <DialogDescription>{editing ? t('summary.editTitle') : t('summary.createTitle')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4">
+        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="grid gap-4">
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1">
             {(['out', 'in'] as const).map((value) => (
               <button
@@ -454,47 +529,18 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
             ))}
           </div>
 
-          <div className="grid gap-1">
-            <div className="grid grid-cols-2 items-center gap-2">
-              <Label htmlFor="tx-date">{t('form.date')}</Label>
-              <Input id="tx-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
-            </div>
-            {errors.date && <p className="text-xs text-expense">{errors.date}</p>}
-          </div>
-
-          {editing && (
-            <div className="grid gap-1.5">
-              <span className="text-xs text-muted-foreground">{t('plans.form')}</span>
-              <Select value={planId ?? selectedPlanId ?? undefined} onValueChange={(value) => setPlanId(value)}>
-                <SelectTrigger aria-label={t('plans.form')} className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {plans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="grid gap-2">
-            <Label htmlFor="tx-content">{t('form.content')}</Label>
-            <Input id="tx-content" maxLength={500} value={content} onChange={(e) => setContent(e.target.value)} />
-            {errors.content && <p className="text-xs text-expense">{errors.content}</p>}
-          </div>
-
           <div className="grid gap-2">
             <Label htmlFor="tx-amount">{t('form.amount')}</Label>
             <div className="relative">
               <Input
                 id="tx-amount"
-                inputMode="numeric"
-                className="pr-9"
-                value={formatThousands(amountDigits)}
-                onChange={(e) => setAmountDigits(e.target.value.replace(/\D/g, ''))}
+                ref={amountRef}
+                inputMode="text"
+                autoComplete="off"
+                className="h-12 pr-9 text-2xl font-semibold md:text-2xl"
+                value={displayAmount(amountText)}
+                onChange={(e) => setAmountText(normalizeAmountInput(e.target.value, amountText))}
+                onBlur={handleAmountBlur}
               />
               <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
                 ₫
@@ -503,265 +549,11 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
             {errors.amount && <p className="text-xs text-expense">{errors.amount}</p>}
           </div>
 
-          <div className="grid gap-2 rounded-lg border px-3 py-2.5">
-            <label className="flex items-start gap-2.5">
-              <Checkbox
-                checked={isGold}
-                onCheckedChange={(checked) => {
-                  setIsGold(checked === true)
-                  if (checked !== true) {
-                    setGoldTypeId(null)
-                    setGoldQuantityText('')
-                    setPurchasePlaceId(null)
-                  }
-                }}
-                aria-label={t('form.goldToggle')}
-                className="mt-0.5"
-              />
-              <span className="grid gap-0.5 text-sm">
-                <span className="font-medium">{t('form.goldToggle')}</span>
-                <span className="text-xs text-muted-foreground">{t('form.goldToggleHint')}</span>
-              </span>
-            </label>
-            {isGold && (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('form.goldType')}</span>
-                  <Select
-                    value={goldTypeId ?? 'none'}
-                    onValueChange={(value) => setGoldTypeId(value === 'none' ? null : value)}
-                  >
-                    <SelectTrigger aria-label={t('form.goldType')} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">—</SelectItem>
-                      {goldTypes.map((g) => (
-                        <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.goldType && <p className="text-xs text-expense">{errors.goldType}</p>}
-                </div>
-                <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('form.purchasePlace')}</span>
-                  <Select
-                    value={purchasePlaceId ?? 'none'}
-                    onValueChange={(value) => setPurchasePlaceId(value === 'none' ? null : value)}
-                  >
-                    <SelectTrigger aria-label={t('form.purchasePlace')} className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">—</SelectItem>
-                      {purchasePlaces.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2 grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('form.goldQuantity')}</span>
-                  <div className="relative">
-                    <Input
-                      inputMode="decimal"
-                      className="pr-9"
-                      aria-label={t('form.goldQuantity')}
-                      value={goldQuantityText}
-                      onChange={(e) => setGoldQuantityText(e.target.value.replace(/[^\d.,]/g, ''))}
-                    />
-                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
-                      {t('gold.unit')}
-                    </span>
-                  </div>
-                  {errors.goldQuantity && <p className="text-xs text-expense">{errors.goldQuantity}</p>}
-                </div>
-              </div>
-            )}
+          <div className="grid gap-2">
+            <Label htmlFor="tx-content">{t('form.content')}</Label>
+            <Input id="tx-content" maxLength={500} value={content} onChange={(e) => setContent(e.target.value)} />
+            {errors.content && <p className="text-xs text-expense">{errors.content}</p>}
           </div>
-
-          {type === 'out' && (
-            <>
-              <div className="grid gap-1.5">
-                <span className="text-xs text-muted-foreground">{t('form.beneficiary')}</span>
-                <Select
-                  value={beneficiaryId ?? 'none'}
-                  onValueChange={(value) => setBeneficiaryId(value === 'none' ? null : value)}
-                >
-                  <SelectTrigger aria-label={t('form.beneficiary')} className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">—</SelectItem>
-                    {beneficiaries.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2 rounded-lg border px-3 py-2.5">
-                <label className="flex items-start gap-2.5">
-                  <Checkbox
-                    checked={isAdvance}
-                    onCheckedChange={(checked) => {
-                      setIsAdvance(checked === true)
-                      if (checked !== true) setReimbursedById(null)
-                    }}
-                    aria-label={t('form.isAdvance')}
-                    className="mt-0.5"
-                  />
-                  <span className="grid gap-0.5 text-sm">
-                    <span className="font-medium">{t('form.isAdvance')}</span>
-                    <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
-                  </span>
-                </label>
-                {editing && isAdvance && (
-                  <div className="grid gap-1.5">
-                    <span className="text-xs text-muted-foreground">{t('form.reimbursedBy')}</span>
-                    <Select
-                      value={reimbursedById ?? 'none'}
-                      onValueChange={(value) => setReimbursedById(value === 'none' ? null : value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">{t('form.reimbursedByNone')}</SelectItem>
-                        {credits.map((credit) => (
-                          <SelectItem key={credit.id} value={credit.id}>
-                            {dayjs(credit.date).format('DD/MM/YYYY')} · {credit.content} ·{' '}
-                            {formatMoney(credit.credit)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid gap-2 rounded-lg border px-3 py-2.5">
-                <label className="flex items-start gap-2.5">
-                  <Checkbox
-                    checked={alreadyPrepaid}
-                    onCheckedChange={(checked) => {
-                      setAlreadyPrepaid(checked === true)
-                      if (checked !== true) setPrepaidId(null)
-                    }}
-                    aria-label={t('form.alreadyPrepaid')}
-                    className="mt-0.5"
-                  />
-                  <span className="grid gap-0.5 text-sm">
-                    <span className="font-medium">{t('form.alreadyPrepaid')}</span>
-                    <span className="text-xs text-muted-foreground">{t('form.alreadyPrepaidHint')}</span>
-                  </span>
-                </label>
-                {alreadyPrepaid && (
-                  <>
-                    <Select value={prepaidId ?? ''} onValueChange={setPrepaidId}>
-                      <SelectTrigger aria-label={t('form.selectPrepaid')} className="w-full">
-                        <SelectValue placeholder={t('form.selectPrepaid')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {prepaidCredits.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.prepaidFrom && p.prepaidTo
-                              ? `${dayjs(p.prepaidFrom).format('DD/MM')}–${dayjs(p.prepaidTo).format('DD/MM/YYYY')} · `
-                              : ''}
-                            {p.content} · +{formatMoney(p.credit)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.prepaid && <p className="text-xs text-expense">{errors.prepaid}</p>}
-                  </>
-                )}
-              </div>
-            </>
-          )}
-
-          {type === 'in' && (
-            <div className="grid gap-2 rounded-lg border px-3 py-2.5">
-              <label className="flex items-center gap-2.5">
-                <Checkbox
-                  checked={reimburse}
-                  onCheckedChange={(checked) => {
-                    setReimburse(checked === true)
-                    if (checked !== true) setAdvanceIds([])
-                  }}
-                  aria-label={t('form.reimburseAdvance')}
-                />
-                <span className="text-sm font-medium">{t('form.reimburseAdvance')}</span>
-              </label>
-              {reimburse && (
-                <>
-                  <div className="grid max-h-44 gap-1 overflow-y-auto rounded-lg border p-2">
-                    {advances.length === 0 && (
-                      <p className="py-2 text-center text-xs text-muted-foreground">{t('form.selectAdvance')}</p>
-                    )}
-                    {advances.map((a) => (
-                      <label key={a.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1 text-sm hover:bg-zinc-50">
-                        <Checkbox
-                          checked={advanceIds.includes(a.id)}
-                          onCheckedChange={(checked) =>
-                            setAdvanceIds((prev) =>
-                              checked === true ? [...prev, a.id] : prev.filter((id) => id !== a.id),
-                            )
-                          }
-                          aria-label={a.content}
-                        />
-                        <span className="min-w-0 flex-1 truncate">
-                          {dayjs(a.date).format('DD/MM/YYYY')} · {a.content}
-                        </span>
-                        <span className="shrink-0 font-medium text-expense">−{formatMoney(a.debit)}</span>
-                      </label>
-                    ))}
-                  </div>
-                  {errors.advance && <p className="text-xs text-expense">{errors.advance}</p>}
-                </>
-              )}
-            </div>
-          )}
-
-          {type === 'in' && (
-            <div className="grid gap-2 rounded-lg border px-3 py-2.5">
-              <label className="flex items-start gap-2.5">
-                <Checkbox
-                  checked={isPrepaid}
-                  onCheckedChange={(checked) => setIsPrepaid(checked === true)}
-                  aria-label={t('form.isPrepaid')}
-                  className="mt-0.5"
-                />
-                <span className="grid gap-0.5 text-sm">
-                  <span className="font-medium">{t('form.isPrepaid')}</span>
-                  <span className="text-xs text-muted-foreground">{t('form.isPrepaidHint')}</span>
-                </span>
-              </label>
-              {isPrepaid && (
-                <div className="grid grid-cols-2 items-end gap-2">
-                  <div className="grid gap-1.5">
-                    <Label className="text-xs text-muted-foreground">{t('form.prepaidMonths')}</Label>
-                    <Select value={String(prepaidMonths)} onValueChange={(v) => setPrepaidMonths(Number(v))}>
-                      <SelectTrigger className="w-full" aria-label={t('form.prepaidMonths')}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
-                          <SelectItem key={n} value={String(n)}>
-                            {n} {t('common.months')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="pb-2 text-xs text-muted-foreground">
-                    {dayjs(date).format('DD/MM/YYYY')} →{' '}
-                    {dayjs(date).add(prepaidMonths, 'month').subtract(1, 'day').format('DD/MM/YYYY')}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="grid gap-2">
             <Label>{t('form.category')}</Label>
@@ -878,131 +670,175 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
             </div>
           )}
 
-          <div className="grid gap-2">
-            <Label>{t('payment.method')}</Label>
-            <RadioGroup
-              value={paymentMethod}
-              onValueChange={(value) => {
-                setPaymentMethod(value as PaymentMethodCode)
-                if (value !== 'card') setCardType(null)
-                if (value === 'cash') {
-                  setBank(null)
-                  setCustomBank(false)
-                }
-              }}
-              className="grid grid-cols-3 gap-2"
-            >
-              {PAYMENT_METHOD_CODES.map((code) => {
-                const Icon = PAYMENT_ICONS[code]
-                const selected = paymentMethod === code
-                return (
-                  <Label
-                    key={code}
-                    htmlFor={`tx-pm-${code}`}
-                    className={cn(
-                      'relative flex cursor-pointer flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-sm',
-                      selected ? 'border-primary bg-primary/5 text-primary' : 'text-muted-foreground',
-                    )}
-                  >
-                    <RadioGroupItem id={`tx-pm-${code}`} value={code} className="sr-only" />
-                    {selected && (
-                      <CircleCheck className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-background fill-primary text-primary-foreground" />
-                    )}
-                    <Icon className="h-4 w-4" />
-                    {t(`payment.${code}`)}
-                  </Label>
-                )
-              })}
-            </RadioGroup>
-          </div>
-
-          {paymentMethod !== 'cash' && (
-            <div className="grid gap-3 rounded-lg bg-zinc-50 p-3">
-              {paymentMethod === 'card' && (
-              <div className="grid gap-2">
-                <Label>{t('payment.cardType')}</Label>
-                <RadioGroup
-                  value={cardType ?? ''}
-                  onValueChange={(value) => setCardType(value as CardTypeCode)}
-                  className="grid grid-cols-2 gap-2"
-                >
-                  {CARD_TYPE_CODES.map((code) => (
+          <div role="group" aria-label={t('form.payWith')} className="grid gap-4">
+            <div className="grid gap-2">
+              <Label>{t('form.payWith')}</Label>
+              <RadioGroup
+                value={paymentMethod}
+                onValueChange={(value) => {
+                  setPaymentMethod(value as PaymentMethodCode)
+                  if (value !== 'card') setCardType(null)
+                  if (value === 'cash') {
+                    setBank(null)
+                    setCustomBank(false)
+                  }
+                }}
+                className="grid grid-cols-3 gap-2"
+              >
+                {PAYMENT_METHOD_CODES.map((code) => {
+                  const Icon = PAYMENT_ICONS[code]
+                  const selected = paymentMethod === code
+                  return (
                     <Label
                       key={code}
-                      htmlFor={`tx-ct-${code}`}
+                      htmlFor={`tx-pm-${code}`}
                       className={cn(
-                        'flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm',
-                        cardType === code && 'border-primary ring-1 ring-primary/30',
+                        'relative flex cursor-pointer flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-sm',
+                        selected ? 'border-primary bg-primary/5 text-primary' : 'text-muted-foreground',
                       )}
                     >
-                      <RadioGroupItem id={`tx-ct-${code}`} value={code} />
-                      {code === 'debit' ? (
-                        <span>{t(`payment.cardType.${code}`)}</span>
-                      ) : (
-                        <span className="flex items-center">
-                          <span className="h-3 w-3 rounded-full bg-red-500" />
-                          <span className="-ml-1 h-3 w-3 rounded-full bg-amber-400 opacity-90" />
-                          <span className="ml-1.5">{t(`payment.cardType.${code}`)}</span>
-                        </span>
+                      <RadioGroupItem id={`tx-pm-${code}`} value={code} className="sr-only" />
+                      {selected && (
+                        <CircleCheck className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-background fill-primary text-primary-foreground" />
                       )}
+                      <Icon className="h-4 w-4" />
+                      {t(`payment.${code}`)}
                     </Label>
-                  ))}
-                </RadioGroup>
-                {errors.cardType && <p className="text-xs text-expense">{errors.cardType}</p>}
-              </div>
-              )}
-              <div className="grid gap-2">
-                <Label>{t('payment.bank')}</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {banks.map((catalogBank) => (
-                    <button
-                      key={catalogBank.id}
-                      type="button"
-                      onClick={() => {
-                        setBank(catalogBank.name)
-                        setCustomBank(false)
-                      }}
-                      className={cn(
-                        'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
-                        bank === catalogBank.name && !customBank && 'border-primary ring-1 ring-primary/30',
-                      )}
-                    >
-                      <span
-                        aria-hidden="true"
+                  )
+                })}
+              </RadioGroup>
+            </div>
+
+            {paymentMethod !== 'cash' && (
+              <div className="grid gap-3 rounded-lg bg-zinc-50 p-3">
+                {paymentMethod === 'card' && (
+                <div className="grid gap-2">
+                  <Label>{t('payment.cardType')}</Label>
+                  <RadioGroup
+                    value={cardType ?? ''}
+                    onValueChange={(value) => setCardType(value as CardTypeCode)}
+                    className="grid grid-cols-2 gap-2"
+                  >
+                    {CARD_TYPE_CODES.map((code) => (
+                      <Label
+                        key={code}
+                        htmlFor={`tx-ct-${code}`}
                         className={cn(
-                          'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
-                          bankChipColor(catalogBank.name),
+                          'flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm',
+                          cardType === code && 'border-primary ring-1 ring-primary/30',
                         )}
                       >
-                        {catalogBank.name.charAt(0).toUpperCase()}
-                      </span>
-                      {catalogBank.name}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCustomBank(true)
-                      setBank(null)
-                    }}
-                    className={cn(
-                      'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
-                      customBank && 'border-primary text-primary ring-1 ring-primary/30',
-                    )}
-                  >
-                    ＋ {t('payment.bank.other')}
-                  </button>
+                        <RadioGroupItem id={`tx-ct-${code}`} value={code} />
+                        {code === 'debit' ? (
+                          <span>{t(`payment.cardType.${code}`)}</span>
+                        ) : (
+                          <span className="flex items-center">
+                            <span className="h-3 w-3 rounded-full bg-red-500" />
+                            <span className="-ml-1 h-3 w-3 rounded-full bg-amber-400 opacity-90" />
+                            <span className="ml-1.5">{t(`payment.cardType.${code}`)}</span>
+                          </span>
+                        )}
+                      </Label>
+                    ))}
+                  </RadioGroup>
+                  {errors.cardType && <p className="text-xs text-expense">{errors.cardType}</p>}
                 </div>
-                {customBank && (
-                  <Input
-                    aria-label={t('payment.bank')}
-                    maxLength={100}
-                    className="bg-background"
-                    value={bank ?? ''}
-                    onChange={(e) => setBank(e.target.value)}
-                  />
                 )}
+                <div className="grid gap-2">
+                  <Label>{t('payment.bank')}</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {banks.map((catalogBank) => (
+                      <button
+                        key={catalogBank.id}
+                        type="button"
+                        onClick={() => {
+                          setBank(catalogBank.name)
+                          setCustomBank(false)
+                        }}
+                        className={cn(
+                          'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
+                          bank === catalogBank.name && !customBank && 'border-primary ring-1 ring-primary/30',
+                        )}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
+                            bankChipColor(catalogBank.name),
+                          )}
+                        >
+                          {catalogBank.name.charAt(0).toUpperCase()}
+                        </span>
+                        {catalogBank.name}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomBank(true)
+                        setBank(null)
+                      }}
+                      className={cn(
+                        'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                        customBank && 'border-primary text-primary ring-1 ring-primary/30',
+                      )}
+                    >
+                      ＋ {t('payment.bank.other')}
+                    </button>
+                  </div>
+                  {customBank && (
+                    <Input
+                      aria-label={t('payment.bank')}
+                      maxLength={100}
+                      className="bg-background"
+                      value={bank ?? ''}
+                      onChange={(e) => setBank(e.target.value)}
+                    />
+                  )}
+                </div>
               </div>
+            )}
+          </div>
+
+          <div className="grid gap-1">
+            <div className="grid grid-cols-[auto_1fr] items-center gap-2">
+              <Label htmlFor="tx-date">{t('form.date')}</Label>
+              <div className="flex items-center gap-1.5">
+                <Input id="tx-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+                <button
+                  type="button"
+                  onClick={() => setDate(dayjs().format('YYYY-MM-DD'))}
+                  className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-zinc-300"
+                >
+                  {t('form.today')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDate(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))}
+                  className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-zinc-300"
+                >
+                  {t('form.yesterday')}
+                </button>
+              </div>
+            </div>
+            {errors.date && <p className="text-xs text-expense">{errors.date}</p>}
+          </div>
+
+          {editing && (
+            <div className="grid gap-1.5">
+              <span className="text-xs text-muted-foreground">{t('plans.form')}</span>
+              <Select value={planId ?? selectedPlanId ?? undefined} onValueChange={(value) => setPlanId(value)}>
+                <SelectTrigger aria-label={t('plans.form')} className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
@@ -1017,6 +853,268 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
               className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
           </div>
+
+          <MoreOptionsSection open={moreOpen} onOpenChange={setMoreOpen} label={t('form.moreOptions')}>
+            <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+              <label className="flex items-start gap-2.5">
+                <Checkbox
+                  checked={isGold}
+                  onCheckedChange={(checked) => {
+                    setIsGold(checked === true)
+                    if (checked !== true) {
+                      setGoldTypeId(null)
+                      setGoldQuantityText('')
+                      setPurchasePlaceId(null)
+                    }
+                  }}
+                  aria-label={t('form.goldToggle')}
+                  className="mt-0.5"
+                />
+                <span className="grid gap-0.5 text-sm">
+                  <span className="font-medium">{t('form.goldToggle')}</span>
+                  <span className="text-xs text-muted-foreground">{t('form.goldToggleHint')}</span>
+                </span>
+              </label>
+              {isGold && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="grid gap-1.5">
+                    <span className="text-xs text-muted-foreground">{t('form.goldType')}</span>
+                    <Select
+                      value={goldTypeId ?? 'none'}
+                      onValueChange={(value) => setGoldTypeId(value === 'none' ? null : value)}
+                    >
+                      <SelectTrigger aria-label={t('form.goldType')} className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        {goldTypes.map((g) => (
+                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.goldType && <p className="text-xs text-expense">{errors.goldType}</p>}
+                  </div>
+                  <div className="grid gap-1.5">
+                    <span className="text-xs text-muted-foreground">{t('form.purchasePlace')}</span>
+                    <Select
+                      value={purchasePlaceId ?? 'none'}
+                      onValueChange={(value) => setPurchasePlaceId(value === 'none' ? null : value)}
+                    >
+                      <SelectTrigger aria-label={t('form.purchasePlace')} className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">—</SelectItem>
+                        {purchasePlaces.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2 grid gap-1.5">
+                    <span className="text-xs text-muted-foreground">{t('form.goldQuantity')}</span>
+                    <div className="relative">
+                      <Input
+                        inputMode="decimal"
+                        className="pr-9"
+                        aria-label={t('form.goldQuantity')}
+                        value={goldQuantityText}
+                        onChange={(e) => setGoldQuantityText(e.target.value.replace(/[^\d.,]/g, ''))}
+                      />
+                      <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                        {t('gold.unit')}
+                      </span>
+                    </div>
+                    {errors.goldQuantity && <p className="text-xs text-expense">{errors.goldQuantity}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {type === 'out' && (
+              <>
+                <div className="grid gap-1.5">
+                  <span className="text-xs text-muted-foreground">{t('form.beneficiary')}</span>
+                  <Select
+                    value={beneficiaryId ?? 'none'}
+                    onValueChange={(value) => setBeneficiaryId(value === 'none' ? null : value)}
+                  >
+                    <SelectTrigger aria-label={t('form.beneficiary')} className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">—</SelectItem>
+                      {beneficiaries.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+                  <label className="flex items-start gap-2.5">
+                    <Checkbox
+                      checked={isAdvance}
+                      onCheckedChange={(checked) => {
+                        setIsAdvance(checked === true)
+                        if (checked !== true) setReimbursedById(null)
+                      }}
+                      aria-label={t('form.isAdvance')}
+                      className="mt-0.5"
+                    />
+                    <span className="grid gap-0.5 text-sm">
+                      <span className="font-medium">{t('form.isAdvance')}</span>
+                      <span className="text-xs text-muted-foreground">{t('form.isAdvanceHint')}</span>
+                    </span>
+                  </label>
+                  {editing && isAdvance && (
+                    <div className="grid gap-1.5">
+                      <span className="text-xs text-muted-foreground">{t('form.reimbursedBy')}</span>
+                      <Select
+                        value={reimbursedById ?? 'none'}
+                        onValueChange={(value) => setReimbursedById(value === 'none' ? null : value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">{t('form.reimbursedByNone')}</SelectItem>
+                          {credits.map((credit) => (
+                            <SelectItem key={credit.id} value={credit.id}>
+                              {dayjs(credit.date).format('DD/MM/YYYY')} · {credit.content} ·{' '}
+                              {formatMoney(credit.credit)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+                  <label className="flex items-start gap-2.5">
+                    <Checkbox
+                      checked={alreadyPrepaid}
+                      onCheckedChange={(checked) => {
+                        setAlreadyPrepaid(checked === true)
+                        if (checked !== true) setPrepaidId(null)
+                      }}
+                      aria-label={t('form.alreadyPrepaid')}
+                      className="mt-0.5"
+                    />
+                    <span className="grid gap-0.5 text-sm">
+                      <span className="font-medium">{t('form.alreadyPrepaid')}</span>
+                      <span className="text-xs text-muted-foreground">{t('form.alreadyPrepaidHint')}</span>
+                    </span>
+                  </label>
+                  {alreadyPrepaid && (
+                    <>
+                      <Select value={prepaidId ?? ''} onValueChange={setPrepaidId}>
+                        <SelectTrigger aria-label={t('form.selectPrepaid')} className="w-full">
+                          <SelectValue placeholder={t('form.selectPrepaid')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {prepaidCredits.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.prepaidFrom && p.prepaidTo
+                                ? `${dayjs(p.prepaidFrom).format('DD/MM')}–${dayjs(p.prepaidTo).format('DD/MM/YYYY')} · `
+                                : ''}
+                              {p.content} · +{formatMoney(p.credit)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.prepaid && <p className="text-xs text-expense">{errors.prepaid}</p>}
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+
+            {type === 'in' && (
+              <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+                <label className="flex items-center gap-2.5">
+                  <Checkbox
+                    checked={reimburse}
+                    onCheckedChange={(checked) => {
+                      setReimburse(checked === true)
+                      if (checked !== true) setAdvanceIds([])
+                    }}
+                    aria-label={t('form.reimburseAdvance')}
+                  />
+                  <span className="text-sm font-medium">{t('form.reimburseAdvance')}</span>
+                </label>
+                {reimburse && (
+                  <>
+                    <div className="grid max-h-44 gap-1 overflow-y-auto rounded-lg border p-2">
+                      {advances.length === 0 && (
+                        <p className="py-2 text-center text-xs text-muted-foreground">{t('form.selectAdvance')}</p>
+                      )}
+                      {advances.map((a) => (
+                        <label key={a.id} className="flex items-center gap-2.5 rounded-md px-1.5 py-1 text-sm hover:bg-zinc-50">
+                          <Checkbox
+                            checked={advanceIds.includes(a.id)}
+                            onCheckedChange={(checked) =>
+                              setAdvanceIds((prev) =>
+                                checked === true ? [...prev, a.id] : prev.filter((id) => id !== a.id),
+                              )
+                            }
+                            aria-label={a.content}
+                          />
+                          <span className="min-w-0 flex-1 truncate">
+                            {dayjs(a.date).format('DD/MM/YYYY')} · {a.content}
+                          </span>
+                          <span className="shrink-0 font-medium text-expense">−{formatMoney(a.debit)}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {errors.advance && <p className="text-xs text-expense">{errors.advance}</p>}
+                  </>
+                )}
+              </div>
+            )}
+
+            {type === 'in' && (
+              <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+                <label className="flex items-start gap-2.5">
+                  <Checkbox
+                    checked={isPrepaid}
+                    onCheckedChange={(checked) => setIsPrepaid(checked === true)}
+                    aria-label={t('form.isPrepaid')}
+                    className="mt-0.5"
+                  />
+                  <span className="grid gap-0.5 text-sm">
+                    <span className="font-medium">{t('form.isPrepaid')}</span>
+                    <span className="text-xs text-muted-foreground">{t('form.isPrepaidHint')}</span>
+                  </span>
+                </label>
+                {isPrepaid && (
+                  <div className="grid grid-cols-2 items-end gap-2">
+                    <div className="grid gap-1.5">
+                      <Label className="text-xs text-muted-foreground">{t('form.prepaidMonths')}</Label>
+                      <Select value={String(prepaidMonths)} onValueChange={(v) => setPrepaidMonths(Number(v))}>
+                        <SelectTrigger className="w-full" aria-label={t('form.prepaidMonths')}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                            <SelectItem key={n} value={String(n)}>
+                              {n} {t('common.months')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="pb-2 text-xs text-muted-foreground">
+                      {dayjs(date).format('DD/MM/YYYY')} →{' '}
+                      {dayjs(date).add(prepaidMonths, 'month').subtract(1, 'day').format('DD/MM/YYYY')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </MoreOptionsSection>
 
           <DialogFooter className="gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>
