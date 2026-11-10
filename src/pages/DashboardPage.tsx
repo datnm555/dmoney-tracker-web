@@ -135,7 +135,11 @@ export function DashboardPage() {
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>
                 {d.account.name}{' '}
-                {d.daysLeft === 0 ? t('accounts.dueToday') : `${t('accounts.dueIn')} ${d.daysLeft} ${t('accounts.days')}`}
+                {d.daysLeft < 0
+                  ? `${t('accounts.overdue')} ${-d.daysLeft} ${t('accounts.days')}`
+                  : d.daysLeft === 0
+                    ? t('accounts.dueTodayFull')
+                    : `${t('accounts.dueIn')} ${d.daysLeft} ${t('accounts.days')}`}
                 : {formatMoney({ amount: d.amount, currency: 'VND' })}
               </span>
             </div>

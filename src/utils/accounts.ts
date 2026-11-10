@@ -42,7 +42,6 @@ export function upcomingDues(
     const amount = snap.statementAmount?.amount ?? 0
     if (amount <= 0) continue
     const daysLeft = dayjs(snap.dueDate).diff(dayjs(today), 'day')
-    if (daysLeft < 0) continue
     result.push({ account, amount, dueDate: snap.dueDate, daysLeft, urgent: daysLeft <= 3 })
   }
   return result.sort((a, b) => a.dueDate.localeCompare(b.dueDate))

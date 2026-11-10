@@ -14,6 +14,14 @@ import { digitsToNumber, toDigits } from './moneyDigits'
 
 const ACCOUNT_TYPES: AccountType[] = ['checking', 'overdraft', 'credit_card', 'ewallet', 'cash']
 
+/** Digits with at most one dot and at most 2 decimals. */
+const sanitizeRate = (v: string) => {
+  const cleaned = v.replace(/[^\d.]/g, '')
+  const dot = cleaned.indexOf('.')
+  if (dot < 0) return cleaned
+  return cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '').slice(0, 2)
+}
+
 const onlyDigits = (v: string, max?: number) => {
   const d = v.replace(/\D/g, '')
   return max ? d.slice(0, max) : d
@@ -62,7 +70,7 @@ export function AccountDialog({
       creditLimit: debt ? digitsToNumber(limit) : null,
       statementDay: debt && statementDay ? Number(statementDay) : null,
       dueDay: debt && dueDay ? Number(dueDay) : null,
-      interestRatePercent: debt && rate !== '' ? Number(rate) : null,
+      interestRatePercent: debt && Number.isFinite(parseFloat(rate)) ? parseFloat(rate) : null,
     }
     setSaving(true)
     try {
@@ -141,7 +149,7 @@ export function AccountDialog({
                   id="acc-rate"
                   inputMode="decimal"
                   value={rate}
-                  onChange={(e) => setRate(e.target.value.replace(/[^\d.]/g, ''))}
+                  onChange={(e) => setRate(sanitizeRate(e.target.value))}
                 />
               </div>
             </>

@@ -255,7 +255,7 @@ export interface SavingsSummaryResponse {
   transactions: SavingsTransactionResponse[]
 }
 
-// Mirrors Application/Accounts/AccountType on the backend (string codes).
+// Mirrors Domain/Accounts/AccountTypes.cs on the backend (string codes).
 export type AccountType = 'checking' | 'overdraft' | 'credit_card' | 'ewallet' | 'cash'
 
 // Mirrors Application/Accounts/AccountSnapshotResponse.cs on the backend.

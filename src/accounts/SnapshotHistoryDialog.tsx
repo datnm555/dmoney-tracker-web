@@ -2,6 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import { Pencil, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { deleteSnapshot, getSnapshots } from '../api/accountApi'
@@ -26,6 +36,7 @@ export function SnapshotHistoryDialog({
 }) {
   const { t } = useI18n()
   const [rows, setRows] = useState<AccountSnapshotResponse[]>([])
+  const [deleting, setDeleting] = useState<AccountSnapshotResponse | null>(null)
   const accountId = account?.id
 
   const load = useCallback(
@@ -93,7 +104,7 @@ export function SnapshotHistoryDialog({
                 size="icon"
                 className="h-8 w-8 text-muted-foreground hover:text-expense"
                 aria-label={`${t('summary.delete')} ${s.date}`}
-                onClick={() => void remove(s.id)}
+                onClick={() => setDeleting(s)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -101,6 +112,27 @@ export function SnapshotHistoryDialog({
           ))}
         </div>
       </DialogContent>
+      <AlertDialog open={deleting !== null} onOpenChange={(next) => !next && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('accounts.deleteSnapshotConfirm')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleting ? `${dayjs(deleting.date).format('DD/MM/YYYY')} · ${formatMoney(deleting.balance)}` : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('summary.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleting) void remove(deleting.id)
+                setDeleting(null)
+              }}
+            >
+              {t('summary.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

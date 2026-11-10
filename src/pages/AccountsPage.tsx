@@ -62,6 +62,7 @@ export function AccountsPage() {
   const { t } = useI18n()
   const [accounts, setAccounts] = useState<AccountResponse[]>([])
   const [loaded, setLoaded] = useState(false)
+  const [loadError, setLoadError] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<AccountResponse | null>(null)
   const [snapAccount, setSnapAccount] = useState<AccountResponse | null>(null)
@@ -73,7 +74,9 @@ export function AccountsPage() {
   const load = useCallback(async () => {
     try {
       setAccounts(await getAccounts())
+      setLoadError(false)
     } catch (error) {
+      setLoadError(true)
       toast.error(getApiErrorMessage(error, t('error.network')))
     } finally {
       setLoaded(true)
@@ -142,6 +145,13 @@ export function AccountsPage() {
         </Button>
       </div>
 
+      {loadError && accounts.length === 0 && (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">{t('error.network')}</CardContent>
+        </Card>
+      )}
+
+      {!(loadError && accounts.length === 0) && (
       <div className="grid gap-3 sm:grid-cols-3">
         <Tile testId="tile-cash" label={t('accounts.cashTotal')} value={vnd(cashTotal(accounts))} icon={Wallet} valueClass="text-income" />
         <Tile
@@ -154,6 +164,7 @@ export function AccountsPage() {
         />
         <Tile testId="tile-available" label={t('accounts.availableCredit')} value={vnd(availableCredit(accounts))} icon={Landmark} />
       </div>
+      )}
 
       {dues.length > 0 && (
         <Card>
@@ -174,9 +185,11 @@ export function AccountsPage() {
                     {d.account.lastDigits && <span className="ml-1 text-xs font-normal">•••{d.account.lastDigits}</span>}
                   </div>
                   <div className="text-xs">
-                    {d.daysLeft === 0
-                      ? t('accounts.dueToday')
-                      : `${t('accounts.left')} ${d.daysLeft} ${t('accounts.days')}`}
+                    {d.daysLeft < 0
+                      ? `${t('accounts.overdue')} ${-d.daysLeft} ${t('accounts.days')}`
+                      : d.daysLeft === 0
+                        ? t('accounts.dueToday')
+                        : `${t('accounts.left')} ${d.daysLeft} ${t('accounts.days')}`}
                     {' · '}
                     {dayjs(d.dueDate).format('DD/MM/YYYY')}
                   </div>
@@ -191,7 +204,7 @@ export function AccountsPage() {
         </Card>
       )}
 
-      {loaded && accounts.length === 0 && (
+      {loaded && !loadError && accounts.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">{t('accounts.empty')}</CardContent>
         </Card>

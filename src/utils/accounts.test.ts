@@ -110,7 +110,7 @@ describe('upcomingDues', () => {
   const card = (due: string | null, amount: number | null, paid = false) =>
     acc('credit_card', 500, {}, { statementAmount: amount, dueDate: due, statementPaid: paid })
 
-  it('keeps unpaid positive cards due >= today, sorted, with daysLeft', () => {
+  it('keeps unpaid positive cards, sorted, with daysLeft', () => {
     const b = card('2026-11-20', 200)
     const a = card('2026-11-10', 100)
     const res = upcomingDues([b, a], today)
@@ -125,11 +125,15 @@ describe('upcomingDues', () => {
     )
     expect(r.map((x) => x.urgent)).toEqual([true, true, false])
   })
-  it('excludes past, paid, zero amount, non-card, missing', () => {
+  it('lists an overdue unpaid card as urgent with negative daysLeft', () => {
+    const r = upcomingDues([card('2026-11-09', 100)], today)
+    expect(r).toHaveLength(1)
+    expect(r[0]).toMatchObject({ daysLeft: -1, urgent: true })
+  })
+  it('excludes paid, zero amount, non-card, missing', () => {
     expect(
       upcomingDues(
         [
-          card('2026-11-09', 100),
           card('2026-11-15', 100, true),
           card('2026-11-15', 0),
           card('2026-11-15', null),

@@ -42,10 +42,12 @@ export function SnapshotDialog({
     setDate(editing?.date ?? dayjs().format('YYYY-MM-DD'))
     setBalance(toDigits(editing?.balance.amount))
     setAvailable('')
-    setStatementAmount(toDigits(editing?.statementAmount?.amount))
-    setDueDate(editing?.dueDate ?? '')
-    setInstallment(toDigits(editing?.installmentRemaining?.amount))
-    setPaid(editing?.statementPaid ?? false)
+    // A fresh reading on a card carries the due reminder over from the latest reading, so it isn't wiped.
+    const src = editing ?? (account.type === 'credit_card' ? account.latestSnapshot : null)
+    setStatementAmount(toDigits(src?.statementAmount?.amount))
+    setDueDate(src?.dueDate ?? '')
+    setInstallment(toDigits(src?.installmentRemaining?.amount))
+    setPaid(src?.statementPaid ?? false)
     setNote(editing?.note ?? '')
   }, [account, editing])
 

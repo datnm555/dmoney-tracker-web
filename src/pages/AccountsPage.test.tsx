@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
-import { createSnapshot, getAccounts, getSnapshots, updateSnapshot } from '../api/accountApi'
+import { createSnapshot, deleteSnapshot, getAccounts, getSnapshots, updateAccount, updateSnapshot } from '../api/accountApi'
 import type { AccountResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { AccountsPage } from './AccountsPage'
@@ -172,5 +172,82 @@ describe('AccountsPage', () => {
       'a-od',
       expect.objectContaining({ date: '2026-11-10', balance: 128_492_665 }),
     )
+  })
+  it('carries the card due reminder into a new reading', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Techcombank')
+    await user.click(screen.getByRole('button', { name: 'accounts.updateBalance Visa' }))
+    expect(await screen.findByLabelText('accounts.owed')).toHaveValue('')
+    await user.type(screen.getByLabelText('accounts.owed'), '21000000')
+    await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(createSnapshot).toHaveBeenCalledWith('a-cc', {
+      date: '2026-11-10',
+      balance: 21_000_000,
+      statementAmount: 5_000_000,
+      dueDate: '2026-11-12',
+      installmentRemaining: null,
+      statementPaid: false,
+      note: null,
+    })
+  })
+
+  it('keeps an overdue unpaid statement listed with an overdue label', async () => {
+    renderPage([
+      {
+        ...accounts[3],
+        latestSnapshot: snap({ id: 'sx', accountId: 'a-cc', balance: vnd(1), statementAmount: vnd(5_000_000), dueDate: '2026-11-08' }),
+      },
+    ])
+    const due = await screen.findByTestId('due-a-cc')
+    expect(norm(due.textContent)).toContain('accounts.overdue 2 accounts.days')
+  })
+
+  it('shows neither tiles nor the empty state when loading accounts fails', async () => {
+    vi.mocked(getAccounts).mockRejectedValue(new Error('boom'))
+    render(
+      <I18nProvider>
+        <AccountsPage />
+      </I18nProvider>,
+    )
+    expect(await screen.findByText('error.network')).toBeInTheDocument()
+    expect(screen.queryByTestId('tile-debt')).not.toBeInTheDocument()
+    expect(screen.queryByText('accounts.empty')).not.toBeInTheDocument()
+  })
+
+  it('accepts at most one dot and two decimals in the interest rate', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Techcombank')
+    await user.click(screen.getByRole('button', { name: 'accounts.edit Visa' }))
+    const rate = await screen.findByLabelText('accounts.interestRate')
+    await user.type(rate, '1.2.345')
+    expect(rate).toHaveValue('1.23')
+    await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(updateAccount).toHaveBeenCalledWith('a-cc', expect.objectContaining({ interestRatePercent: 1.23 }))
+  })
+
+  it('never sends NaN for a lone dot interest rate', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Techcombank')
+    await user.click(screen.getByRole('button', { name: 'accounts.edit Visa' }))
+    await user.type(await screen.findByLabelText('accounts.interestRate'), '.')
+    await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(updateAccount).toHaveBeenCalledWith('a-cc', expect.objectContaining({ interestRatePercent: null }))
+  })
+
+  it('asks for confirmation before deleting a snapshot', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Techcombank')
+    vi.mocked(getSnapshots).mockResolvedValue([snap({ id: 'h1', accountId: 'a-check', balance: vnd(77_000_000) })])
+    vi.mocked(deleteSnapshot).mockResolvedValue(undefined)
+    await user.click(screen.getByRole('button', { name: 'accounts.history Techcombank' }))
+    await user.click(await screen.findByRole('button', { name: 'summary.delete 2026-11-09' }))
+    expect(await screen.findByText('accounts.deleteSnapshotConfirm')).toBeInTheDocument()
+    expect(deleteSnapshot).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'summary.delete' }))
+    expect(deleteSnapshot).toHaveBeenCalledWith('h1')
   })
 })

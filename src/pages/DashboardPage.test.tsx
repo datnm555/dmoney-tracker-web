@@ -83,14 +83,16 @@ describe('DashboardPage due banner', () => {
       card('a', 'Techcombank Visa', '2026-11-12'),
       card('b', 'VPBank Mastercard', '2026-11-10', 2_000_000),
       card('c', 'Far Card', '2026-12-20'),
+      card('d', 'Late Card', '2026-11-08', 1_000_000),
     ])
     renderPage()
 
     const a = await screen.findByTestId('due-banner-a')
     expect(norm(a.textContent)).toBe(`Techcombank Visa accounts.dueIn 2 accounts.days: ${norm(formatMoney(money(5_000_000)))}`)
     const b = screen.getByTestId('due-banner-b')
-    expect(norm(b.textContent)).toBe(`VPBank Mastercard accounts.dueToday: ${norm(formatMoney(money(2_000_000)))}`)
+    expect(norm(b.textContent)).toBe(`VPBank Mastercard accounts.dueTodayFull: ${norm(formatMoney(money(2_000_000)))}`)
     expect(screen.queryByTestId('due-banner-c')).not.toBeInTheDocument()
+    expect(norm(screen.getByTestId('due-banner-d').textContent)).toBe(`Late Card accounts.overdue 2 accounts.days: ${norm(formatMoney(money(1_000_000)))}`)
     expect(a.closest('a')).toHaveAttribute('href', '/app/accounts')
   })
 
