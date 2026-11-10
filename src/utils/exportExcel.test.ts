@@ -42,6 +42,7 @@ const tx: TransactionResponse = {
   purchasePlaceId: null,
   purchasePlaceName: null,
   savingsBank: 'Vietinbank',
+  excludedFromStats: false,
 }
 
 describe('exportTransactionsToExcel', () => {

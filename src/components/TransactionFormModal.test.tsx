@@ -132,6 +132,7 @@ const baseEditingFixture = {
   purchasePlaceId: null,
   purchasePlaceName: null,
   savingsBank: null,
+  excludedFromStats: false,
 }
 
 async function pickCategory() {
@@ -435,6 +436,7 @@ describe('TransactionFormModal', () => {
             purchasePlaceId: null,
             purchasePlaceName: null,
             savingsBank: null,
+            excludedFromStats: false,
           }}
           submitting={false}
           onSubmit={vi.fn()}

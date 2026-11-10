@@ -6,13 +6,22 @@ export async function getCategories(): Promise<CategoryResponse[]> {
   return data
 }
 
-export async function createCategory(name: string, icon: string): Promise<{ id: string }> {
-  const { data } = await apiClient.post<{ id: string }>('/categories', { name, icon })
+export async function createCategory(
+  name: string,
+  icon: string,
+  excludeFromStats = false,
+): Promise<{ id: string }> {
+  const { data } = await apiClient.post<{ id: string }>('/categories', { name, icon, excludeFromStats })
   return data
 }
 
-export async function updateCategory(id: string, name: string, icon: string): Promise<void> {
-  await apiClient.put(`/categories/${id}`, { name, icon })
+export async function updateCategory(
+  id: string,
+  name: string,
+  icon: string,
+  excludeFromStats = false,
+): Promise<void> {
+  await apiClient.put(`/categories/${id}`, { name, icon, excludeFromStats })
 }
 
 export async function deleteCategory(id: string): Promise<void> {
