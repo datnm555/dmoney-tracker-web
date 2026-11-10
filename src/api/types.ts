@@ -254,3 +254,54 @@ export interface SavingsSummaryResponse {
   accounts: SavingsAccountResponse[]
   transactions: SavingsTransactionResponse[]
 }
+
+// Mirrors Application/Accounts/AccountType on the backend (string codes).
+export type AccountType = 'checking' | 'overdraft' | 'credit_card' | 'ewallet' | 'cash'
+
+// Mirrors Application/Accounts/AccountSnapshotResponse.cs on the backend.
+export interface AccountSnapshotResponse {
+  id: string
+  accountId: string
+  date: string
+  balance: MoneyResponse
+  statementAmount: MoneyResponse | null
+  dueDate: string | null
+  installmentRemaining: MoneyResponse | null
+  statementPaid: boolean
+  note: string | null
+}
+
+// Mirrors Application/Accounts/AccountResponse.cs on the backend.
+export interface AccountResponse {
+  id: string
+  name: string
+  type: AccountType
+  lastDigits: string | null
+  creditLimit: MoneyResponse | null
+  statementDay: number | null
+  dueDay: number | null
+  interestRatePercent: number | null
+  latestSnapshot: AccountSnapshotResponse | null
+}
+
+// Request body for POST/PUT /accounts (money fields are plain numbers).
+export interface AccountInput {
+  name: string
+  type: AccountType
+  lastDigits: string | null
+  creditLimit: number | null
+  statementDay: number | null
+  dueDay: number | null
+  interestRatePercent: number | null
+}
+
+// Request body for POST/PUT account snapshots (money fields are plain numbers).
+export interface SnapshotInput {
+  date: string
+  balance: number
+  statementAmount: number | null
+  dueDate: string | null
+  installmentRemaining: number | null
+  statementPaid: boolean
+  note: string | null
+}
