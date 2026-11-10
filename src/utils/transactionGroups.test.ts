@@ -53,6 +53,15 @@ describe('groupTransactionsByDay', () => {
     expect(groups[1].debit).toBe(0)
   })
 
+  it('leaves excluded-from-stats rows out of the day totals but keeps them listed', () => {
+    const counted = tx('a', '2026-11-09', 480_000, 0)
+    const excluded = { ...tx('b', '2026-11-09', 140_000_000, 0), excludedFromStats: true }
+    const [group] = groupTransactionsByDay([counted, excluded])
+    expect(group.items).toHaveLength(2)
+    expect(group.credit).toBe(480_000)
+    expect(group.net).toBe(480_000)
+  })
+
   it('returns empty for no items', () => {
     expect(groupTransactionsByDay([])).toEqual([])
   })
