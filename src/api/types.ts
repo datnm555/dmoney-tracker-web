@@ -282,6 +282,7 @@ export interface AccountResponse {
   dueDay: number | null
   interestRatePercent: number | null
   latestSnapshot: AccountSnapshotResponse | null
+  bankName: string | null
 }
 
 // Request body for POST/PUT /accounts (money fields are plain numbers).
@@ -293,6 +294,7 @@ export interface AccountInput {
   statementDay: number | null
   dueDay: number | null
   interestRatePercent: number | null
+  bankName: string | null
 }
 
 // Request body for POST/PUT account snapshots (money fields are plain numbers).

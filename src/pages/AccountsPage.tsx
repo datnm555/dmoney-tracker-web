@@ -24,7 +24,7 @@ import { AccountDialog } from '../accounts/AccountDialog'
 import { SnapshotDialog } from '../accounts/SnapshotDialog'
 import { SnapshotHistoryDialog } from '../accounts/SnapshotHistoryDialog'
 import { useI18n } from '../i18n/I18nContext'
-import { availableCredit, cashTotal, debtTotal, monthlyInterest, upcomingDues } from '../utils/accounts'
+import { availableCredit, cashTotal, debtTotal, groupByBank, monthlyInterest, upcomingDues } from '../utils/accounts'
 import { formatMoney } from '../utils/money'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
@@ -121,11 +121,46 @@ export function AccountsPage() {
     }
   }
 
-  const groups: { title: string; items: AccountResponse[] }[] = [
-    { title: t('accounts.groupMoney'), items: accounts.filter((a) => ['checking', 'ewallet', 'cash'].includes(a.type)) },
-    { title: t('accounts.groupOverdraft'), items: accounts.filter((a) => a.type === 'overdraft') },
-    { title: t('accounts.groupCredit'), items: accounts.filter((a) => a.type === 'credit_card') },
+  const groups: { key: string; title: string; items: AccountResponse[]; byBank: boolean; debt: boolean }[] = [
+    {
+      key: 'money',
+      title: t('accounts.groupMoney'),
+      items: accounts.filter((a) => ['checking', 'ewallet', 'cash'].includes(a.type)),
+      byBank: true,
+      debt: false,
+    },
+    {
+      key: 'overdraft',
+      title: t('accounts.groupOverdraft'),
+      items: accounts.filter((a) => a.type === 'overdraft'),
+      byBank: false,
+      debt: true,
+    },
+    {
+      key: 'credit',
+      title: t('accounts.groupCredit'),
+      items: accounts.filter((a) => a.type === 'credit_card'),
+      byBank: true,
+      debt: true,
+    },
   ].filter((g) => g.items.length > 0)
+
+  const renderCard = (a: AccountResponse) => (
+    <AccountCard
+      key={a.id}
+      account={a}
+      onUpdate={() => {
+        setSnapEditing(null)
+        setSnapAccount(a)
+      }}
+      onHistory={() => setHistoryAccount(a)}
+      onEdit={() => {
+        setEditing(a)
+        setFormOpen(true)
+      }}
+      onDelete={() => setDeleting(a)}
+    />
+  )
 
   return (
     <div className="grid gap-4">
@@ -211,26 +246,26 @@ export function AccountsPage() {
       )}
 
       {groups.map((g) => (
-        <section key={g.title} className="grid gap-2">
+        <section key={g.key} className="grid gap-2">
           <h2 className="text-sm font-semibold text-muted-foreground">{g.title}</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {g.items.map((a) => (
-              <AccountCard
-                key={a.id}
-                account={a}
-                onUpdate={() => {
-                  setSnapEditing(null)
-                  setSnapAccount(a)
-                }}
-                onHistory={() => setHistoryAccount(a)}
-                onEdit={() => {
-                  setEditing(a)
-                  setFormOpen(true)
-                }}
-                onDelete={() => setDeleting(a)}
-              />
-            ))}
-          </div>
+          {g.byBank ? (
+            groupByBank(g.items).map((bg) => (
+              <div key={bg.bankName ?? ''} data-testid={`bank-section-${g.key}-${bg.bankName ?? 'none'}`} className="grid gap-2">
+                <div data-testid="bank-header" className="flex items-center justify-between gap-2 text-xs font-medium">
+                  <span className="truncate">{bg.bankName ?? t('accounts.noBank')}</span>
+                  <span
+                    data-testid="bank-total"
+                    className={cn('tabular-nums', g.debt ? 'text-expense' : 'text-muted-foreground')}
+                  >
+                    {vnd(bg.total)}
+                  </span>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">{bg.accounts.map(renderCard)}</div>
+              </div>
+            ))
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">{g.items.map(renderCard)}</div>
+          )}
         </section>
       ))}
 

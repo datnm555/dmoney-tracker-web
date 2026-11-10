@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label'
 import { createAccount, updateAccount } from '../api/accountApi'
 import { getApiErrorMessage } from '../api/client'
 import type { AccountInput, AccountResponse, AccountType } from '../api/types'
+import { cn } from '@/lib/utils'
+import { useBanks } from '../banks/BanksContext'
 import { useI18n } from '../i18n/I18nContext'
 import { isDebtType } from '../utils/accounts'
 import { MoneyInput } from './MoneyInput'
@@ -20,6 +22,17 @@ const sanitizeRate = (v: string) => {
   const dot = cleaned.indexOf('.')
   if (dot < 0) return cleaned
   return cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '').slice(0, 2)
+}
+
+// Deterministic avatar color per bank name (mirrors TransactionFormModal; the catalog has no color field).
+const BANK_CHIP_COLORS = ['bg-red-600', 'bg-green-600', 'bg-sky-600', 'bg-violet-600', 'bg-amber-600', 'bg-rose-600']
+
+function bankChipColor(name: string): string {
+  let hash = 0
+  for (const char of name) {
+    hash = (hash * 31 + char.charCodeAt(0)) % 997
+  }
+  return BANK_CHIP_COLORS[hash % BANK_CHIP_COLORS.length]
 }
 
 const onlyDigits = (v: string, max?: number) => {
@@ -46,7 +59,12 @@ export function AccountDialog({
   const [statementDay, setStatementDay] = useState('')
   const [dueDay, setDueDay] = useState('')
   const [rate, setRate] = useState('')
+  const [bankName, setBankName] = useState<string | null>(null)
+  const [customBank, setCustomBank] = useState(false)
   const [saving, setSaving] = useState(false)
+  const { banks } = useBanks()
+  const banksRef = useRef(banks)
+  banksRef.current = banks
 
   useEffect(() => {
     if (!open) return
@@ -57,6 +75,9 @@ export function AccountDialog({
     setStatementDay(editing?.statementDay?.toString() ?? '')
     setDueDay(editing?.dueDay?.toString() ?? '')
     setRate(editing?.interestRatePercent?.toString() ?? '')
+    setBankName(editing?.bankName ?? null)
+    // Ref-read so a late catalog load does not reset the user's pick mid-edit.
+    setCustomBank(!!editing?.bankName && !banksRef.current.some((b) => b.name === editing.bankName))
   }, [open, editing])
 
   const debt = isDebtType(type)
@@ -70,6 +91,7 @@ export function AccountDialog({
       creditLimit: debt ? digitsToNumber(limit) : null,
       statementDay: debt && statementDay ? Number(statementDay) : null,
       dueDay: debt && dueDay ? Number(dueDay) : null,
+      bankName: bankName?.trim() || null,
       interestRatePercent: debt && Number.isFinite(parseFloat(rate)) ? parseFloat(rate) : null,
     }
     setSaving(true)
@@ -119,6 +141,70 @@ export function AccountDialog({
               value={lastDigits}
               onChange={(e) => setLastDigits(onlyDigits(e.target.value, 4))}
             />
+          </div>
+          <div role="group" aria-label={t('accounts.bank')} className="grid gap-1.5">
+            <Label>{t('accounts.bank')}</Label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setBankName(null)
+                  setCustomBank(false)
+                }}
+                className={cn(
+                  'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                  bankName === null && !customBank && 'border-primary text-primary ring-1 ring-primary/30',
+                )}
+              >
+                {t('accounts.noBank')}
+              </button>
+              {banks.map((catalogBank) => (
+                <button
+                  key={catalogBank.id}
+                  type="button"
+                  onClick={() => {
+                    setBankName(catalogBank.name)
+                    setCustomBank(false)
+                  }}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
+                    bankName === catalogBank.name && !customBank && 'border-primary ring-1 ring-primary/30',
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
+                      bankChipColor(catalogBank.name),
+                    )}
+                  >
+                    {catalogBank.name.charAt(0).toUpperCase()}
+                  </span>
+                  {catalogBank.name}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomBank(true)
+                  if (banksRef.current.some((b) => b.name === bankName)) setBankName(null)
+                }}
+                className={cn(
+                  'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                  customBank && 'border-primary text-primary ring-1 ring-primary/30',
+                )}
+              >
+                ＋ {t('payment.bank.other')}
+              </button>
+            </div>
+            {customBank && (
+              <Input
+                aria-label={t('accounts.bank')}
+                maxLength={100}
+                value={bankName ?? ''}
+                onChange={(e) => setBankName(e.target.value)}
+              />
+            )}
           </div>
           {debt && (
             <>

@@ -36,6 +36,7 @@ const card = (id: string, name: string, dueDate: string, amount = 5_000_000): Ac
   type: 'credit_card',
   lastDigits: '1234',
   creditLimit: null,
+  bankName: null,
   statementDay: null,
   dueDay: null,
   interestRatePercent: null,
