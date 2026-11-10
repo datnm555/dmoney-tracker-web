@@ -18,6 +18,7 @@ import {
   Store,
   Tags,
   Users,
+  WalletCards,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { BanksProvider } from '../banks/BanksContext'
@@ -51,6 +52,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/app/transactions', key: 'menu.transactions', icon: List },
   { to: '/app/gold', key: 'menu.gold', icon: Coins },
   { to: '/app/savings', key: 'menu.savings', icon: PiggyBank },
+  { to: '/app/accounts', key: 'menu.accounts', icon: WalletCards },
 ]
 
 // Children of the "Settings" tree node in the sidebar.

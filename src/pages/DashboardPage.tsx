@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { ArrowDownRight, ArrowUpRight, ChevronDown, TrendingUp, WalletCards } from 'lucide-react'
+import { AlertTriangle, ArrowDownRight, ArrowUpRight, ChevronDown, TrendingUp, WalletCards } from 'lucide-react'
 import { toast } from 'sonner'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Badge } from '@/components/ui/badge'
@@ -10,12 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
+import { getAccounts } from '../api/accountApi'
 import { getDashboardStats, getMonthlySummary } from '../api/transactionApi'
-import type { DashboardStatsResponse, MonthlySummaryResponse } from '../api/types'
+import type { AccountResponse, DashboardStatsResponse, MonthlySummaryResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { toCategorySpending } from '../utils/chartData'
 import { toIncomeExpenseBars } from '../utils/chartData'
+import { upcomingDues } from '../utils/accounts'
 import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
@@ -50,6 +52,18 @@ export function DashboardPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // Independent of the dashboard loads: a failure just means no banner (no toast).
+  const [accounts, setAccounts] = useState<AccountResponse[]>([])
+  useEffect(() => {
+    getAccounts()
+      .then(setAccounts)
+      .catch(() => setAccounts([]))
+  }, [])
+  const urgentDues = useMemo(
+    () => upcomingDues(accounts, dayjs().format('YYYY-MM-DD')).filter((d) => d.urgent),
+    [accounts],
+  )
 
   const isWholeYear = /^\d{4}$/.test(monthKey)
   const monthName = (n: number) => {
@@ -109,6 +123,29 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {urgentDues.length > 0 && (
+        <Link
+          to="/app/accounts"
+          data-testid="due-banner"
+          className="grid gap-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          {urgentDues.map((d) => (
+            <div key={d.account.id} data-testid={`due-banner-${d.account.id}`} className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>
+                {d.account.name}{' '}
+                {d.daysLeft < 0
+                  ? `${t('accounts.overdue')} ${-d.daysLeft} ${t('accounts.days')}`
+                  : d.daysLeft === 0
+                    ? t('accounts.dueTodayFull')
+                    : `${t('accounts.dueIn')} ${d.daysLeft} ${t('accounts.days')}`}
+                : {formatMoney({ amount: d.amount, currency: 'VND' })}
+              </span>
+            </div>
+          ))}
+        </Link>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>

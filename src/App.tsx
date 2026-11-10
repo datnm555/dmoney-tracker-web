@@ -10,6 +10,7 @@ import { CategorySettingsPage } from './pages/CategorySettingsPage'
 import { GoldPage } from './pages/GoldPage'
 import { GoldTypeSettingsPage } from './pages/GoldTypeSettingsPage'
 import { SavingsPage } from './pages/SavingsPage'
+import { AccountsPage } from './pages/AccountsPage'
 import { LoginPage } from './pages/LoginPage'
 import { PlanSettingsPage } from './pages/PlanSettingsPage'
 import { PurchasePlaceSettingsPage } from './pages/PurchasePlaceSettingsPage'
@@ -32,6 +33,7 @@ export default function App() {
                 <Route path="transactions" element={<TransactionsPage />} />
                 <Route path="gold" element={<GoldPage />} />
                 <Route path="savings" element={<SavingsPage />} />
+                <Route path="accounts" element={<AccountsPage />} />
                 <Route path="settings" element={<Navigate to="/app/settings/categories" replace />} />
                 <Route path="settings/categories" element={<CategorySettingsPage />} />
                 <Route path="settings/subcategories" element={<SubCategorySettingsPage />} />
