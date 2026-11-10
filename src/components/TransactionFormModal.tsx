@@ -19,6 +19,10 @@ import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { cn } from '@/lib/utils'
 import { MoreOptionsSection } from './transactionForm/MoreOptionsSection'
+import { PayWithChips } from './transactionForm/PayWithChips'
+import { usePayWithAccounts } from './transactionForm/usePayWithAccounts'
+import { buildPayWithChips, selectedPayWithKey } from '../utils/payWith'
+import type { PayWithFields } from '../utils/payWith'
 import { parseAmountShorthand } from '../utils/amountShorthand'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
@@ -145,6 +149,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const [amountText, setAmountText] = useState('')
   const amountRef = useRef<HTMLInputElement>(null)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [payOtherOpen, setPayOtherOpen] = useState(false)
+  const { status: accountsStatus, accounts } = usePayWithAccounts(open)
+  const payWithChips = useMemo(() => buildPayWithChips(accounts, t('form.cashChip')), [accounts, t])
   const [category, setCategory] = useState<string | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodCode>('transfer')
   const [cardType, setCardType] = useState<CardTypeCode | null>(null)
@@ -178,6 +185,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     if (!open) return
     setErrors({})
     setCustomBank(false)
+    setPayOtherOpen(false)
     if (editing) {
       const isIncome = editing.credit.amount > 0
       setType(isIncome ? 'in' : 'out')
@@ -281,6 +289,22 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       }
     }
   }, [open, editing, defaultDate])
+
+  // Once the accounts are known: a failed load shows the manual controls; an
+  // edited row whose payment values match no chip opens "Khác" so they stay visible.
+  useEffect(() => {
+    if (!open) return
+    if (accountsStatus === 'error') {
+      setPayOtherOpen(true)
+    } else if (accountsStatus === 'ready' && editing) {
+      const current: PayWithFields = {
+        paymentMethod: (editing.paymentMethod as PaymentMethodCode) ?? 'transfer',
+        cardType: (editing.cardType as CardTypeCode) ?? null,
+        bank: editing.bank,
+      }
+      setPayOtherOpen(selectedPayWithKey(payWithChips, current) === null)
+    }
+  }, [open, editing, accountsStatus, payWithChips])
 
   useEffect(() => {
     if (!open || !reimburse || !selectedPlanId) return
@@ -678,8 +702,35 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           )}
 
           <div role="group" aria-label={t('form.payWith')} className="grid gap-4">
+            {accountsStatus !== 'error' && (
+              <div className="grid gap-2">
+                <Label>{t('form.payWith')}</Label>
+                {accountsStatus === 'ready' && (
+                  <PayWithChips
+                    chips={payWithChips}
+                    value={{ paymentMethod, cardType, bank }}
+                    onPick={(f) => {
+                      setPaymentMethod(f.paymentMethod)
+                      setCardType(f.cardType)
+                      setBank(f.bank)
+                      setCustomBank(f.bank !== null && !banksRef.current.some((b) => b.name === f.bank))
+                      setPayOtherOpen(false)
+                    }}
+                  />
+                )}
+                <button
+                  type="button"
+                  aria-expanded={payOtherOpen}
+                  onClick={() => setPayOtherOpen((v) => !v)}
+                  className="w-fit text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {t('form.payWithOther')}
+                </button>
+              </div>
+            )}
+            {(payOtherOpen || accountsStatus === 'error') && (
+            <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label>{t('form.payWith')}</Label>
               <RadioGroup
                 value={paymentMethod}
                 onValueChange={(value) => {
@@ -804,6 +855,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   )}
                 </div>
               </div>
+            )}
+            </div>
             )}
           </div>
 

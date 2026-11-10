@@ -5,6 +5,8 @@ import dayjs from 'dayjs'
 import type { ReactNode } from 'react'
 import { I18nProvider } from '../i18n/I18nContext'
 import { TransactionFormModal } from './TransactionFormModal'
+import { getAccounts } from '../api/accountApi'
+import { beforeEach } from 'vitest'
 
 vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
@@ -78,6 +80,10 @@ vi.mock('../api/subCategoryApi', () => ({
   ]),
 }))
 
+vi.mock('../api/accountApi', () => ({
+  getAccounts: vi.fn(),
+}))
+
 vi.mock('../api/transactionApi', () => ({
   getCredits: vi.fn().mockResolvedValue([]),
   getOpenAdvances: vi.fn().mockResolvedValue([
@@ -140,6 +146,16 @@ const baseEditingFixture = {
 async function pickCategory() {
   await userEvent.click(await screen.findByRole('button', { name: /Hóa đơn/ }))
 }
+
+async function openPayWithOther() {
+  const toggle = await screen.findByRole('button', { name: 'form.payWithOther' })
+  if (toggle.getAttribute('aria-expanded') !== 'true') await userEvent.click(toggle)
+}
+
+beforeEach(() => {
+  vi.mocked(getAccounts).mockReset()
+  vi.mocked(getAccounts).mockResolvedValue([])
+})
 
 async function openMoreOptions() {
   await userEvent.click(await screen.findByRole('button', { name: 'form.moreOptions' }))
@@ -225,6 +241,7 @@ describe('TransactionFormModal', () => {
 
     await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
     await userEvent.type(screen.getByLabelText('form.amount'), '260000')
+    await openPayWithOther()
     await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 
@@ -238,6 +255,7 @@ describe('TransactionFormModal', () => {
     await userEvent.type(await screen.findByLabelText('form.content'), 'Netflix')
     await userEvent.type(screen.getByLabelText('form.amount'), '260000')
     await pickCategory()
+    await openPayWithOther()
     await userEvent.click(screen.getByRole('radio', { name: 'payment.card' }))
     await userEvent.click(await screen.findByRole('radio', { name: 'payment.cardType.debit' }))
     await userEvent.click(screen.getByRole('button', { name: 'Techcombank' }))
@@ -261,6 +279,7 @@ describe('TransactionFormModal', () => {
     await userEvent.type(await screen.findByLabelText('form.content'), 'Cà phê')
     await userEvent.type(screen.getByLabelText('form.amount'), '50000')
     await pickCategory()
+    await openPayWithOther()
     // Both catalog entries render as chips; MoMo comes from the user's list.
     await userEvent.click(screen.getByRole('button', { name: 'MoMo' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
@@ -1143,3 +1162,136 @@ describe('TransactionFormModal quick-entry layout', () => {
 function formatVi(n: number) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 }
+
+const acct = (over: Record<string, unknown>) => ({
+  id: 'a1',
+  name: 'Acc',
+  type: 'checking',
+  lastDigits: null,
+  creditLimit: null,
+  statementDay: null,
+  dueDay: null,
+  interestRatePercent: null,
+  latestSnapshot: null,
+  bankName: null,
+  ...over,
+})
+
+describe('TransactionFormModal pay-with chips', () => {
+  const accounts = [
+    acct({ id: 'a-tcb', name: 'Techcombank CK', type: 'checking', bankName: 'Techcombank' }),
+    acct({ id: 'a-visa', name: 'Visa VPBank', type: 'credit_card', lastDigits: '4321', bankName: 'VPBank' }),
+  ]
+
+  async function fill(onSubmit: ReturnType<typeof vi.fn>) {
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Ăn trưa')
+    await userEvent.type(screen.getByLabelText('form.amount'), '50000')
+    await pickCategory()
+    return onSubmit
+  }
+
+  it('renders a chip per account with last digits and a Tiền mặt chip when no cash account', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    renderModal()
+    expect(await screen.findByRole('button', { name: /Techcombank CK/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Visa VPBank/ })).toHaveTextContent('•••4321')
+    expect(screen.getByRole('button', { name: 'form.cashChip' })).toBeInTheDocument()
+  })
+
+  it('omits the synthetic cash chip when a cash account exists', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([acct({ id: 'c', name: 'Ví tiền', type: 'cash' })] as never)
+    renderModal()
+    expect(await screen.findByRole('button', { name: 'Ví tiền' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'form.cashChip' })).not.toBeInTheDocument()
+  })
+
+  it('picking a credit card chip sets card/credit/bank and submits them', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = await fill(renderModal())
+    await userEvent.click(await screen.findByRole('button', { name: /Visa VPBank/ }))
+    expect(screen.getByRole('button', { name: /Visa VPBank/ })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'card', cardType: 'credit', bank: 'VPBank' }),
+    )
+  })
+
+  it('picking the cash chip sets cash with no bank', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = await fill(renderModal())
+    await userEvent.click(await screen.findByRole('button', { name: 'form.cashChip' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'cash', cardType: null, bank: null }),
+    )
+  })
+
+  it('manually changing the bank in Khác deselects the chip and submits the manual value', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = await fill(renderModal())
+    const chip = await screen.findByRole('button', { name: /Techcombank CK/ })
+    await userEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    await openPayWithOther()
+    await userEvent.click(screen.getByRole('button', { name: 'MoMo' }))
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ paymentMethod: 'transfer', bank: 'MoMo' }))
+  })
+
+  it('picking a chip collapses Khác', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    renderModal()
+    await openPayWithOther()
+    expect(screen.getByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /Visa VPBank/ }))
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
+  it('keeps Khác collapsed on create', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    renderModal()
+    await screen.findByRole('button', { name: /Visa VPBank/ })
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
+  it('hides chips and shows the manual controls expanded when accounts fail to load', async () => {
+    vi.mocked(getAccounts).mockRejectedValue(new Error('boom'))
+    renderModal()
+    expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'form.cashChip' })).not.toBeInTheDocument()
+  })
+
+  it('edit mode: selects the matching chip and keeps Khác closed', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, paymentMethod: 'card', cardType: 'credit', bank: 'VPBank' }}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await screen.findByRole('button', { name: /Visa VPBank/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
+  it('edit mode: opens Khác when no chip matches', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, paymentMethod: 'card', cardType: 'debit', bank: 'MoMo' }}
+          submitting={false}
+          onSubmit={vi.fn()}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+  })
+})
