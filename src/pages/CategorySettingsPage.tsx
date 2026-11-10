@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
@@ -39,6 +40,7 @@ export function CategorySettingsPage() {
   const [deleting, setDeleting] = useState<{ id: string; label: string } | null>(null)
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
+  const [excludeFromStats, setExcludeFromStats] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (event: FormEvent) => {
@@ -47,13 +49,14 @@ export function CategorySettingsPage() {
     setSubmitting(true)
     try {
       if (editingId) {
-        await updateCategory(editingId, name.trim(), icon)
+        await updateCategory(editingId, name.trim(), icon, excludeFromStats)
       } else {
-        await createCategory(name.trim(), icon)
+        await createCategory(name.trim(), icon, excludeFromStats)
       }
       toast.success(t(editingId ? 'toast.updated' : 'toast.created'))
       setName('')
       setIcon(null)
+      setExcludeFromStats(false)
       setOpen(false)
       setEditingId(null)
       await refresh()
@@ -89,6 +92,7 @@ export function CategorySettingsPage() {
             setEditingId(null)
             setName('')
             setIcon(null)
+            setExcludeFromStats(false)
             setOpen(true)
           }}
         >
@@ -110,44 +114,53 @@ export function CategorySettingsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {options.map((option) => (
-                <TableRow key={option.code}>
-                  <TableCell>
-                    <div className="flex items-center gap-2.5">
-                      <CategoryIcon category={option.code} className="h-7 w-7 rounded-lg" />
-                      <span>{option.label}</span>
-                      {!option.isCustom && (
-                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                          {t('cat.system')}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <button
-                      type="button"
-                      aria-label={`${t('summary.edit')} ${option.label}`}
-                      className="rounded p-1.5 text-muted-foreground hover:bg-zinc-100 hover:text-foreground"
-                      onClick={() => {
-                        setEditingId(option.code)
-                        setName(option.label)
-                        setIcon(customCategories.find((c) => c.id === option.code)?.icon ?? null)
-                        setOpen(true)
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`${t('summary.delete')} ${option.label}`}
-                      className="ml-1 rounded p-1.5 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                      onClick={() => setDeleting({ id: option.code, label: option.label })}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {options.map((option) => {
+                const raw = customCategories.find((c) => c.id === option.code)
+                return (
+                  <TableRow key={option.code}>
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <CategoryIcon category={option.code} className="h-7 w-7 rounded-lg" />
+                        <span>{option.label}</span>
+                        {!option.isCustom && (
+                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                            {t('cat.system')}
+                          </span>
+                        )}
+                        {raw?.excludeFromStats && (
+                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
+                            {t('summary.excludedBadge')}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <button
+                        type="button"
+                        aria-label={`${t('summary.edit')} ${option.label}`}
+                        className="rounded p-1.5 text-muted-foreground hover:bg-zinc-100 hover:text-foreground"
+                        onClick={() => {
+                          setEditingId(option.code)
+                          setName(option.label)
+                          setIcon(raw?.icon ?? null)
+                          setExcludeFromStats(raw?.excludeFromStats ?? false)
+                          setOpen(true)
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`${t('summary.delete')} ${option.label}`}
+                        className="ml-1 rounded p-1.5 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                        onClick={() => setDeleting({ id: option.code, label: option.label })}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -184,6 +197,17 @@ export function CategorySettingsPage() {
             <div className="grid gap-1.5">
               <Label>{t('cat.icon')}</Label>
               <IconPicker value={icon} onChange={setIcon} />
+            </div>
+            <div className="grid gap-1">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={excludeFromStats}
+                  onCheckedChange={(checked) => setExcludeFromStats(checked === true)}
+                  aria-label={t('cat.excludeFromStats')}
+                />
+                {t('cat.excludeFromStats')}
+              </label>
+              <p className="pl-6 text-xs text-muted-foreground">{t('cat.excludeFromStatsHint')}</p>
             </div>
             <Button type="submit" disabled={submitting || !name.trim() || !icon}>
               {t('summary.submit')}
