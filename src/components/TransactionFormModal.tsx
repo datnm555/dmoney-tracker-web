@@ -92,9 +92,9 @@ const formatThousands = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))
 // Pure digits render with thousand separators; anything else (shorthand like 1tr5) shows as typed.
 const displayAmount = (text: string) => (/^\d*$/.test(text) ? formatThousands(text) : text)
 
-// Digits are stored without separators. The dots the form itself inserts while formatting a plain
-// number are stripped (so "1.200" + "k" is stored as "1200k"); pasted/other text is kept verbatim
-// for the shorthand parser ("1.5" is the start of "1.5tr").
+// Digits are stored without separators. Only the dots the form itself inserted while formatting a
+// digits-only state are stripped (so "1.200" + "k" is stored as "1200k"); anything the user typed
+// or pasted is kept verbatim for the shorthand parser ("1.5" is the start of "1.5tr").
 function normalizeAmountInput(value: string, previous: string): string {
   if (/^\d*$/.test(value)) return value
   if (/^\d*$/.test(previous)) {
@@ -102,7 +102,6 @@ function normalizeAmountInput(value: string, previous: string): string {
     if (value.startsWith(shown)) return previous + value.slice(shown.length)
     if (/^[\d.]*$/.test(value) && shown.startsWith(value)) return value.replace(/\D/g, '')
   }
-  if (/^\d{1,3}(\.\d{3})+$/.test(value)) return value.replace(/\D/g, '')
   return value
 }
 
@@ -367,6 +366,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     return [...categoryOptions].sort((a, b) => rank(a.kind) - rank(b.kind))
   }, [categoryOptions, category, type])
 
+  // Live "= 1.250.000 ₫" preview for shorthand / decimal text (plain digits need none).
+  const amountPreview = /^\d*$/.test(amountText) ? null : parseAmountShorthand(amountText)
+
   const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
     if (!date) nextErrors.date = t('form.dateRequired')
@@ -548,6 +550,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                 ₫
               </span>
             </div>
+            {amountPreview !== null && (
+              <p className="text-xs text-muted-foreground">= {formatMoney({ amount: amountPreview, currency: 'VND' })}</p>
+            )}
             {errors.amount && <p className="text-xs text-expense">{errors.amount}</p>}
           </div>
 

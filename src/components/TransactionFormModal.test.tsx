@@ -1046,6 +1046,36 @@ describe('TransactionFormModal quick-entry layout', () => {
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: expected }))
     })
 
+    it('never turns a typed 1.2345tr into a huge amount', async () => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), '1.2345tr')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(await screen.findByText('form.amountRequired')).toBeInTheDocument()
+      expect(onSubmit).not.toHaveBeenCalled()
+    })
+
+    it('reads a typed 0.125tr as 125,000', async () => {
+      const onSubmit = renderModal()
+      await userEvent.type(await screen.findByLabelText('form.amount'), '0.125tr')
+      await userEvent.type(screen.getByLabelText('form.content'), 'Ăn')
+      await pickCategory()
+      await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ amount: 125000 }))
+    })
+
+    it('shows a live preview for shorthand only', async () => {
+      renderModal()
+      const amount = await screen.findByLabelText('form.amount')
+      await userEvent.type(amount, '1500')
+      expect(screen.queryByText(/^=/)).not.toBeInTheDocument()
+      await userEvent.type(amount, 'k')
+      expect(screen.getByText(/^= .*1\.500\.000/)).toBeInTheDocument()
+      await userEvent.type(amount, 'x')
+      expect(screen.queryByText(/^=/)).not.toBeInTheDocument()
+    })
+
     it('converts shorthand on submit', async () => {
       const onSubmit = renderModal()
       await userEvent.type(await screen.findByLabelText('form.amount'), '1tr250')
