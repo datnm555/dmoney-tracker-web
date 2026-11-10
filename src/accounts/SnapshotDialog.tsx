@@ -11,7 +11,8 @@ import { getApiErrorMessage } from '../api/client'
 import type { AccountResponse, AccountSnapshotResponse, SnapshotInput } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { isDebtType } from '../utils/accounts'
-import { MoneyInput, digitsToNumber, toDigits } from './MoneyInput'
+import { MoneyInput } from './MoneyInput'
+import { digitsToNumber, toDigits } from './moneyDigits'
 
 /** `editing` null = a fresh reading (today, empty amounts); otherwise pre-fills from that snapshot. */
 export function SnapshotDialog({

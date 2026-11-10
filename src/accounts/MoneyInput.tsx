@@ -1,7 +1,7 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { formatThousands } from './moneyDigits'
 
-export const formatThousands = (digits: string) => digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
 
 /** Digit-only money field, mirrors the amount input in TransactionFormModal. */
 export function MoneyInput({
@@ -34,5 +34,3 @@ export function MoneyInput({
   )
 }
 
-export const toDigits = (n: number | null | undefined) => (n == null ? '' : String(Math.round(n)))
-export const digitsToNumber = (d: string): number | null => (d === '' ? null : Number(d))

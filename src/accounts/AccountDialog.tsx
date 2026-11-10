@@ -9,9 +9,10 @@ import { getApiErrorMessage } from '../api/client'
 import type { AccountInput, AccountResponse, AccountType } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { isDebtType } from '../utils/accounts'
-import { MoneyInput, digitsToNumber, toDigits } from './MoneyInput'
+import { MoneyInput } from './MoneyInput'
+import { digitsToNumber, toDigits } from './moneyDigits'
 
-export const ACCOUNT_TYPES: AccountType[] = ['checking', 'overdraft', 'credit_card', 'ewallet', 'cash']
+const ACCOUNT_TYPES: AccountType[] = ['checking', 'overdraft', 'credit_card', 'ewallet', 'cash']
 
 const onlyDigits = (v: string, max?: number) => {
   const d = v.replace(/\D/g, '')
