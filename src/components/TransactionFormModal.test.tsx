@@ -183,6 +183,11 @@ describe('TransactionFormModal', () => {
     )
   })
 
+  it('rounds a fractional prefill amount to an integer', async () => {
+    renderModal(vi.fn(), { prefill: { amount: 165556.5 } })
+    await waitFor(() => expect(screen.getByLabelText('form.amount')).toHaveValue('165.557'))
+  })
+
   it('ignores prefill in edit mode', async () => {
     render(
       <Wrapper>

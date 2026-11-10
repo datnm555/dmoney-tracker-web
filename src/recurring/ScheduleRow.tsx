@@ -33,6 +33,7 @@ export function ScheduleItemRow({
   row,
   today,
   canRecord,
+  undoing,
   onRecord,
   onMarkPaid,
   onUndo,
@@ -41,6 +42,7 @@ export function ScheduleItemRow({
   row: RecurringScheduleItemResponse
   today: string
   canRecord: boolean
+  undoing?: boolean
   onRecord: () => void
   onMarkPaid: () => void
   onUndo: () => void
@@ -73,7 +75,7 @@ export function ScheduleItemRow({
           )}
           {status === 'overdue' && <StatusChip danger text={dueText(t, daysLeft)} />}
           {status === 'dueSoon' && <StatusChip danger text={dueText(t, daysLeft)} />}
-          {status === 'upcoming' && <StatusChip text={t('recurring.statusUpcoming')} />}
+          {status === 'upcoming' && <StatusChip text={dueText(t, daysLeft)} />}
           <div className="ml-auto flex flex-wrap gap-1.5">
             {unpaid && (
               <>
@@ -86,7 +88,7 @@ export function ScheduleItemRow({
               </>
             )}
             {!unpaid && (
-              <Button size="sm" variant="outline" onClick={onUndo}>
+              <Button size="sm" variant="outline" disabled={undoing} onClick={onUndo}>
                 {t('recurring.undo')}
               </Button>
             )}

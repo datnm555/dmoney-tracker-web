@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { getAccounts, updateSnapshot } from '../api/accountApi'
 import { getApiErrorMessage } from '../api/client'
 import { createRecord, deleteRecord, getSchedule } from '../api/recurringPaymentApi'
-import { createTransaction } from '../api/transactionApi'
+import { createTransaction, deleteTransaction } from '../api/transactionApi'
 import type { AccountResponse, RecurringPaymentResponse, RecurringScheduleItemResponse } from '../api/types'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
@@ -46,6 +46,7 @@ export function RecurringPage() {
   const [manageOpen, setManageOpen] = useState(false)
   const [recording, setRecording] = useState<RecurringPaymentResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [undoingId, setUndoingId] = useState<string | null>(null)
   const [markPaidItem, setMarkPaidItem] = useState<RecurringPaymentResponse | null>(null)
   const [historyItem, setHistoryItem] = useState<RecurringPaymentResponse | null>(null)
   const today = dayjs().format('YYYY-MM-DD')
@@ -106,12 +107,27 @@ export function RecurringPage() {
     try {
       await createRecord(recording.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
     } catch (error) {
-      // The transaction stays; the record conflict (e.g. already paid) is surfaced.
+      // Compensate: remove the orphan transaction, then surface the record error (e.g. already paid).
+      try {
+        await deleteTransaction(transactionId)
+      } catch {
+        // Nothing more to do; the reload below shows the real state.
+      }
       toast.error(getApiErrorMessage(error, t('error.network')))
     } finally {
       setSubmitting(false)
     }
     await load()
+  }
+
+  const undoRecord = async (recordId: string) => {
+    if (undoingId) return
+    setUndoingId(recordId)
+    try {
+      await guarded(() => deleteRecord(recordId))
+    } finally {
+      setUndoingId(null)
+    }
   }
 
   const markCardPaid = (account: AccountResponse) =>
@@ -185,7 +201,8 @@ export function RecurringPage() {
               canRecord={selectedPlanId !== null}
               onRecord={() => setRecording(entry.row.item)}
               onMarkPaid={() => setMarkPaidItem(entry.row.item)}
-              onUndo={() => void guarded(() => deleteRecord(entry.row.record!.id))}
+              undoing={undoingId !== null}
+              onUndo={() => void undoRecord(entry.row.record!.id)}
               onHistory={() => setHistoryItem(entry.row.item)}
             />
           ) : (

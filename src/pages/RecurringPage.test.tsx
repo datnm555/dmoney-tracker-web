@@ -11,7 +11,7 @@ import {
   getSchedule,
 } from '../api/recurringPaymentApi'
 import { getAccounts, updateSnapshot } from '../api/accountApi'
-import { createTransaction } from '../api/transactionApi'
+import { createTransaction, deleteTransaction } from '../api/transactionApi'
 import type { AccountResponse, RecurringPaymentResponse, RecurringScheduleItemResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { RecurringPage } from './RecurringPage'
@@ -42,7 +42,7 @@ vi.mock('../api/recurringPaymentApi', () => ({
   deleteRecord: vi.fn(),
 }))
 vi.mock('../api/accountApi', () => ({ getAccounts: vi.fn(), updateSnapshot: vi.fn() }))
-vi.mock('../api/transactionApi', () => ({ createTransaction: vi.fn() }))
+vi.mock('../api/transactionApi', () => ({ createTransaction: vi.fn(), deleteTransaction: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 // Stub the form: expose the prefill and let the test submit it with an edited amount.
@@ -131,6 +131,7 @@ beforeEach(() => {
   vi.mocked(getRecurringPayments).mockResolvedValue([])
   vi.mocked(createRecord).mockResolvedValue({ id: 'r-new' })
   vi.mocked(createTransaction).mockResolvedValue({ id: 'tx-new' })
+  vi.mocked(deleteTransaction).mockResolvedValue(undefined)
   vi.mocked(updateSnapshot).mockResolvedValue(undefined)
   vi.mocked(deleteRecord).mockResolvedValue(undefined)
 })
@@ -163,7 +164,9 @@ describe('RecurringPage', () => {
 
     expect(screen.getByTestId('row-i-soon').textContent).toContain('accounts.left 2 accounts.days')
     const up = screen.getByTestId('row-i-up')
-    expect(up.textContent).toContain('recurring.statusUpcoming')
+    expect(up.textContent).toContain('accounts.left 15 accounts.days')
+    expect(up.textContent).not.toContain('recurring.statusUpcoming')
+    expect(up.querySelector('.text-expense')).toBeNull()
     expect(norm(up.textContent)).toContain(`≈ ${fmt(500_000)}`)
 
     const cardRow = screen.getByTestId('card-row-a-cc')
@@ -222,7 +225,34 @@ describe('RecurringPage', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('AlreadyPaid'))
     expect(screen.queryByTestId('tx-form')).not.toBeInTheDocument()
     expect(createTransaction).toHaveBeenCalledTimes(1)
+    expect(deleteTransaction).toHaveBeenCalledWith('tx-new')
     await waitFor(() => expect(getSchedule).toHaveBeenCalled())
+  })
+
+  it('still reloads when createRecord fails and the compensating delete also fails', async () => {
+    vi.mocked(createRecord).mockRejectedValue(new Error('conflict'))
+    vi.mocked(deleteTransaction).mockRejectedValue(new Error('delete failed'))
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(within(await screen.findByTestId('row-i-soon')).getByText('recurring.record'))
+    vi.mocked(getSchedule).mockClear()
+    await user.click(await screen.findByText('tx-submit'))
+    await waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith('tx-new'))
+    await waitFor(() => expect(getSchedule).toHaveBeenCalled())
+    expect(screen.queryByTestId('tx-form')).not.toBeInTheDocument()
+  })
+
+  it('undo ignores double clicks while the request is in flight', async () => {
+    let resolve!: () => void
+    vi.mocked(deleteRecord).mockImplementation(() => new Promise<void>((r) => (resolve = r)))
+    const user = userEvent.setup()
+    renderPage()
+    const btn = within(await screen.findByTestId('row-i-paid')).getByText('recurring.undo')
+    await user.dblClick(btn)
+    expect(deleteRecord).toHaveBeenCalledTimes(1)
+    expect(btn.closest('button')).toBeDisabled()
+    resolve()
+    await waitFor(() => expect(btn.closest('button')).not.toBeDisabled())
   })
 
   it('ignores a late response from a previously selected month', async () => {

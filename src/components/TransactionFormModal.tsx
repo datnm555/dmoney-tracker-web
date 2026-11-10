@@ -235,7 +235,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       const p = prefillRef.current
       if (p) {
         if (p.content !== undefined) setContent(p.content)
-        if (p.amount !== undefined) setAmountDigits(String(p.amount))
+        if (p.amount !== undefined) setAmountDigits(String(Math.round(p.amount)))
         if (p.type !== undefined) setType(p.type)
         if (p.categoryId !== undefined) setCategory(p.categoryId)
         if (p.subCategoryId !== undefined) setSubCategoryId(p.subCategoryId)
