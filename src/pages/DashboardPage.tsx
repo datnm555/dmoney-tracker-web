@@ -11,13 +11,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
 import { getAccounts } from '../api/accountApi'
+import { getSchedule } from '../api/recurringPaymentApi'
 import { getDashboardStats, getMonthlySummary } from '../api/transactionApi'
-import type { AccountResponse, DashboardStatsResponse, MonthlySummaryResponse } from '../api/types'
+import type {
+  AccountResponse,
+  DashboardStatsResponse,
+  MonthlySummaryResponse,
+  RecurringScheduleItemResponse,
+} from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { toCategorySpending } from '../utils/chartData'
 import { toIncomeExpenseBars } from '../utils/chartData'
 import { upcomingDues } from '../utils/accounts'
+import { scheduleStatus } from '../utils/recurring'
 import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
@@ -56,13 +63,45 @@ export function DashboardPage() {
   // Independent of the dashboard loads: a failure just means no banner (no toast).
   const [accounts, setAccounts] = useState<AccountResponse[]>([])
   useEffect(() => {
+    let cancelled = false
     getAccounts()
-      .then(setAccounts)
-      .catch(() => setAccounts([]))
+      .then((a) => {
+        if (!cancelled) setAccounts(a)
+      })
+      .catch(() => {
+        if (!cancelled) setAccounts([])
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
+  const todayStr = dayjs().format('YYYY-MM-DD')
   const urgentDues = useMemo(
-    () => upcomingDues(accounts, dayjs().format('YYYY-MM-DD')).filter((d) => d.urgent),
-    [accounts],
+    () => upcomingDues(accounts, todayStr).filter((d) => d.urgent),
+    [accounts, todayStr],
+  )
+
+  const [schedule, setSchedule] = useState<RecurringScheduleItemResponse[]>([])
+  useEffect(() => {
+    let cancelled = false
+    getSchedule(dayjs().format('YYYY-MM'))
+      .then((rows) => {
+        if (!cancelled) setSchedule(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setSchedule([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  const recurringDues = useMemo(
+    () =>
+      schedule
+        .map((row) => ({ row, ...scheduleStatus(row, todayStr) }))
+        .filter((d) => d.status === 'dueSoon' || d.status === 'overdue')
+        .sort((a, b) => a.row.dueDate.localeCompare(b.row.dueDate)),
+    [schedule, todayStr],
   )
 
   const isWholeYear = /^\d{4}$/.test(monthKey)
@@ -124,14 +163,18 @@ export function DashboardPage() {
         </div>
       </div>
 
-      {urgentDues.length > 0 && (
-        <Link
-          to="/app/accounts"
+      {(urgentDues.length > 0 || recurringDues.length > 0) && (
+        <div
           data-testid="due-banner"
           className="grid gap-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
         >
           {urgentDues.map((d) => (
-            <div key={d.account.id} data-testid={`due-banner-${d.account.id}`} className="flex items-center gap-2">
+            <Link
+              key={d.account.id}
+              to="/app/accounts"
+              data-testid={`due-banner-${d.account.id}`}
+              className="flex items-center gap-2"
+            >
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>
                 {d.account.name}{' '}
@@ -142,9 +185,34 @@ export function DashboardPage() {
                     : `${t('accounts.dueIn')} ${d.daysLeft} ${t('accounts.days')}`}
                 : {formatMoney({ amount: d.amount, currency: 'VND' })}
               </span>
-            </div>
+            </Link>
           ))}
-        </Link>
+          {recurringDues.map(({ row, status, daysLeft }) => {
+            const when =
+              status === 'overdue'
+                ? `${t('accounts.overdue')} ${-daysLeft} ${t('accounts.days')}`
+                : daysLeft === 0
+                  ? t('accounts.dueTodayFull')
+                  : `${t('recurring.dueIn')} ${daysLeft} ${t('accounts.days')}`
+            const amount =
+              row.item.isVariable && row.item.amount.amount === 0
+                ? t('recurring.enterAmount')
+                : `${row.item.isVariable ? '≈ ' : ''}${formatMoney(row.item.amount)}`
+            return (
+              <Link
+                key={row.item.id}
+                to="/app/recurring"
+                data-testid={`due-banner-recurring-${row.item.id}`}
+                className="flex items-center gap-2"
+              >
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>
+                  {row.item.name} {when}: {amount}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
