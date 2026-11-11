@@ -85,3 +85,25 @@ export function selectedPayWithKey(
   if (picked && sameFields(picked.fields, current)) return picked.key
   return chips.find((c) => sameFields(c.fields, current))?.key ?? null
 }
+
+export interface PayWithGroup {
+  /** Bank the chips pay through; null = cash and accounts without a bank. */
+  bank: string | null
+  chips: PayWithChip[]
+}
+
+/** Chips grouped under their bank (A→Z, keeping chip order inside), no-bank group last. */
+export function groupPayWithChips(chips: PayWithChip[]): PayWithGroup[] {
+  const map = new Map<string | null, PayWithChip[]>()
+  for (const chip of chips) {
+    const bank = chip.fields.bank?.trim() || null
+    map.set(bank, [...(map.get(bank) ?? []), chip])
+  }
+  return [...map.entries()]
+    .map(([bank, grouped]) => ({ bank, chips: grouped }))
+    .sort((x, y) => {
+      if (x.bank === null) return y.bank === null ? 0 : 1
+      if (y.bank === null) return -1
+      return x.bank.localeCompare(y.bank, 'vi')
+    })
+}
