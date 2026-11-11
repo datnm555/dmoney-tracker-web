@@ -255,7 +255,12 @@ describe('DashboardPage overview', () => {
     vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-10T08:00:00') })
     vi.mocked(getAccounts).mockResolvedValue([])
     vi.mocked(getSchedule).mockResolvedValue([])
-    vi.mocked(getDashboardStats).mockResolvedValue({ monthly: [] } as never)
+    vi.mocked(getDashboardStats).mockResolvedValue({
+      monthly: [
+        { month: '2026-10', totalCredit: money(8_000_000), totalDebit: money(5_000_000), balance: money(3_000_000) },
+        { month: '2026-11', totalCredit: money(10_000_000), totalDebit: money(4_000_000), balance: money(6_000_000) },
+      ],
+    } as never)
     vi.mocked(getMonthlySummary).mockResolvedValue({
       items: [
         tx('Lương', { credit: money(10_000_000) }),
@@ -288,5 +293,14 @@ describe('DashboardPage overview', () => {
     const rows = screen.getAllByTestId('category-row')
     expect(rows.map((r) => r.textContent?.match(/\d+\.\d%/)?.[0])).toEqual(['75.0%', '25.0%'])
     expect(screen.getByTestId('donut-total')).toBeInTheDocument()
+  })
+
+  it('totals the charted months above the cashflow chart', async () => {
+    renderPage()
+    await waitFor(() =>
+      expect(norm(screen.getByTestId('cashflow-in').textContent)).toBe(`+${norm(formatMoney(money(18_000_000)))}`),
+    )
+    expect(norm(screen.getByTestId('cashflow-out').textContent)).toBe(`−${norm(formatMoney(money(9_000_000)))}`)
+    expect(norm(screen.getByTestId('cashflow-net').textContent)).toBe(`+${norm(formatMoney(money(9_000_000)))}`)
   })
 })

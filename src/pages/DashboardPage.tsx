@@ -27,7 +27,8 @@ import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
-import { BarChart } from '../components/tremor/BarChart'
+import { AreaChart } from '../components/tremor/AreaChart'
+import { Callout } from '../components/tremor/Callout'
 import { DonutChart } from '../components/tremor/DonutChart'
 import { ProgressBar } from '../components/tremor/ProgressBar'
 import { getColorClassName, type AvailableChartColorsKeys } from '../components/tremor/utils/chartColors'
@@ -170,18 +171,26 @@ export function DashboardPage() {
       </div>
 
       {(urgentDues.length > 0 || recurringDues.length > 0) && (
-        <div
+        <Callout
           data-testid="due-banner"
-          className="grid gap-1 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          title={t('accounts.upcoming')}
+          // Lucide icons are forwardRef objects, which Callout would render as-is: pass an element.
+          icon={<AlertTriangle className="mr-1.5 h-5 w-5 shrink-0" aria-hidden />}
+          variant={
+            urgentDues.some((d) => d.daysLeft < 0) || recurringDues.some((d) => d.status === 'overdue')
+              ? 'error'
+              : 'warning'
+          }
+          className="rounded-2xl"
         >
+          <div className="mt-1 grid gap-1">
           {urgentDues.map((d) => (
             <Link
               key={d.account.id}
               to="/app/accounts"
               data-testid={`due-banner-${d.account.id}`}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 rounded-lg px-1 py-0.5 hover:underline"
             >
-              <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>
                 {d.account.name}{' '}
                 {d.daysLeft < 0
@@ -209,16 +218,16 @@ export function DashboardPage() {
                 key={row.item.id}
                 to="/app/recurring"
                 data-testid={`due-banner-recurring-${row.item.id}`}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 rounded-lg px-1 py-0.5 hover:underline"
               >
-                <AlertTriangle className="h-4 w-4 shrink-0" />
                 <span>
                   {row.item.name} {when}: {amount}
                 </span>
               </Link>
             )
           })}
-        </div>
+          </div>
+        </Callout>
       )}
 
       <CashflowHero
@@ -242,8 +251,38 @@ export function DashboardPage() {
               </p>
             )}
           </CardHeader>
-          <CardContent className="grid gap-2">
-            <BarChart
+          <CardContent className="grid gap-4">
+            {bars.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                <FlowStat
+                  testId="cashflow-in"
+                  label={t('dashboard.legendIn')}
+                  value={`+${vnd(bars.reduce((sum, b) => sum + b.income, 0))}`}
+                  dot="bg-emerald-500"
+                  tone="text-income"
+                />
+                <FlowStat
+                  testId="cashflow-out"
+                  label={t('dashboard.legendOut')}
+                  value={`−${vnd(bars.reduce((sum, b) => sum + b.expense, 0))}`}
+                  dot="bg-rose-500"
+                  tone="text-expense"
+                />
+                {(() => {
+                  const net = bars.reduce((sum, b) => sum + b.income - b.expense, 0)
+                  return (
+                    <FlowStat
+                      testId="cashflow-net"
+                      label={t('transactions.net')}
+                      value={`${net >= 0 ? '+' : '−'}${vnd(Math.abs(net))}`}
+                      dot="bg-primary"
+                      tone={net >= 0 ? 'text-income' : 'text-expense'}
+                    />
+                  )
+                })()}
+              </div>
+            )}
+            <AreaChart
               className="h-64"
               data={bars.map((b) => ({
                 month: b.month,
@@ -255,7 +294,8 @@ export function DashboardPage() {
               colors={['emerald', 'rose']}
               valueFormatter={vnd}
               yAxisWidth={86}
-              barCategoryGap="30%"
+              fill="gradient"
+              showLegend={false}
             />
           </CardContent>
         </Card>
@@ -371,6 +411,21 @@ export function DashboardPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+/** Six-month total above the cashflow chart: coloured dot, label, bold amount. */
+function FlowStat({ testId, label, value, dot, tone }: { testId: string; label: string; value: string; dot: string; tone: string }) {
+  return (
+    <div className="grid gap-0.5 rounded-xl bg-muted/50 px-3 py-2">
+      <span className="flex items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+        <span className={cn('size-2 shrink-0 rounded-full', dot)} />
+        {label}
+      </span>
+      <span data-testid={testId} className={cn('truncate text-sm font-bold tabular-nums sm:text-base', tone)}>
+        {value}
+      </span>
     </div>
   )
 }

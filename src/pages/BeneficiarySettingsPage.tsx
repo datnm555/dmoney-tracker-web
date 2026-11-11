@@ -93,6 +93,7 @@ export function BeneficiarySettingsPage() {
       <SettingsHeader
         icon={Users}
         title={t('beneficiaries.title')}
+        description={t('beneficiaries.hint')}
         count={beneficiaries.length}
         action={
           <Button onClick={() => setCreating(true)}>
