@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Tags, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -13,8 +13,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -29,6 +27,7 @@ import { useCategories } from '../categories/CategoriesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { IconPicker } from '../components/IconPicker'
+import { SettingsBadge, SettingsEmpty, SettingsHeader, SettingsList, SettingsRow } from '../components/settings/SettingsKit'
 import { useI18n } from '../i18n/I18nContext'
 
 export function CategorySettingsPage() {
@@ -82,89 +81,79 @@ export function CategorySettingsPage() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold">{t('cat.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('cat.hint')}</p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditingId(null)
-            setName('')
-            setIcon(null)
-            setExcludeFromStats(false)
-            setOpen(true)
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          {t('cat.create')}
-        </Button>
-      </div>
+      <SettingsHeader
+        icon={Tags}
+        title={t('cat.title')}
+        description={t('cat.hint')}
+        count={options.length}
+        action={
+          <Button
+            onClick={() => {
+              setEditingId(null)
+              setName('')
+              setIcon(null)
+              setExcludeFromStats(false)
+              setOpen(true)
+            }}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            {t('cat.create')}
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('cat.title')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('cat.name')}</TableHead>
-                <TableHead className="w-32 text-right">{t('table.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {options.map((option) => {
-                const raw = customCategories.find((c) => c.id === option.code)
-                return (
-                  <TableRow key={option.code}>
-                    <TableCell>
-                      <div className="flex items-center gap-2.5">
-                        <CategoryIcon category={option.code} className="h-7 w-7 rounded-lg" />
-                        <span>{option.label}</span>
-                        {!option.isCustom && (
-                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                            {t('cat.system')}
-                          </span>
-                        )}
-                        {raw?.excludeFromStats && (
-                          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                            {t('summary.excludedBadge')}
-                          </span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <button
-                        type="button"
-                        aria-label={`${t('summary.edit')} ${option.label}`}
-                        className="rounded p-1.5 text-muted-foreground hover:bg-zinc-100 hover:text-foreground"
-                        onClick={() => {
-                          setEditingId(option.code)
-                          setName(option.label)
-                          setIcon(raw?.icon ?? null)
-                          setExcludeFromStats(raw?.excludeFromStats ?? false)
-                          setOpen(true)
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`${t('summary.delete')} ${option.label}`}
-                        className="ml-1 rounded p-1.5 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                        onClick={() => setDeleting({ id: option.code, label: option.label })}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {options.length === 0 ? (
+        <SettingsEmpty icon={Tags}>{t('cat.create')}</SettingsEmpty>
+      ) : (
+        <SettingsList>
+          {options.map((option) => {
+            const raw = customCategories.find((c) => c.id === option.code)
+            return (
+              <SettingsRow
+                key={option.code}
+                leading={<CategoryIcon category={option.code} className="h-9 w-9 rounded-xl shadow-sm" />}
+                title={<span className="truncate font-medium">{option.label}</span>}
+                badges={
+                  <>
+                    {!option.isCustom && <SettingsBadge>{t('cat.system')}</SettingsBadge>}
+                    {raw?.excludeFromStats && (
+                      <SettingsBadge tone="warning">{t('summary.excludedBadge')}</SettingsBadge>
+                    )}
+                  </>
+                }
+                actions={
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      aria-label={`${t('summary.edit')} ${option.label}`}
+                      onClick={() => {
+                        setEditingId(option.code)
+                        setName(option.label)
+                        setIcon(raw?.icon ?? null)
+                        setExcludeFromStats(raw?.excludeFromStats ?? false)
+                        setOpen(true)
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                      aria-label={`${t('summary.delete')} ${option.label}`}
+                      onClick={() => setDeleting({ id: option.code, label: option.label })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                }
+              />
+            )
+          })}
+        </SettingsList>
+      )}
 
       <AlertDialog open={deleting !== null} onOpenChange={(next) => !next && setDeleting(null)}>
         <AlertDialogContent>
@@ -198,8 +187,8 @@ export function CategorySettingsPage() {
               <Label>{t('cat.icon')}</Label>
               <IconPicker value={icon} onChange={setIcon} />
             </div>
-            <div className="grid gap-1">
-              <label className="flex items-center gap-2 text-sm">
+            <div className="grid gap-1 rounded-2xl border bg-muted/30 p-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
                 <Checkbox
                   checked={excludeFromStats}
                   onCheckedChange={(checked) => setExcludeFromStats(checked === true)}
