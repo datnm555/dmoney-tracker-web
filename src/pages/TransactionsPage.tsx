@@ -521,7 +521,7 @@ export function TransactionsPage() {
               const isIncome = tx.credit.amount > 0
               return (
                 <div key={tx.id} className="group transition-colors hover:bg-muted/40">
-                  <div className="flex items-center gap-3 px-4 py-3">
+                  <div className="relative flex items-center gap-3 px-4 py-3">
                   <CategoryIcon category={tx.categoryId} className="h-11 w-11 rounded-2xl" />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
@@ -574,7 +574,8 @@ export function TransactionsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
+                  {/* sm+: float over the row's right edge on hover so the amount sits flush right. */}
+                  <div className="flex shrink-0 items-center gap-0.5 transition-opacity sm:absolute sm:right-3 sm:top-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-card sm:p-0.5 sm:opacity-0 sm:shadow-md sm:ring-1 sm:ring-border sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
                     <Button
                       variant="ghost"
                       size="icon"

@@ -11,6 +11,12 @@ vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
 }))
 
+vi.mock('../api/subCategoryApi', () => ({
+  getSubCategories: vi.fn().mockResolvedValue([
+    { id: 'sub-sb', categoryId: 'cat-savings', name: 'Sổ tiết kiệm', isDefault: false, icon: null, code: 'savings_book', excludeFromStats: false },
+  ]),
+}))
+vi.mock('../api/transactionApi', () => ({ createTransaction: vi.fn() }))
 vi.mock('../api/savingsApi', () => ({
   getSavingsSummary: vi.fn(),
   setSavingsGoal: vi.fn().mockResolvedValue({ id: 'g-new' }),
@@ -242,6 +248,36 @@ describe('SavingsPage', () => {
     await userEvent.click(screen.getByRole('combobox', { name: 'savings.history' }))
     await userEvent.click(await screen.findByRole('option', { name: 'savings.filterAll' }))
     expect(screen.getAllByTestId(/^savings-row-/)).toHaveLength(5)
+  })
+
+  it('offers the deposit button once the savings-book sub-category is known', async () => {
+    renderPage()
+    expect(await screen.findByRole('button', { name: 'savings.deposit' })).toBeInTheDocument()
+  })
+
+  it('a goal with only a saved-before amount still shows its place, not the empty state', async () => {
+    renderPage({
+      ...summary,
+      totalBalance: vnd(4_000_000),
+      transactions: [],
+      accounts: [
+        {
+          savingsBank: 'Sam & Bắp',
+          balance: vnd(4_000_000),
+          totalDeposited: vnd(0),
+          totalWithdrawn: vnd(0),
+          transactionCount: 0,
+          goal: { id: 'g1', targetAmount: vnd(60_000_000), startPeriod: '2026-11', months: 15, initialAmount: vnd(4_000_000) },
+        },
+      ],
+    })
+
+    await screen.findByTestId('savings-plan')
+    expect(accountCard('Sam & Bắp')).toBeInTheDocument()
+    expect(screen.getByTestId('savings-goal')).toBeInTheDocument()
+    expect(screen.getByText('savings.noHistory')).toBeInTheDocument()
+    expect(screen.queryByText('savings.empty')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('savings-stat-deposited')).not.toBeInTheDocument()
   })
 
   it('shows the empty state when there are no savings transactions', async () => {
