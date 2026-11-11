@@ -146,6 +146,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const { banks } = useBanks()
   // The prefill effect must not rerun (and wipe form state) when the catalog
   // refreshes, so it reads the latest list through a ref instead of a dep.
+  const bankOrder = useMemo(() => banks.map((b) => b.name), [banks])
   const banksRef = useRef(banks)
   banksRef.current = banks
   // Prefill objects are usually re-created each render; the reset effect reads
@@ -797,6 +798,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                     chips={payWithChips}
                     selectedKey={payWithKey}
                     onPick={pickPayWith}
+                    bankOrder={bankOrder}
                   />
                 )}
                 <button

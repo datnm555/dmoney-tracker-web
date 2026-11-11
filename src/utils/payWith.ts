@@ -92,8 +92,14 @@ export interface PayWithGroup {
   chips: PayWithChip[]
 }
 
-/** Chips grouped under their bank (A→Z, keeping chip order inside), no-bank group last. */
-export function groupPayWithChips(chips: PayWithChip[]): PayWithGroup[] {
+/**
+ * Chips grouped under their bank, keeping chip order inside. Banks follow `bankOrder` (the user's
+ * display priority from Cài đặt → Ngân hàng, matched case-insensitively); banks missing from it
+ * come next A→Z, and the no-bank group (cash) is always last.
+ */
+export function groupPayWithChips(chips: PayWithChip[], bankOrder: string[] = []): PayWithGroup[] {
+  const norm = (name: string) => name.trim().toLowerCase()
+  const rank = new Map(bankOrder.map((name, i) => [norm(name), i]))
   const map = new Map<string | null, PayWithChip[]>()
   for (const chip of chips) {
     const bank = chip.fields.bank?.trim() || null
@@ -104,6 +110,8 @@ export function groupPayWithChips(chips: PayWithChip[]): PayWithGroup[] {
     .sort((x, y) => {
       if (x.bank === null) return y.bank === null ? 0 : 1
       if (y.bank === null) return -1
-      return x.bank.localeCompare(y.bank, 'vi')
+      const rx = rank.get(norm(x.bank)) ?? Infinity
+      const ry = rank.get(norm(y.bank)) ?? Infinity
+      return rx !== ry ? rx - ry : x.bank.localeCompare(y.bank, 'vi')
     })
 }

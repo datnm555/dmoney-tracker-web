@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Plus, Star, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { getApiErrorMessage } from '../api/client'
-import { deleteBank, setDefaultBank, updateBank } from '../api/bankApi'
+import { deleteBank, reorderBanks, setDefaultBank, updateBank } from '../api/bankApi'
 import type { BankResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { CreateBankDialog } from '../banks/CreateBankDialog'
@@ -49,6 +49,20 @@ export function BankSettingsPage() {
     }
   }
 
+  // Swap with the neighbour and send the whole list: the API takes the full order.
+  const move = async (index: number, delta: -1 | 1) => {
+    const ids = banks.map((b) => b.id)
+    const target = index + delta
+    if (target < 0 || target >= ids.length) return
+    ;[ids[index], ids[target]] = [ids[target], ids[index]]
+    try {
+      await reorderBanks(ids)
+      await refresh()
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, t('error.network')))
+    }
+  }
+
   const submitDelete = async () => {
     if (!deleting) return
     try {
@@ -70,10 +84,15 @@ export function BankSettingsPage() {
         </Button>
       </div>
 
+      <p className="-mt-2 text-xs text-muted-foreground">{t('banks.orderHint')}</p>
+
       <Card>
         <CardContent className="divide-y p-0">
-          {banks.map((bank) => (
+          {banks.map((bank, index) => (
             <div key={bank.id} className="flex items-center gap-3 px-4 py-3">
+              <span className="w-5 shrink-0 text-center text-xs font-semibold tabular-nums text-muted-foreground">
+                {index + 1}
+              </span>
               {editing?.id === bank.id ? (
                 <Input
                   value={editName}
@@ -101,6 +120,28 @@ export function BankSettingsPage() {
                   <Star className="h-4 w-4" />
                 </Button>
               )}
+              <div className="flex">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-7 text-muted-foreground hover:text-foreground"
+                  aria-label={`${t('banks.moveUp')} ${bank.name}`}
+                  disabled={index === 0}
+                  onClick={() => void move(index, -1)}
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-7 text-muted-foreground hover:text-foreground"
+                  aria-label={`${t('banks.moveDown')} ${bank.name}`}
+                  disabled={index === banks.length - 1}
+                  onClick={() => void move(index, 1)}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
