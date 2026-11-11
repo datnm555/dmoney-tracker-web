@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { MapPin, Pencil, Plus, Store, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -12,9 +12,15 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { getApiErrorMessage } from '../api/client'
+import {
+  SettingsEmpty,
+  SettingsHeader,
+  SettingsIconTile,
+  SettingsList,
+  SettingsRow,
+} from '../components/settings/SettingsKit'
 import { deletePurchasePlace, updatePurchasePlace } from '../api/purchasePlaceApi'
 import type { PurchasePlaceResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
@@ -54,54 +60,68 @@ export function PurchasePlaceSettingsPage() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{t('purchasePlaces.title')}</h1>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="mr-1 h-4 w-4" />
-          {t('purchasePlaces.create')}
-        </Button>
-      </div>
+      <SettingsHeader
+        icon={Store}
+        title={t('purchasePlaces.title')}
+        count={purchasePlaces.length}
+        action={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            {t('purchasePlaces.create')}
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardContent className="divide-y p-0">
+      {purchasePlaces.length === 0 ? (
+        <SettingsEmpty icon={Store}>{t('purchasePlaces.create')}</SettingsEmpty>
+      ) : (
+        <SettingsList>
           {purchasePlaces.map((purchasePlace) => (
-            <div key={purchasePlace.id} className="flex items-center gap-3 px-4 py-3">
-              {editing?.id === purchasePlace.id ? (
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void submitRename()}
-                  autoFocus
-                  className="max-w-xs"
-                />
-              ) : (
-                <span className="min-w-0 flex-1 truncate font-medium">{purchasePlace.name}</span>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                aria-label={`${t('purchasePlaces.rename')} ${purchasePlace.name}`}
-                onClick={() => {
-                  setEditing(purchasePlace)
-                  setEditName(purchasePlace.name)
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                aria-label={`${t('purchasePlaces.delete')} ${purchasePlace.name}`}
-                onClick={() => setDeleting(purchasePlace)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+            <SettingsRow
+              key={purchasePlace.id}
+              leading={<SettingsIconTile icon={MapPin} className="bg-sky-500/10 text-sky-600 dark:text-sky-400" />}
+              title={
+                editing?.id === purchasePlace.id ? (
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && void submitRename()}
+                    autoFocus
+                    className="h-8 max-w-xs"
+                  />
+                ) : (
+                  <span className="truncate font-medium">{purchasePlace.name}</span>
+                )
+              }
+              actions={
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                    aria-label={`${t('purchasePlaces.rename')} ${purchasePlace.name}`}
+                    onClick={() => {
+                      setEditing(purchasePlace)
+                      setEditName(purchasePlace.name)
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                    aria-label={`${t('purchasePlaces.delete')} ${purchasePlace.name}`}
+                    onClick={() => setDeleting(purchasePlace)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              }
+            />
           ))}
-        </CardContent>
-      </Card>
+        </SettingsList>
+      )}
 
       <CreatePurchasePlaceDialog
         open={creating}
