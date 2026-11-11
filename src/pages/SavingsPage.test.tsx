@@ -149,6 +149,21 @@ describe('SavingsPage', () => {
     expect(screen.getByTestId('savings-plan')).toHaveTextContent('Sổ chính')
   })
 
+  it('shows a net-deposit sparkline on places with transactions only', async () => {
+    renderPage({
+      ...summary,
+      accounts: [
+        ...summary.accounts,
+        { savingsBank: 'ACB', balance: vnd(0), totalDeposited: vnd(0), totalWithdrawn: vnd(0), transactionCount: 0, goal: null },
+      ],
+    })
+
+    await screen.findByTestId('savings-plan')
+    expect(within(screen.getByTestId('savings-account-Vietinbank')).getByTestId('savings-spark-Vietinbank')).toBeInTheDocument()
+    expect(screen.getByTestId('savings-spark-__unassigned__')).toBeInTheDocument()
+    expect(within(screen.getByTestId('savings-account-ACB')).queryByTestId('savings-spark-ACB')).not.toBeInTheDocument()
+  })
+
   it('renders stat tiles computed from the transactions', async () => {
     setToday('2026-10-11T09:00:00')
     renderPage()

@@ -18,7 +18,8 @@ import { RecordHistoryDialog } from '../recurring/RecordHistoryDialog'
 import { RecurringHero } from '../recurring/RecurringHero'
 import { RecurringManageDialog } from '../recurring/RecurringManageDialog'
 import { ScheduleCardRow, ScheduleItemRow } from '../recurring/ScheduleRow'
-import { cardDuesInMonth, scheduleTotals } from '../utils/recurring'
+import { formatMoney } from '../utils/money'
+import { cardDuesInMonth, dueStatus, scheduleStatus, scheduleTotals } from '../utils/recurring'
 import type { CardDue } from '../utils/recurring'
 import { toTransactionPayload } from '../utils/transactionPayload'
 
@@ -69,6 +70,24 @@ export function RecurringPage() {
       ].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
     [rows, cards],
   )
+
+  const trackerEntries = list.map((e) => {
+    if (e.row) {
+      const { item, record } = e.row
+      const amount = record
+        ? formatMoney(record.amount)
+        : item.isVariable && item.amount.amount === 0
+          ? t('recurring.enterAmount')
+          : formatMoney(item.amount)
+      return { key: e.key, status: scheduleStatus(e.row, today).status, tooltip: `${item.name} · ${amount}` }
+    }
+    const c = e.card!
+    return {
+      key: e.key,
+      status: dueStatus(c.paid, c.dueDate, today).status,
+      tooltip: `${c.account.name} · ${formatMoney({ amount: c.amount, currency: 'VND' })}`,
+    }
+  })
 
   const paidCount = list.filter((e) => (e.row ? !!e.row.record : e.card!.paid)).length
 
@@ -174,6 +193,7 @@ export function RecurringPage() {
         remaining={totals.remaining}
         paidCount={paidCount}
         count={list.length}
+        entries={trackerEntries}
       />
 
       {loaded && list.length === 0 && (

@@ -4,6 +4,7 @@ import type { DailyStat, GoldTransactionResponse, MonthlyStat, SavingsTransactio
 import {
   goldMonthly,
   savingsMonthly,
+  savingsPlaceNetMonthly,
   toBalanceLine,
   toCategorySpending,
   toDailyBars,
@@ -131,6 +132,51 @@ describe('savingsMonthly', () => {
       today,
     )
     expect(months.every((m) => m.deposited === 0 && m.withdrawn === 0)).toBe(true)
+  })
+
+  it('supports a shorter window', () => {
+    const months = savingsMonthly([], today, 6)
+    expect(months.map((m) => m.month)).toEqual(['05/2026', '06/2026', '07/2026', '08/2026', '09/2026', '10/2026'])
+  })
+})
+
+describe('savingsPlaceNetMonthly', () => {
+  const tx = (date: string, savingsBank: string | null, debit: number, credit: number): SavingsTransactionResponse => ({
+    transactionId: `${date}-${savingsBank}-${debit}-${credit}`,
+    date,
+    content: 'x',
+    savingsBank,
+    bank: null,
+    credit: vnd(credit),
+    debit: vnd(debit),
+    planId: 'p-1',
+    subCategoryName: null,
+    note: null,
+  })
+  const today = dayjs('2026-10-11')
+  const rows = [
+    tx('2026-10-05', 'VCB', 5_000_000, 0),
+    tx('2026-10-06', 'VCB', 0, 2_000_000),
+    tx('2026-08-01', 'VCB', 1_000_000, 0),
+    tx('2026-10-07', 'TCB', 9_000_000, 0),
+    tx('2026-09-01', null, 4_000_000, 0),
+    tx('2026-04-30', 'VCB', 7_000_000, 0),
+  ]
+
+  it('returns deposits minus withdrawals per month for one place over the last 6 months', () => {
+    expect(savingsPlaceNetMonthly(rows, 'VCB', today)).toEqual([
+      { month: '05/2026', net: 0 },
+      { month: '06/2026', net: 0 },
+      { month: '07/2026', net: 0 },
+      { month: '08/2026', net: 1_000_000 },
+      { month: '09/2026', net: 0 },
+      { month: '10/2026', net: 3_000_000 },
+    ])
+  })
+
+  it('treats null as the unassigned bucket and goes negative on net withdrawals', () => {
+    expect(savingsPlaceNetMonthly(rows, null, today).map((m) => m.net)).toEqual([0, 0, 0, 0, 4_000_000, 0])
+    expect(savingsPlaceNetMonthly([tx('2026-10-01', 'X', 0, 2)], 'X', today).at(-1)).toEqual({ month: '10/2026', net: -2 })
   })
 })
 

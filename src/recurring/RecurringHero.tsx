@@ -1,7 +1,24 @@
 import { CalendarClock, CircleCheck, Hourglass, type LucideIcon } from 'lucide-react'
 import { CategoryBar } from '../components/tremor/CategoryBar'
+import { Tracker } from '../components/tremor/Tracker'
 import { useI18n } from '../i18n/I18nContext'
 import { formatMoney } from '../utils/money'
+import type { ScheduleStatus } from '../utils/recurring'
+
+/** One block per item due this month, in due-date order. */
+export interface HeroTrackerEntry {
+  key: string
+  status: ScheduleStatus
+  /** Item name + amount (or "enter amount" for variable items without one). */
+  tooltip: string
+}
+
+const TRACKER_COLOR: Record<ScheduleStatus, string> = {
+  paid: 'bg-emerald-500',
+  overdue: 'bg-rose-500',
+  dueSoon: 'bg-amber-400',
+  upcoming: 'bg-slate-500/70',
+}
 
 interface Props {
   month: string
@@ -12,12 +29,13 @@ interface Props {
   /** Items (incl. card statements) settled / listed this month. */
   paidCount: number
   count: number
+  entries: HeroTrackerEntry[]
 }
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 
 /** Month headline on a dark gradient: what is due, the paid share as a bar, paid / remaining glass tiles. */
-export function RecurringHero({ month, onMonthChange, total, paid, remaining, paidCount, count }: Props) {
+export function RecurringHero({ month, onMonthChange, total, paid, remaining, paidCount, count, entries }: Props) {
   const { t } = useI18n()
   const paidPct = total > 0 ? Math.round((paid / total) * 100) : 0
   return (
@@ -56,6 +74,14 @@ export function RecurringHero({ month, onMonthChange, total, paid, remaining, pa
             colors={total > 0 ? ['emerald', 'rose'] : ['gray']}
             showLabels={false}
           />
+          {entries.length > 0 && (
+            <Tracker
+              data-testid="hero-tracker"
+              className="h-6"
+              hoverEffect
+              data={entries.map((e) => ({ key: e.key, color: TRACKER_COLOR[e.status], tooltip: e.tooltip }))}
+            />
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">

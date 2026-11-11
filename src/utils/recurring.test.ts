@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountResponse, AccountType, RecurringScheduleItemResponse } from '../api/types'
-import { cardDuesInMonth, scheduleStatus, scheduleTotals } from './recurring'
+import { cardDuesInMonth, dueStatus, scheduleStatus, scheduleTotals } from './recurring'
 
 const money = (amount: number) => ({ amount, currency: 'VND' })
 
@@ -112,5 +112,15 @@ describe('scheduleTotals', () => {
       '2026-11',
     )
     expect(scheduleTotals(rows, cards)).toEqual({ total: 1120, paid: 420, remaining: 700 })
+  })
+})
+
+describe('dueStatus', () => {
+  it('classifies paid, overdue, due soon (≤3 days) and upcoming', () => {
+    expect(dueStatus(true, '2026-11-01', '2026-11-10')).toEqual({ status: 'paid', daysLeft: -9 })
+    expect(dueStatus(false, '2026-11-09', '2026-11-10')).toEqual({ status: 'overdue', daysLeft: -1 })
+    expect(dueStatus(false, '2026-11-10', '2026-11-10')).toEqual({ status: 'dueSoon', daysLeft: 0 })
+    expect(dueStatus(false, '2026-11-13', '2026-11-10')).toEqual({ status: 'dueSoon', daysLeft: 3 })
+    expect(dueStatus(false, '2026-11-14', '2026-11-10')).toEqual({ status: 'upcoming', daysLeft: 4 })
   })
 })
