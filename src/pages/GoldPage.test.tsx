@@ -91,28 +91,25 @@ describe('GoldPage', () => {
     expect(screen.getByText('gold.byType')).toBeInTheDocument()
 
     // Money strings carry a non-breaking space, so compare textContent of the
-    // stat-card value nodes directly (same approach as the acq value test).
+    // stat tiles directly (same approach as the acq value test).
     const money = (amount: number) => formatMoney({ amount, currency: 'VND' })
-    const values = Array.from(document.querySelectorAll('div.text-2xl')).map((el) => el.textContent)
+    const value = (id: string) => screen.getByTestId(`${id}-value`).textContent
     // Buying gold is saving, so the spent total shows unsigned under the savings label.
-    expect(values).toContain(money(31_000_000)) // total saved
-    expect(values).not.toContain(`−${money(31_000_000)}`)
+    expect(value('gold-stat-saved')).toBe(money(31_000_000))
     expect(screen.getByText('gold.totalSaved')).toBeInTheDocument()
-    expect(values).toContain(`+${money(12_000_000)}`) // total received
-    expect(values).toContain(money(31_000_000 / 3)) // weighted avg cost per chỉ
+    expect(value('gold-stat-received')).toBe(`+${money(12_000_000)}`)
+    expect(value('gold-stat-avg')).toBe(money(31_000_000 / 3)) // weighted avg cost per chỉ
+    expect(screen.getByTestId('gold-held-total')).toHaveTextContent('2')
 
-    // The held-card breakdown lists type names only — no quantity appended.
-    expect(screen.getByText('Nhẫn trơn', { selector: 'p' })).toBeInTheDocument()
+    // The held chips list type names only — no quantity appended.
+    expect(screen.getAllByTestId('gold-held-type').map((el) => el.textContent)).toEqual(['Nhẫn trơn'])
   })
 
   it('renders a type card with the name and held quantity', async () => {
     render(<GoldPage />)
-    // The same gold-type name also appears in the history table's type column,
-    // so scope to the card's name element to avoid an ambiguous match.
-    expect(await screen.findByText('Nhẫn trơn', { selector: 'div.font-semibold' })).toBeInTheDocument()
-    // The buy row added below also has a gold quantity of 2, so scope to the
-    // card's held-quantity element to avoid an ambiguous match.
-    expect(screen.getByText('2 gold.unit', { selector: 'div.text-2xl' })).toBeInTheDocument()
+    // The gold-type name and quantity also appear in history rows, so scope to the card.
+    expect(await screen.findByTestId('gold-type-name')).toHaveTextContent('Nhẫn trơn')
+    expect(screen.getByTestId('gold-type-held')).toHaveTextContent('2gold.unit')
   })
 
   it('renders a history row with the sell badge', async () => {
@@ -136,23 +133,22 @@ describe('GoldPage', () => {
     // Intl.NumberFormat renders a non-breaking space between the amount and the
     // currency symbol; RTL's getByText normalizer collapses that in the DOM
     // text but not in a raw string matcher, so compare textContent directly.
-    const valueCell = document.querySelector('td.text-right.text-muted-foreground')
-    expect(valueCell?.textContent).toBe(formatMoney({ amount: 16_500_000, currency: 'VND' }))
+    const amounts = screen.getAllByTestId('gold-history-amount').map((el) => el.textContent)
+    expect(amounts).toContain(formatMoney({ amount: 16_500_000, currency: 'VND' }))
   })
 
-  it('shows the purchase place in its own column on both row kinds', async () => {
+  it('shows the purchase place separately from the gold type on both row kinds', async () => {
     render(<GoldPage />)
     await screen.findByText('Bán 1 chỉ')
     await screen.findByText('goldAcq.badge')
 
-    expect(screen.getByRole('columnheader', { name: 'form.purchasePlace' })).toBeInTheDocument()
-    // tx-1 (sell) and acq-1 (acquisition) each carry the place in a dedicated cell.
-    expect(screen.getAllByText('SJC', { selector: 'td' })).toHaveLength(2)
-    // The gold-type cells stay plain — no inline " · SJC" remnant anywhere.
-    const typeCells = screen.getAllByText('Nhẫn trơn', { selector: 'td' })
-    expect(typeCells).toHaveLength(3)
-    for (const cell of typeCells) {
-      expect(cell.textContent).toBe('Nhẫn trơn')
+    // tx-1 (sell) and acq-1 (acquisition) each carry the place in its own element.
+    expect(screen.getAllByTestId('gold-history-place').map((el) => el.textContent)).toEqual(['SJC', 'SJC'])
+    // The gold-type elements stay plain — no inline " · SJC" remnant anywhere.
+    const types = screen.getAllByTestId('gold-history-type')
+    expect(types).toHaveLength(3)
+    for (const el of types) {
+      expect(el.textContent).toBe('Nhẫn trơn')
     }
   })
 
