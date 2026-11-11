@@ -205,10 +205,18 @@ export function AccountsPage() {
     }
   }
 
-  const groups: { key: string; title: string; items: AccountResponse[]; byBank: boolean; debt: boolean }[] = [
+  const groups: {
+    key: string
+    title: string
+    icon: LucideIcon
+    items: AccountResponse[]
+    byBank: boolean
+    debt: boolean
+  }[] = [
     {
       key: 'money',
       title: t('accounts.groupMoney'),
+      icon: Wallet,
       items: accounts.filter((a) => ['checking', 'ewallet', 'cash'].includes(a.type)),
       byBank: true,
       debt: false,
@@ -216,13 +224,15 @@ export function AccountsPage() {
     {
       key: 'overdraft',
       title: t('accounts.groupOverdraft'),
+      icon: Landmark,
       items: accounts.filter((a) => a.type === 'overdraft'),
-      byBank: false,
+      byBank: true,
       debt: true,
     },
     {
       key: 'credit',
       title: t('accounts.groupCredit'),
+      icon: CreditCard,
       items: accounts.filter((a) => a.type === 'credit_card'),
       byBank: true,
       debt: true,
@@ -331,8 +341,29 @@ export function AccountsPage() {
       )}
 
       {groups.map((g) => (
-        <section key={g.key} className="grid gap-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">{g.title}</h2>
+        <section
+          key={g.key}
+          data-testid={`group-${g.key}`}
+          className="grid gap-3 rounded-xl border bg-muted/30 p-3 sm:p-4"
+        >
+          {/* Parent level: account type (payment accounts / overdraft / credit cards) with its total. */}
+          <div className="flex items-center gap-3 border-b pb-3">
+            <span
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+                g.debt ? 'bg-expense/10 text-expense' : 'bg-income/10 text-income',
+              )}
+            >
+              <g.icon className="h-5 w-5" />
+            </span>
+            <h2 className="min-w-0 flex-1 truncate text-lg font-bold">{g.title}</h2>
+            <span
+              data-testid="group-total"
+              className={cn('text-lg font-bold tabular-nums', g.debt ? 'text-expense' : 'text-income')}
+            >
+              {vnd(g.items.reduce((s, a) => s + (a.latestSnapshot?.balance.amount ?? 0), 0))}
+            </span>
+          </div>
           {g.byBank ? (
             groupByBank(g.items).map((bg) => (
               <div key={bg.bankName ?? ''} data-testid={`bank-section-${g.key}-${bg.bankName ?? 'none'}`} className="grid gap-2">

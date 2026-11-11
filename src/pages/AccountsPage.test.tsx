@@ -355,7 +355,7 @@ describe('AccountsPage', () => {
       expect(money[2].header).toContain(fmt(50_000_000))
     })
 
-    it('splits the credit-card group per bank with debt-styled subtotals; overdraft stays flat', async () => {
+    it('splits the credit-card and overdraft groups per bank with debt-styled subtotals', async () => {
       renderPage(grouped)
       await screen.findByText('Thẻ A')
       const cards = sections('credit')
@@ -364,8 +364,21 @@ describe('AccountsPage', () => {
       expect(cards[1].header).toContain(fmt(1_000_000))
       expect(within(screen.getByTestId('bank-section-credit-VPBank')).getByTestId('bank-total')).toHaveClass('text-expense')
       expect(within(screen.getByTestId('bank-section-money-VPBank')).getByTestId('bank-total')).not.toHaveClass('text-expense')
-      expect(sections('overdraft')).toHaveLength(0)
+      expect(sections('overdraft').map((s) => s.id)).toEqual(['bank-section-overdraft-VPBank'])
       expect(screen.getByText('Thấu chi')).toBeInTheDocument()
+    })
+
+    it('wraps each account type in a parent section with its title and total', async () => {
+      renderPage(grouped)
+      await screen.findByText('Thẻ A')
+      const credit = screen.getByTestId('group-credit')
+      expect(within(credit).getByRole('heading', { name: 'accounts.groupCredit' })).toBeInTheDocument()
+      expect(within(credit).getByTestId('group-total')).toHaveTextContent(fmt(7_000_000).trim())
+      expect(within(credit).getByTestId('group-total')).toHaveClass('text-expense')
+      expect(within(screen.getByTestId('group-money')).getByTestId('group-total')).toHaveClass('text-income')
+      // Bank sections live inside their type's parent section.
+      expect(within(credit).getByTestId('bank-section-credit-VPBank')).toBeInTheDocument()
+      expect(within(credit).queryByTestId('bank-section-money-VPBank')).toBeNull()
     })
 
     it('sends bankName when a bank chip is picked in the account dialog', async () => {
