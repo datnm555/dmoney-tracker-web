@@ -29,6 +29,7 @@ function acc(
     dueDay: null,
     interestRatePercent: null,
     bankName: null,
+    isDefault: false,
     latestSnapshot:
       balance === null
         ? null

@@ -19,6 +19,14 @@ export async function deleteAccount(id: string): Promise<void> {
   await apiClient.delete(`/accounts/${id}`)
 }
 
+export async function setDefaultAccount(id: string): Promise<void> {
+  await apiClient.put(`/accounts/${id}/default`)
+}
+
+export async function clearDefaultAccount(id: string): Promise<void> {
+  await apiClient.delete(`/accounts/${id}/default`)
+}
+
 export async function getSnapshots(accountId: string): Promise<AccountSnapshotResponse[]> {
   const { data } = await apiClient.get<AccountSnapshotResponse[]>(`/accounts/${accountId}/snapshots`)
   return data

@@ -3,12 +3,14 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
 import {
+  clearDefaultAccount,
   createAccount,
   createSnapshot,
   deleteSnapshot,
   getAccounts,
   getSnapshots,
   payStatement,
+  setDefaultAccount,
   updateAccount,
   updateSnapshot,
 } from '../api/accountApi'
@@ -61,6 +63,8 @@ vi.mock('../api/accountApi', () => ({
   createAccount: vi.fn(),
   updateAccount: vi.fn(),
   deleteAccount: vi.fn(),
+  setDefaultAccount: vi.fn().mockResolvedValue(undefined),
+  clearDefaultAccount: vi.fn().mockResolvedValue(undefined),
   getSnapshots: vi.fn().mockResolvedValue([]),
   createSnapshot: vi.fn().mockResolvedValue({ id: 's-new' }),
   updateSnapshot: vi.fn().mockResolvedValue(undefined),
@@ -79,6 +83,7 @@ const base = {
   interestRatePercent: null,
   latestSnapshot: null,
   bankName: null,
+  isDefault: false,
 }
 
 const snap = (over: Partial<NonNullable<AccountResponse['latestSnapshot']>>) => ({
@@ -149,6 +154,18 @@ describe('AccountsPage', () => {
     expect(norm(screen.getByTestId('tile-cash').textContent)).toContain(fmt(10_000_000))
     expect(norm(screen.getByTestId('tile-debt').textContent)).toContain(fmt(120_000_000))
     expect(norm(screen.getByTestId('tile-available').textContent)).toContain(fmt(180_000_000))
+  })
+
+  it('the star sets an account as the pay-with default, and clears it when already default', async () => {
+    renderPage([{ ...accounts[0], isDefault: true }, ...accounts.slice(1)])
+    const card = within(await screen.findByTestId('account-a-check'))
+    expect(card.getByText('accounts.default')).toBeInTheDocument()
+    await userEvent.click(card.getByRole('button', { name: 'accounts.clearDefault Techcombank' }))
+    expect(clearDefaultAccount).toHaveBeenCalledWith('a-check')
+
+    await userEvent.click(screen.getByRole('button', { name: 'accounts.setDefault Tiền mặt ví' }))
+    expect(setDefaultAccount).toHaveBeenCalledWith('a-empty')
+    expect(getAccounts).toHaveBeenCalledTimes(3) // reloads after each change
   })
 
   it('shows noSnapshot for an account without a snapshot', async () => {
