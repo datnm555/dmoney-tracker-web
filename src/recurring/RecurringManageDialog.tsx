@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { CalendarClock, CirclePause, Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -68,12 +68,12 @@ export function RecurringManageDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('recurring.manage')}</DialogTitle>
           </DialogHeader>
           <Button
-            className="justify-self-start"
+            className="justify-self-start rounded-full"
             onClick={() => {
               setEditing(null)
               setFormOpen(true)
@@ -83,36 +83,75 @@ export function RecurringManageDialog({
             {t('recurring.add')}
           </Button>
           <div className="grid gap-2">
-            {items.length === 0 && <p className="text-sm text-muted-foreground">{t('recurring.empty')}</p>}
+            {items.length === 0 && (
+              <div className="grid justify-items-center gap-2 rounded-xl border border-dashed py-8 text-sm text-muted-foreground">
+                <Repeat className="size-7 text-muted-foreground/40" aria-hidden />
+                <p>{t('recurring.empty')}</p>
+              </div>
+            )}
             {items.map((i) => (
               <div
                 key={i.id}
                 data-testid={`manage-${i.id}`}
-                className={cn('flex items-center gap-2 rounded-md border px-3 py-2 text-sm', !i.isActive && 'opacity-50')}
+                className={cn(
+                  'flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-sm transition-colors hover:bg-muted/40',
+                  !i.isActive && 'border-dashed bg-muted/30',
+                )}
               >
-                <CategoryIcon category={i.categoryId} />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{i.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {t('recurring.dayOfMonth')}: {i.dayOfMonth}
-                    {' · '}
-                    {i.isVariable && i.amount.amount === 0 ? t('recurring.enterAmount') : formatMoney(i.amount)}
+                <CategoryIcon
+                  category={i.categoryId}
+                  className={cn('h-10 w-10 rounded-xl [&_svg]:h-5 [&_svg]:w-5', !i.isActive && 'opacity-50 grayscale')}
+                />
+                <div className="grid min-w-0 flex-1 gap-1">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    {i.isActive ? (
+                      <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    ) : (
+                      <CirclePause aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className={cn('truncate font-semibold', !i.isActive && 'text-muted-foreground line-through')}>
+                      {i.name}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 font-medium text-muted-foreground ring-1 ring-inset ring-border tabular-nums">
+                      <CalendarClock className="size-3 shrink-0" aria-hidden />
+                      {t('recurring.dayOfMonth')}: {i.dayOfMonth}
+                    </span>
                   </div>
                 </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  aria-label={t('recurring.edit')}
-                  onClick={() => {
-                    setEditing(i)
-                    setFormOpen(true)
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button size="icon" variant="ghost" aria-label={t('summary.delete')} onClick={() => setDeleting(i)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="shrink-0 text-right">
+                  {i.isVariable && i.amount.amount === 0 ? (
+                    <span className="text-xs font-medium italic text-muted-foreground">{t('recurring.enterAmount')}</span>
+                  ) : (
+                    <span className={cn('font-bold tabular-nums', !i.isActive && 'text-muted-foreground')}>
+                      {formatMoney(i.amount)}
+                    </span>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-0.5">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                    aria-label={t('recurring.edit')}
+                    onClick={() => {
+                      setEditing(i)
+                      setFormOpen(true)
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 rounded-lg text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                    aria-label={t('summary.delete')}
+                    onClick={() => setDeleting(i)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

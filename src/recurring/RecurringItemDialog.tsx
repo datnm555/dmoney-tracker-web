@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
+import { Banknote, CalendarClock, CircleCheck, CreditCard, Landmark, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogSectionLabel,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
-import { MoneyInput } from '../accounts/MoneyInput'
 import { digitsToNumber, toDigits } from '../accounts/moneyDigits'
 import { getApiErrorMessage } from '../api/client'
 import { createRecurringPayment, updateRecurringPayment } from '../api/recurringPaymentApi'
@@ -14,9 +21,17 @@ import type { RecurringPaymentInput, RecurringPaymentResponse, SubCategoryRespon
 import { useBanks } from '../banks/BanksContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { useI18n } from '../i18n/I18nContext'
-import { PAYMENT_METHOD_CODES } from '../utils/paymentMethods'
+import { PAYMENT_METHOD_CODES, type PaymentMethodCode } from '../utils/paymentMethods'
+import { AmountHero } from './AmountHero'
 
-const selectClass = 'h-9 rounded-md border border-input bg-transparent px-3 text-sm'
+const SECTION_LABEL = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+const FIELD = 'h-11 rounded-xl'
+
+const PAYMENT_ICONS: Record<PaymentMethodCode, LucideIcon> = {
+  transfer: Landmark,
+  cash: Banknote,
+  card: CreditCard,
+}
 
 export function RecurringItemDialog({
   open,
@@ -105,131 +120,231 @@ export function RecurringItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{editing ? t('recurring.edit') : t('recurring.add')}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-3">
-          <div className="grid gap-1.5">
-            <Label htmlFor="rec-name">{t('recurring.name')}</Label>
-            <Input id="rec-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        <div className="grid gap-5">
+          <AmountHero id="rec-amount" label={t('recurring.amount')} digits={digits} onChange={setDigits}>
+            <label className="mx-auto mt-1 inline-flex cursor-pointer items-center gap-2 rounded-full bg-background px-3 py-1 text-xs font-medium text-muted-foreground ring-1 ring-border has-[:checked]:text-primary has-[:checked]:ring-primary/40">
+              <input
+                type="checkbox"
+                className="size-3.5 accent-primary"
+                checked={isVariable}
+                onChange={(e) => setIsVariable(e.target.checked)}
+              />
+              {t('recurring.isVariable')}
+            </label>
+          </AmountHero>
+
+          <div className="grid gap-2">
+            <Label htmlFor="rec-name" className={SECTION_LABEL}>
+              {t('recurring.name')}
+            </Label>
+            <Input id="rec-name" className={FIELD} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="rec-category">{t('form.category')}</Label>
-            <select
-              id="rec-category"
-              className={selectClass}
-              value={categoryId}
-              onChange={(e) => {
-                setCategoryId(e.target.value)
-                setSubCategoryId('')
-              }}
-            >
-              <option value="" />
+
+          <div className="grid gap-2">
+            <DialogSectionLabel id="rec-category-label">{t('form.category')}</DialogSectionLabel>
+            <div id="rec-category" role="radiogroup" aria-labelledby="rec-category-label" className="grid grid-cols-4 gap-2">
               {categoryOptions
                 .filter((c) => c.kind !== 'income')
-                .map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.label}
-                  </option>
-                ))}
-            </select>
-          </div>
-          {categoryId && (
-            <div className="grid gap-1.5">
-              <Label htmlFor="rec-sub">{t('form.subCategory')}</Label>
-              <select
-                id="rec-sub"
-                className={selectClass}
-                value={subCategoryId}
-                onChange={(e) => setSubCategoryId(e.target.value)}
-              >
-                <option value="" />
-                {subs
-                  .filter((s) => s.categoryId === categoryId)
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-              </select>
+                .map((c) => {
+                  const selected = categoryId === c.code
+                  return (
+                    <button
+                      key={c.code}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => {
+                        setCategoryId(selected ? '' : c.code)
+                        setSubCategoryId('')
+                      }}
+                      className={cn(
+                        'relative flex flex-col items-center gap-1.5 rounded-xl px-1 pb-2 pt-2.5 text-[11px] leading-tight transition-colors',
+                        selected
+                          ? 'bg-primary/10 font-semibold text-primary ring-2 ring-primary'
+                          : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground',
+                      )}
+                    >
+                      {selected && (
+                        <CircleCheck className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-background fill-primary text-primary-foreground" />
+                      )}
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          'flex h-8 w-8 items-center justify-center rounded-lg bg-background shadow-xs',
+                          selected && 'bg-primary/15 shadow-none',
+                        )}
+                      >
+                        <c.visual.icon className={cn('h-4 w-4', selected ? 'text-primary' : c.visual.iconClass)} />
+                      </span>
+                      <span className="line-clamp-2 max-w-full break-words text-center">{c.label}</span>
+                    </button>
+                  )
+                })}
             </div>
-          )}
-          {isSavings && (
-            <div className="grid gap-1.5">
-              <Label htmlFor="rec-savings-bank">{t('form.savingsBank')}</Label>
-              <Input id="rec-savings-bank" value={savingsBank} onChange={(e) => setSavingsBank(e.target.value)} />
+            {categoryId && (
+              <div className="grid gap-1.5">
+                <span id="rec-sub-label" className="text-xs font-medium text-muted-foreground">
+                  {t('form.subCategory')}
+                </span>
+                <div id="rec-sub" role="radiogroup" aria-labelledby="rec-sub-label" className="flex flex-wrap gap-1.5">
+                  {subs
+                    .filter((s) => s.categoryId === categoryId)
+                    .map((s) => {
+                      const selected = subCategoryId === s.id
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setSubCategoryId(selected ? '' : s.id)}
+                          className={cn(
+                            'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                            selected
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'text-muted-foreground hover:border-zinc-300 hover:text-foreground',
+                          )}
+                        >
+                          {s.name}
+                        </button>
+                      )
+                    })}
+                </div>
+              </div>
+            )}
+            {isSavings && (
+              <div className="grid gap-2 rounded-xl bg-muted/50 p-3">
+                <Label htmlFor="rec-savings-bank" className={SECTION_LABEL}>
+                  {t('form.savingsBank')}
+                </Label>
+                <Input
+                  id="rec-savings-bank"
+                  className={cn(FIELD, 'bg-background')}
+                  value={savingsBank}
+                  onChange={(e) => setSavingsBank(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <Label htmlFor="rec-day" className={SECTION_LABEL}>
+                {t('recurring.dayOfMonth')}
+              </Label>
+              <div className="relative">
+                <CalendarClock
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-muted-foreground"
+                />
+                <Input
+                  id="rec-day"
+                  inputMode="numeric"
+                  placeholder="1–31"
+                  className={cn(FIELD, 'pl-9 font-semibold tabular-nums')}
+                  value={day}
+                  onChange={(e) => setDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                />
+              </div>
             </div>
-          )}
-          <MoneyInput id="rec-amount" label={t('recurring.amount')} digits={digits} onChange={setDigits} />
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isVariable} onChange={(e) => setIsVariable(e.target.checked)} />
-            {t('recurring.isVariable')}
-          </label>
-          <div className="grid gap-1.5">
-            <Label htmlFor="rec-day">{t('recurring.dayOfMonth')}</Label>
-            <Input
-              id="rec-day"
-              inputMode="numeric"
-              value={day}
-              onChange={(e) => setDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
-            />
+            <div className="grid gap-2">
+              <Label htmlFor="rec-start" className={SECTION_LABEL}>
+                {t('recurring.startPeriod')}
+              </Label>
+              <Input
+                id="rec-start"
+                type="month"
+                className={FIELD}
+                value={startPeriod}
+                onChange={(e) => setStartPeriod(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="rec-pm">{t('payment.method')}</Label>
-            <select
-              id="rec-pm"
-              className={selectClass}
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-            >
-              <option value="" />
-              {PAYMENT_METHOD_CODES.map((code) => (
-                <option key={code} value={code}>
-                  {t(`payment.${code}`)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div role="group" aria-label={t('accounts.bank')} className="grid gap-1.5">
-            <Label>{t('accounts.bank')}</Label>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => setBank(null)}
-                className={cn(
-                  'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
-                  bank === null && 'border-primary text-primary ring-1 ring-primary/30',
-                )}
-              >
-                {t('accounts.noBank')}
-              </button>
-              {banks.map((b) => (
+
+          <div className="grid gap-2">
+            <DialogSectionLabel id="rec-pm-label">{t('payment.method')}</DialogSectionLabel>
+            <div id="rec-pm" role="radiogroup" aria-labelledby="rec-pm-label" className="grid grid-cols-3 gap-2">
+              {PAYMENT_METHOD_CODES.map((code) => {
+                const Icon = PAYMENT_ICONS[code]
+                const selected = paymentMethod === code
+                return (
+                  <button
+                    key={code}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setPaymentMethod(selected ? '' : code)}
+                    className={cn(
+                      'relative flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-sm transition-colors',
+                      selected
+                        ? 'bg-primary/10 text-primary ring-2 ring-primary'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted',
+                    )}
+                  >
+                    {selected && (
+                      <CircleCheck className="absolute -right-1.5 -top-1.5 h-4 w-4 rounded-full bg-background fill-primary text-primary-foreground" />
+                    )}
+                    <Icon className="h-4 w-4" aria-hidden />
+                    {t(`payment.${code}`)}
+                  </button>
+                )
+              })}
+            </div>
+            <div role="group" aria-label={t('accounts.bank')} className="grid gap-1.5 rounded-xl bg-muted/50 p-3">
+              <Label className="text-xs font-medium text-muted-foreground">{t('accounts.bank')}</Label>
+              <div className="flex flex-wrap gap-1.5">
                 <button
-                  key={b.id}
                   type="button"
-                  onClick={() => setBank(b.name)}
+                  onClick={() => setBank(null)}
                   className={cn(
-                    'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
-                    bank === b.name && 'border-primary text-primary ring-1 ring-primary/30',
+                    'rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground transition-colors',
+                    bank === null && 'border-primary bg-primary/10 text-primary',
                   )}
                 >
-                  {b.name}
+                  {t('accounts.noBank')}
                 </button>
-              ))}
+                {banks.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setBank(b.name)}
+                    className={cn(
+                      'rounded-full border bg-background px-3 py-1 text-xs font-medium transition-colors hover:border-zinc-300',
+                      bank === b.name && 'border-primary bg-primary/10 text-primary',
+                    )}
+                  >
+                    {b.name}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="rec-note">{t('form.note')}</Label>
-            <Input id="rec-note" value={note} onChange={(e) => setNote(e.target.value)} />
+
+          <div className="grid gap-2">
+            <Label htmlFor="rec-note" className={SECTION_LABEL}>
+              {t('form.note')}
+            </Label>
+            <Input id="rec-note" className={FIELD} value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
-          <div className="grid gap-1.5">
-            <Label htmlFor="rec-start">{t('recurring.startPeriod')}</Label>
-            <Input id="rec-start" type="month" value={startPeriod} onChange={(e) => setStartPeriod(e.target.value)} />
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-            {t('recurring.isActive')}
+
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border bg-card px-3 py-2.5 text-sm font-medium has-[:checked]:border-emerald-500/30 has-[:checked]:bg-emerald-500/5">
+            <span className="inline-flex items-center gap-2">
+              <span
+                aria-hidden
+                className={cn('size-2 rounded-full', isActive ? 'bg-emerald-500' : 'bg-muted-foreground/40')}
+              />
+              {t('recurring.isActive')}
+            </span>
+            <input
+              type="checkbox"
+              className="size-4 accent-emerald-600"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+            />
           </label>
         </div>
         <DialogFooter>

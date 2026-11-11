@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
+import { CalendarCheck, CircleCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { MoneyInput } from '../accounts/MoneyInput'
 import { digitsToNumber, toDigits } from '../accounts/moneyDigits'
 import { getApiErrorMessage } from '../api/client'
 import { createRecord } from '../api/recurringPaymentApi'
 import type { RecurringPaymentResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
+import { AmountHero } from './AmountHero'
 
 /** Records a payment without creating a transaction (amount + date only). */
 export function MarkPaidDialog({
@@ -57,15 +58,34 @@ export function MarkPaidDialog({
     <Dialog open={item !== null} onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {t('recurring.markPaid')}: {item?.name}
+          <DialogTitle className="flex min-w-0 items-center gap-2.5">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+              <CircleCheck className="size-4" aria-hidden />
+            </span>
+            <span className="min-w-0 truncate">
+              {t('recurring.markPaid')}: {item?.name}
+            </span>
           </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-3">
-          <MoneyInput id="rec-paid-amount" label={t('recurring.amount')} digits={digits} onChange={setDigits} />
-          <div className="grid gap-1.5">
-            <Label htmlFor="rec-paid-date">{t('recurring.paidOn')}</Label>
-            <Input id="rec-paid-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <div className="grid gap-5">
+          <AmountHero id="rec-paid-amount" label={t('recurring.amount')} digits={digits} onChange={setDigits} tone="paid" />
+          <div className="grid gap-2">
+            <Label htmlFor="rec-paid-date" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('recurring.paidOn')}
+            </Label>
+            <div className="relative">
+              <CalendarCheck
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-3 my-auto size-4 text-muted-foreground"
+              />
+              <Input
+                id="rec-paid-date"
+                type="date"
+                className="h-11 rounded-xl pl-9"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
           </div>
         </div>
         <DialogFooter>
