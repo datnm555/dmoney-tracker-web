@@ -165,7 +165,10 @@ describe('RecurringPage', () => {
     const over = screen.getByTestId('row-i-over')
     expect(over.textContent).toContain('accounts.overdue 5 accounts.days')
     expect(over.textContent).toContain('recurring.enterAmount')
-    expect(over.textContent).toContain('05/11')
+    // Due date sits in the row's date tile: day number over month/year.
+    const overDate = over.querySelector('time')!
+    expect(overDate.getAttribute('datetime')).toBe('2026-11-05')
+    expect(overDate.textContent).toBe('0511/2026')
 
     expect(screen.getByTestId('row-i-soon').textContent).toContain('accounts.left 2 accounts.days')
     const up = screen.getByTestId('row-i-up')

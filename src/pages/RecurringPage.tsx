@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dayjs from 'dayjs'
-import { Settings2 } from 'lucide-react'
+import { CalendarCheck2, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 import { getAccounts, payStatement } from '../api/accountApi'
 import { getApiErrorMessage } from '../api/client'
 import { createRecord, deleteRecord, getSchedule } from '../api/recurringPaymentApi'
@@ -18,25 +15,12 @@ import { usePlans } from '../plans/PlanContext'
 import { PayStatementDialog } from '../accounts/PayStatementDialog'
 import { MarkPaidDialog } from '../recurring/MarkPaidDialog'
 import { RecordHistoryDialog } from '../recurring/RecordHistoryDialog'
+import { RecurringHero } from '../recurring/RecurringHero'
 import { RecurringManageDialog } from '../recurring/RecurringManageDialog'
 import { ScheduleCardRow, ScheduleItemRow } from '../recurring/ScheduleRow'
-import { formatMoney } from '../utils/money'
 import { cardDuesInMonth, scheduleTotals } from '../utils/recurring'
 import type { CardDue } from '../utils/recurring'
 import { toTransactionPayload } from '../utils/transactionPayload'
-
-const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
-
-function Tile({ testId, label, value, valueClass }: { testId: string; label: string; value: string; valueClass?: string }) {
-  return (
-    <Card data-testid={testId}>
-      <CardContent className="grid gap-1 p-3 sm:p-4">
-        <span className="truncate text-xs text-muted-foreground">{label}</span>
-        <div className={cn('truncate text-base font-bold tabular-nums sm:text-lg', valueClass)}>{value}</div>
-      </CardContent>
-    </Card>
-  )
-}
 
 export function RecurringPage() {
   const { t } = useI18n()
@@ -85,6 +69,8 @@ export function RecurringPage() {
       ].sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
     [rows, cards],
   )
+
+  const paidCount = list.filter((e) => (e.row ? !!e.row.record : e.card!.paid)).length
 
   const guarded = async (action: () => Promise<void>) => {
     try {
@@ -180,52 +166,51 @@ export function RecurringPage() {
         </Button>
       </div>
 
-      <Input
-        type="month"
-        aria-label={t('recurring.title')}
-        className="w-44"
-        value={month}
-        onChange={(e) => e.target.value && setMonth(e.target.value)}
+      <RecurringHero
+        month={month}
+        onMonthChange={setMonth}
+        total={totals.total}
+        paid={totals.paid}
+        remaining={totals.remaining}
+        paidCount={paidCount}
+        count={list.length}
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Tile testId="tile-total" label={t('recurring.total')} value={vnd(totals.total)} />
-        <Tile testId="tile-paid" label={t('recurring.paid')} value={vnd(totals.paid)} valueClass="text-income" />
-        <Tile testId="tile-remaining" label={t('recurring.remaining')} value={vnd(totals.remaining)} valueClass="text-expense" />
-      </div>
-
       {loaded && list.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">{t('recurring.empty')}</CardContent>
-        </Card>
+        <div className="grid justify-items-center gap-2 rounded-2xl border bg-card py-10 text-sm text-muted-foreground">
+          <CalendarCheck2 className="size-8 text-muted-foreground/40" aria-hidden />
+          {t('recurring.empty')}
+        </div>
       )}
 
-      <div className="grid gap-2">
-        {list.map((entry) =>
-          entry.row ? (
-            <ScheduleItemRow
-              key={entry.key}
-              row={entry.row}
-              today={today}
-              canRecord={selectedPlanId !== null}
-              onRecord={() => setRecording(entry.row.item)}
-              onMarkPaid={() => setMarkPaidItem(entry.row.item)}
-              undoing={undoingId !== null}
-              onUndo={() => void undoRecord(entry.row.record!.id)}
-              onHistory={() => setHistoryItem(entry.row.item)}
-            />
-          ) : (
-            <ScheduleCardRow
-              key={entry.key}
-              due={entry.card!}
-              today={today}
-              canRecord={selectedPlanId !== null}
-              onRecord={() => setRecordingCard(entry.card)}
-              onPaid={() => setPayingCard(entry.card!.account)}
-            />
-          ),
-        )}
-      </div>
+      {list.length > 0 && (
+        <ul className="divide-y overflow-hidden rounded-2xl border bg-card shadow-sm">
+          {list.map((entry) =>
+            entry.row ? (
+              <ScheduleItemRow
+                key={entry.key}
+                row={entry.row}
+                today={today}
+                canRecord={selectedPlanId !== null}
+                onRecord={() => setRecording(entry.row.item)}
+                onMarkPaid={() => setMarkPaidItem(entry.row.item)}
+                undoing={undoingId !== null}
+                onUndo={() => void undoRecord(entry.row.record!.id)}
+                onHistory={() => setHistoryItem(entry.row.item)}
+              />
+            ) : (
+              <ScheduleCardRow
+                key={entry.key}
+                due={entry.card!}
+                today={today}
+                canRecord={selectedPlanId !== null}
+                onRecord={() => setRecordingCard(entry.card)}
+                onPaid={() => setPayingCard(entry.card!.account)}
+              />
+            ),
+          )}
+        </ul>
+      )}
 
       <TransactionFormModal
         open={recording !== null || recordingCard !== null}
