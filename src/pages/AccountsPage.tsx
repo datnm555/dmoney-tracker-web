@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { CreditCard, Landmark, Plus, Wallet } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -26,6 +25,7 @@ import { toTransactionPayload } from '../utils/transactionPayload'
 import { getApiErrorMessage } from '../api/client'
 import type { AccountResponse, AccountSnapshotResponse } from '../api/types'
 import { AccountCard } from '../accounts/AccountCard'
+import { AccountsOverview } from '../accounts/AccountsOverview'
 import { bankBrand } from '../banks/bankBrand'
 import { AccountDialog } from '../accounts/AccountDialog'
 import { CloseMonthDialog } from '../accounts/CloseMonthDialog'
@@ -38,35 +38,6 @@ import { availableCredit, cashTotal, debtTotal, groupByBank, monthlyInterest, up
 import { formatMoney } from '../utils/money'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
-
-function Tile({
-  testId,
-  label,
-  value,
-  sub,
-  icon: Icon,
-  valueClass,
-}: {
-  testId: string
-  label: string
-  value: string
-  sub?: string
-  icon: LucideIcon
-  valueClass?: string
-}) {
-  return (
-    <Card data-testid={testId}>
-      <CardContent className="grid gap-1 p-3 sm:p-4">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-xs text-muted-foreground">{label}</span>
-          <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </div>
-        <div className={cn('truncate text-base font-bold tabular-nums sm:text-lg', valueClass)}>{value}</div>
-        {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
-      </CardContent>
-    </Card>
-  )
-}
 
 function BankBadge({ name }: { name: string | null }) {
   const brand = bankBrand(name)
@@ -260,18 +231,12 @@ export function AccountsPage() {
       )}
 
       {!(loadError && accounts.length === 0) && (
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Tile testId="tile-cash" label={t('accounts.cashTotal')} value={vnd(cashTotal(accounts))} icon={Wallet} valueClass="text-income" />
-        <Tile
-          testId="tile-debt"
-          label={t('accounts.debtTotal')}
-          value={vnd(debt)}
-          sub={interest > 0 ? `${t('accounts.monthlyInterest')}: ${vnd(interest)}` : undefined}
-          icon={CreditCard}
-          valueClass="text-expense"
-        />
-        <Tile testId="tile-available" label={t('accounts.availableCredit')} value={vnd(availableCredit(accounts))} icon={Landmark} />
-      </div>
+      <AccountsOverview
+        cash={cashTotal(accounts)}
+        debt={debt}
+        available={availableCredit(accounts)}
+        interest={interest}
+      />
       )}
 
       {dues.length > 0 && (
