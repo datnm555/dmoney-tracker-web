@@ -1,5 +1,5 @@
 // Tremor AreaChart [v1.0.0]
-// Source: github.com/tremorlabs/tremor (Apache-2.0). Adapted for dmoney: import paths, lucide-react icons instead of @remixicon/react, Recharts 3 typings.
+// Source: github.com/tremorlabs/tremor (Apache-2.0). Adapted for dmoney: axis tick fill from --muted-foreground (Recharts 3 hardcodes #666, unreadable in dark mode); import paths, lucide-react icons instead of @remixicon/react, Recharts 3 typings.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 "use client"
@@ -682,7 +682,9 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
               hide={!showXAxis}
               dataKey={index}
               interval={startEndOnly ? "preserveStartEnd" : intervalType}
-              tick={{ transform: "translate(0, 6)" }}
+              tick={{
+                // Recharts 3 sets fill="#666" on each tick, overriding the axis fill-* class.
+                fill: "var(--muted-foreground)", transform: "translate(0, 6)" }}
               ticks={
                 startEndOnly
                   ? [data[0][index], data[data.length - 1][index]]
@@ -717,7 +719,9 @@ const AreaChart = React.forwardRef<HTMLDivElement, AreaChartProps>(
               tickLine={false}
               type="number"
               domain={yAxisDomain as AxisDomain}
-              tick={{ transform: "translate(-3, 0)" }}
+              tick={{
+                // Recharts 3 sets fill="#666" on each tick, overriding the axis fill-* class.
+                fill: "var(--muted-foreground)", transform: "translate(-3, 0)" }}
               fill=""
               stroke=""
               className={cx(
