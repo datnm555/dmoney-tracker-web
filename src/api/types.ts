@@ -62,6 +62,12 @@ export interface PrepaidCreditResponse {
   prepaidTo: string | null
 }
 
+/** Inclusive day range for GET /transactions ?from=&to= (both 'YYYY-MM-DD', at most 366 days). */
+export interface DayRange {
+  from: string
+  to: string
+}
+
 export interface MonthlySummaryResponse {
   items: TransactionResponse[]
   totalCredit: MoneyResponse
