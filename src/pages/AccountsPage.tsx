@@ -26,6 +26,7 @@ import { toTransactionPayload } from '../utils/transactionPayload'
 import { getApiErrorMessage } from '../api/client'
 import type { AccountResponse, AccountSnapshotResponse } from '../api/types'
 import { AccountCard } from '../accounts/AccountCard'
+import { bankBrand } from '../banks/bankBrand'
 import { AccountDialog } from '../accounts/AccountDialog'
 import { CloseMonthDialog } from '../accounts/CloseMonthDialog'
 import type { CloseMonthResult } from '../accounts/CloseMonthDialog'
@@ -64,6 +65,19 @@ function Tile({
         {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
       </CardContent>
     </Card>
+  )
+}
+
+function BankBadge({ name }: { name: string | null }) {
+  const brand = bankBrand(name)
+  return (
+    <span
+      aria-hidden
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+      style={{ backgroundColor: brand.color }}
+    >
+      {brand.short}
+    </span>
   )
 }
 
@@ -322,20 +336,23 @@ export function AccountsPage() {
           {g.byBank ? (
             groupByBank(g.items).map((bg) => (
               <div key={bg.bankName ?? ''} data-testid={`bank-section-${g.key}-${bg.bankName ?? 'none'}`} className="grid gap-2">
-                <div data-testid="bank-header" className="flex items-center justify-between gap-2 text-xs font-medium">
-                  <span className="truncate">{bg.bankName ?? t('accounts.noBank')}</span>
+                <div data-testid="bank-header" className="flex items-center gap-3 pt-1">
+                  <BankBadge name={bg.bankName} />
+                  <span className="min-w-0 flex-1 truncate text-base font-semibold">
+                    {bg.bankName ?? t('accounts.noBank')}
+                  </span>
                   <span
                     data-testid="bank-total"
-                    className={cn('tabular-nums', g.debt ? 'text-expense' : 'text-muted-foreground')}
+                    className={cn('text-base font-bold tabular-nums', g.debt ? 'text-expense' : 'text-foreground')}
                   >
                     {vnd(bg.total)}
                   </span>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">{bg.accounts.map(renderCard)}</div>
+                <div className="grid gap-2">{bg.accounts.map(renderCard)}</div>
               </div>
             ))
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">{g.items.map(renderCard)}</div>
+            <div className="grid gap-2">{g.items.map(renderCard)}</div>
           )}
         </section>
       ))}
