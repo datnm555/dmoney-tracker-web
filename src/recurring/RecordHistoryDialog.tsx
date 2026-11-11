@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import dayjs from 'dayjs'
-import { CircleCheck, History } from 'lucide-react'
+import { CircleCheck, History, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getApiErrorMessage } from '../api/client'
@@ -18,13 +18,25 @@ export function RecordHistoryDialog({
 }) {
   const { t } = useI18n()
   const [records, setRecords] = useState<RecurringPaymentRecordResponse[]>([])
+  // Only show the empty state once the fetch settled, not while it is in flight.
+  const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     if (!item) return
+    let cancelled = false
     setRecords([])
+    setLoaded(false)
     getRecords(item.id)
-      .then((r) => setRecords([...r].sort((a, b) => b.period.localeCompare(a.period))))
+      .then((r) => {
+        if (!cancelled) setRecords([...r].sort((a, b) => b.period.localeCompare(a.period)))
+      })
       .catch((error) => toast.error(getApiErrorMessage(error, t('error.network'))))
+      .finally(() => {
+        if (!cancelled) setLoaded(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [item, t])
 
   return (
@@ -40,6 +52,15 @@ export function RecordHistoryDialog({
             </span>
           </DialogTitle>
         </DialogHeader>
+        {loaded && records.length === 0 && (
+          <div
+            data-testid="records-empty"
+            className="grid justify-items-center gap-2 rounded-xl border border-dashed py-8 text-sm text-muted-foreground"
+          >
+            <Inbox className="size-7 text-muted-foreground/40" aria-hidden />
+            <p>{t('recurring.noRecords')}</p>
+          </div>
+        )}
         <ul className="-mx-2 grid max-h-80 overflow-y-auto">
           {records.map((r) => {
             const paid = dayjs(r.paidDate)

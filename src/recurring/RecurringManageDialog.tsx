@@ -114,6 +114,15 @@ export function RecurringManageDialog({
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                    {!i.isActive && (
+                      <span
+                        data-testid={`paused-${i.id}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-amber-700 ring-1 ring-inset ring-amber-500/20 dark:text-amber-300"
+                      >
+                        <CirclePause className="size-3 shrink-0" aria-hidden />
+                        {t('recurring.paused')}
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 font-medium text-muted-foreground ring-1 ring-inset ring-border tabular-nums">
                       <CalendarClock className="size-3 shrink-0" aria-hidden />
                       {t('recurring.dayOfMonth')}: {i.dayOfMonth}

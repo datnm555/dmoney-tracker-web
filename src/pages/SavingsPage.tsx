@@ -14,12 +14,13 @@ import { getSubCategories } from '../api/subCategoryApi'
 import { createTransaction } from '../api/transactionApi'
 import { TransactionFormModal, type TransactionFormValues } from '../components/TransactionFormModal'
 import { BarChart } from '../components/tremor/BarChart'
-import { ProgressBar } from '../components/tremor/ProgressBar'
+import { ProgressCircle } from '../components/tremor/ProgressCircle'
+import { SparkAreaChart } from '../components/tremor/SparkChart'
 import { toTransactionPayload } from '../utils/transactionPayload'
 import type { MoneyResponse, SavingsAccountResponse, SavingsSummaryResponse, SubCategoryResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { SavingsGoalDialog } from '../savings/SavingsGoalDialog'
-import { savingsMonthly } from '../utils/chartData'
+import { savingsMonthly, savingsPlaceNetMonthly } from '../utils/chartData'
 import { formatMoney } from '../utils/money'
 import { goalProgress } from '../utils/savings'
 
@@ -89,32 +90,35 @@ function GoalBlock({ account, onEdit }: { account: SavingsAccountResponse; onEdi
           <Pencil className="h-3.5 w-3.5" />
         </button>
       </div>
-      <ProgressBar value={p.pct} variant="success" />
-      {goal.initialAmount.amount > 0 && (
-        <div data-testid="savings-goal-initial" className="flex justify-between text-muted-foreground">
-          <span>{t('savings.initialAmount')}</span>
-          <span className="tabular-nums">{formatMoney(goal.initialAmount)}</span>
+      <div className="flex items-center gap-3">
+        <ProgressCircle value={p.pct} variant="success" radius={30} strokeWidth={5} className="shrink-0">
+          <span className="text-[11px] font-bold tabular-nums text-income">{p.pct}%</span>
+        </ProgressCircle>
+        <div className="grid min-w-0 flex-1 gap-1.5">
+          <div className="text-muted-foreground">
+            {t('savings.period')} {p.elapsed}/{goal.months} · {dayjs(`${p.endPeriod}-01`).format('MM/YYYY')}
+          </div>
+          {goal.initialAmount.amount > 0 && (
+            <div data-testid="savings-goal-initial" className="flex justify-between gap-2 text-muted-foreground">
+              <span>{t('savings.initialAmount')}</span>
+              <span className="tabular-nums">{formatMoney(goal.initialAmount)}</span>
+            </div>
+          )}
+          {p.reached ? (
+            <div className="font-medium text-income">{t('savings.goalReached')}</div>
+          ) : (
+            <div className="flex justify-between gap-2">
+              <span className="text-muted-foreground">
+                {t('savings.perMonth')}
+                {p.monthsLeft > 0 && ` (${t('accounts.left')} ${p.monthsLeft} ${t('savings.monthUnit')})`}
+              </span>
+              <span data-testid="savings-goal-per-month" className="font-semibold tabular-nums">
+                {vnd(p.perMonth)}
+              </span>
+            </div>
+          )}
         </div>
-      )}
-      <div className="flex justify-between text-muted-foreground">
-        <span className="font-medium text-income">{p.pct}%</span>
-        <span>
-          {t('savings.period')} {p.elapsed}/{goal.months} · {dayjs(`${p.endPeriod}-01`).format('MM/YYYY')}
-        </span>
       </div>
-      {p.reached ? (
-        <div className="font-medium text-income">{t('savings.goalReached')}</div>
-      ) : (
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">
-            {t('savings.perMonth')}
-            {p.monthsLeft > 0 && ` (${t('accounts.left')} ${p.monthsLeft} ${t('savings.monthUnit')})`}
-          </span>
-          <span data-testid="savings-goal-per-month" className="font-semibold tabular-nums">
-            {vnd(p.perMonth)}
-          </span>
-        </div>
-      )}
     </div>
   )
 }
@@ -173,6 +177,17 @@ export function SavingsPage() {
   }, [transactions])
 
   const monthly = useMemo(() => savingsMonthly(transactions, dayjs()), [transactions])
+
+  // Last 6 months of net deposits per place, for the card sparklines (only places with transactions).
+  const sparks = useMemo(() => {
+    const today = dayjs()
+    const result = new Map<string, { month: string; net: number }[]>()
+    for (const account of summary?.accounts ?? []) {
+      if (!transactions.some((tx) => tx.savingsBank === account.savingsBank)) continue
+      result.set(accountKey(account.savingsBank), savingsPlaceNetMonthly(transactions, account.savingsBank, today))
+    }
+    return result
+  }, [summary, transactions])
 
   const accountLabel = (savingsBank: string | null) => savingsBank ?? t('savings.unassigned')
 
@@ -311,6 +326,7 @@ export function SavingsPage() {
                 {accounts.map((account) => {
                   const key = accountKey(account.savingsBank)
                   const selected = filter === key
+                  const spark = sparks.get(key)
                   return (
                     <div
                       key={key}
@@ -339,14 +355,27 @@ export function SavingsPage() {
                             <Wallet className="h-4 w-4 text-teal-600 dark:text-teal-300" />
                           </span>
                         </div>
-                        <div
-                          data-testid="savings-balance"
-                          className={cn(
-                            'text-2xl font-bold tabular-nums',
-                            account.balance.amount < 0 && 'text-expense',
+                        <div className="flex items-end justify-between gap-3">
+                          <div
+                            data-testid="savings-balance"
+                            className={cn(
+                              'min-w-0 truncate text-2xl font-bold tabular-nums',
+                              account.balance.amount < 0 && 'text-expense',
+                            )}
+                          >
+                            {formatBalance(account.balance)}
+                          </div>
+                          {spark && (
+                            <SparkAreaChart
+                              data-testid={`savings-spark-${key}`}
+                              aria-hidden
+                              className="h-9 w-24 shrink-0"
+                              data={spark}
+                              index="month"
+                              categories={['net']}
+                              colors={['emerald']}
+                            />
                           )}
-                        >
-                          {formatBalance(account.balance)}
                         </div>
                         <dl className="grid gap-1.5 border-t pt-3 text-xs">
                           <div className="flex items-center justify-between">

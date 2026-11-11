@@ -3,14 +3,19 @@ import type { AccountResponse, RecurringScheduleItemResponse } from '../api/type
 
 export type ScheduleStatus = 'paid' | 'overdue' | 'dueSoon' | 'upcoming'
 
+/** Status of anything due on `dueDate` (YYYY-MM-DD) as of `today`: paid, overdue, due within 3 days, or later. */
+export function dueStatus(paid: boolean, dueDate: string, today: string): { status: ScheduleStatus; daysLeft: number } {
+  const daysLeft = dayjs(dueDate).diff(dayjs(today), 'day')
+  if (paid) return { status: 'paid', daysLeft }
+  if (daysLeft < 0) return { status: 'overdue', daysLeft }
+  return { status: daysLeft <= 3 ? 'dueSoon' : 'upcoming', daysLeft }
+}
+
 export function scheduleStatus(
   row: RecurringScheduleItemResponse,
   today: string,
 ): { status: ScheduleStatus; daysLeft: number } {
-  const daysLeft = dayjs(row.dueDate).diff(dayjs(today), 'day')
-  if (row.record) return { status: 'paid', daysLeft }
-  if (daysLeft < 0) return { status: 'overdue', daysLeft }
-  return { status: daysLeft <= 3 ? 'dueSoon' : 'upcoming', daysLeft }
+  return dueStatus(!!row.record, row.dueDate, today)
 }
 
 export type CardDue = { account: AccountResponse; amount: number; dueDate: string; paid: boolean; untracked: boolean }

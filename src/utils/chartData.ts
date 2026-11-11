@@ -95,13 +95,17 @@ export interface SavingsMonthDatum {
 }
 
 /**
- * Deposits (debit) and withdrawals (credit) per month over the 12 months ending at
- * `today`'s month, oldest first; empty months are 0, rows outside the window ignored.
+ * Deposits (debit) and withdrawals (credit) per month over the `windowMonths` (default 12) months
+ * ending at `today`'s month, oldest first; empty months are 0, rows outside the window ignored.
  */
-export function savingsMonthly(transactions: SavingsTransactionResponse[], today: Dayjs): SavingsMonthDatum[] {
+export function savingsMonthly(
+  transactions: SavingsTransactionResponse[],
+  today: Dayjs,
+  windowMonths = 12,
+): SavingsMonthDatum[] {
   const months: SavingsMonthDatum[] = []
   const index = new Map<string, SavingsMonthDatum>()
-  for (let offset = 11; offset >= 0; offset--) {
+  for (let offset = windowMonths - 1; offset >= 0; offset--) {
     const m = today.subtract(offset, 'month')
     const datum = { month: m.format('MM/YYYY'), deposited: 0, withdrawn: 0 }
     months.push(datum)
@@ -114,6 +118,27 @@ export function savingsMonthly(transactions: SavingsTransactionResponse[], today
     datum.withdrawn += tx.credit.amount
   }
   return months
+}
+
+export interface SavingsNetDatum {
+  /** 'MM/YYYY'. */
+  month: string
+  /** Deposits minus withdrawals in the month (negative when more was taken out). */
+  net: number
+}
+
+/**
+ * Net deposits per month for one savings place (`savingsBank`, null = unassigned bucket)
+ * over the `months` (default 6) months ending at `today`'s month, oldest first.
+ */
+export function savingsPlaceNetMonthly(
+  transactions: SavingsTransactionResponse[],
+  savingsBank: string | null,
+  today: Dayjs,
+  months = 6,
+): SavingsNetDatum[] {
+  const own = transactions.filter((tx) => tx.savingsBank === savingsBank)
+  return savingsMonthly(own, today, months).map((m) => ({ month: m.month, net: m.deposited - m.withdrawn }))
 }
 
 export interface GoldMonthDatum {

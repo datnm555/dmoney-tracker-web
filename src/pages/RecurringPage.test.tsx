@@ -7,6 +7,7 @@ import {
   createRecord,
   createRecurringPayment,
   deleteRecord,
+  getRecords,
   getRecurringPayments,
   getSchedule,
 } from '../api/recurringPaymentApi'
@@ -429,5 +430,60 @@ describe('RecurringPage', () => {
       startPeriod: null,
       savingsBank: null,
     })
+  })
+
+  it('hero tracker shows one block per item of the month, coloured by status in due-date order', async () => {
+    renderPage()
+    await screen.findByTestId('row-i-paid')
+    const tracker = screen.getByTestId('hero-tracker')
+    const blocks = Array.from(tracker.children)
+    expect(blocks).toHaveLength(5)
+    // paid 02/11, overdue 05/11, due soon 12/11, card 15/11 (5 days → upcoming), upcoming 25/11.
+    const colours = blocks.map((b) => (b.firstElementChild as HTMLElement).className)
+    expect(colours[0]).toContain('bg-emerald-500')
+    expect(colours[1]).toContain('bg-rose-500')
+    expect(colours[2]).toContain('bg-amber-400')
+    expect(colours[3]).toContain('bg-slate-500')
+    expect(colours[4]).toContain('bg-slate-500')
+  })
+
+  it('hides the hero tracker when nothing is due this month', async () => {
+    vi.mocked(getSchedule).mockResolvedValue([])
+    vi.mocked(getAccounts).mockResolvedValue([])
+    renderPage()
+    await screen.findByText('recurring.empty')
+    expect(screen.queryByTestId('hero-tracker')).toBeNull()
+  })
+
+  it('manage dialog badges inactive items as paused', async () => {
+    vi.mocked(getRecurringPayments).mockResolvedValue([
+      item({ id: 'on', name: 'Netflix' }),
+      item({ id: 'off', name: 'Gym', isActive: false }),
+    ])
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByText('recurring.manage'))
+    const off = await screen.findByTestId('manage-off')
+    expect(within(off).getByTestId('paused-off')).toHaveTextContent('recurring.paused')
+    expect(within(screen.getByTestId('manage-on')).queryByText('recurring.paused')).toBeNull()
+  })
+
+  it('history dialog shows an empty state when there are no records', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const row = await screen.findByTestId('row-i-over')
+    await user.click(within(row).getByText('recurring.history'))
+    expect(await screen.findByTestId('records-empty')).toHaveTextContent('recurring.noRecords')
+  })
+
+  it('history dialog lists records without the empty state', async () => {
+    vi.mocked(getRecords).mockResolvedValueOnce([paidRecord])
+    const user = userEvent.setup()
+    renderPage()
+    const row = await screen.findByTestId('row-i-paid')
+    await user.click(within(row).getByText('recurring.history'))
+    const dialog = await screen.findByRole('dialog')
+    expect(await within(dialog).findByText('recurring.paidOn 02/11/2026')).toBeInTheDocument()
+    expect(within(dialog).queryByTestId('records-empty')).toBeNull()
   })
 })

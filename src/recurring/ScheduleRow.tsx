@@ -8,7 +8,7 @@ import { CategoryIcon } from '../components/CategoryIcon'
 import { useI18n } from '../i18n/I18nContext'
 import { formatMoney } from '../utils/money'
 import type { CardDue, ScheduleStatus } from '../utils/recurring'
-import { scheduleStatus } from '../utils/recurring'
+import { dueStatus, scheduleStatus } from '../utils/recurring'
 
 const TONE: Record<ScheduleStatus, { tile: string; chip: string; icon: LucideIcon }> = {
   paid: {
@@ -202,8 +202,7 @@ export function ScheduleCardRow({
   onPaid: () => void
 }) {
   const { t } = useI18n()
-  const daysLeft = dayjs(due.dueDate).diff(dayjs(today), 'day')
-  const status: ScheduleStatus = due.paid ? 'paid' : daysLeft < 0 ? 'overdue' : daysLeft <= 3 ? 'dueSoon' : 'upcoming'
+  const { status, daysLeft } = dueStatus(due.paid, due.dueDate, today)
   return (
     <RowShell
       testId={`card-row-${due.account.id}`}
