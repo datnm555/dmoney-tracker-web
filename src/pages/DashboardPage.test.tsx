@@ -274,7 +274,10 @@ describe('DashboardPage overview', () => {
 
   it('shows balance, income and expense in the hero', async () => {
     renderPage()
-    expect(norm((await screen.findByTestId('hero-balance')).textContent)).toBe(norm(formatMoney(money(6_000_000))))
+    // The hero renders '—' until the summary loads, so wait for the real figure.
+    await waitFor(() =>
+      expect(norm(screen.getByTestId('hero-balance').textContent)).toBe(norm(formatMoney(money(6_000_000)))),
+    )
     expect(norm(screen.getByTestId('hero-income').textContent)).toBe(`+${norm(formatMoney(money(10_000_000)))}`)
     expect(norm(screen.getByTestId('hero-expense').textContent)).toBe(`−${norm(formatMoney(money(4_000_000)))}`)
   })
