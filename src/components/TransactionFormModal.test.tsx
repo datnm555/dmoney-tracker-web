@@ -1448,9 +1448,10 @@ describe('TransactionFormModal suggestions', () => {
     vi.mocked(getTransactionSuggestions).mockResolvedValue([suggestion()])
     renderModal()
     await typeContent('cà')
-    await advance(249)
+    // shouldAdvanceTime also adds real elapsed time, so leave slack around the 250 ms debounce.
+    await advance(200)
     expect(getTransactionSuggestions).not.toHaveBeenCalled()
-    await advance(2)
+    await advance(60)
     expect(getTransactionSuggestions).toHaveBeenCalledTimes(1)
     expect(getTransactionSuggestions).toHaveBeenCalledWith('cà', 8)
     expect(await screen.findByText('form.suggestions')).toBeInTheDocument()

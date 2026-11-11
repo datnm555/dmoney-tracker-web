@@ -87,8 +87,9 @@ describe('GoldPage', () => {
 
   it('renders the overview section with aggregate totals across types', async () => {
     render(<GoldPage />)
-    expect(await screen.findByText('gold.overview')).toBeInTheDocument()
-    expect(screen.getByText('gold.byType')).toBeInTheDocument()
+    // gold.overview renders before the summary loads; gold.byType only after, so wait on it.
+    expect(await screen.findByText('gold.byType')).toBeInTheDocument()
+    expect(screen.getByText('gold.overview')).toBeInTheDocument()
 
     // Money strings carry a non-breaking space, so compare textContent of the
     // stat tiles directly (same approach as the acq value test).
