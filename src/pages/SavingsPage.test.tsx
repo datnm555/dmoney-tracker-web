@@ -256,7 +256,7 @@ describe('SavingsPage', () => {
           ...summary.accounts[0],
           savingsBank: 'Sam & Bắp',
           balance: vnd(4_000_000),
-          goal: { id: 'g1', targetAmount: vnd(60_000_000), startPeriod: '2026-11', months: 15 },
+          goal: { id: 'g1', targetAmount: vnd(60_000_000), startPeriod: '2026-11', months: 15, initialAmount: vnd(4_000_000) },
         },
         ...summary.accounts.slice(1),
       ],
@@ -271,6 +271,9 @@ describe('SavingsPage', () => {
       expect(goal).toHaveTextContent('savings.period 1/15 · 01/2028')
       expect(goal).toHaveTextContent('accounts.left 14 savings.monthUnit')
       expect(norm(within(goal).getByTestId('savings-goal-per-month').textContent)).toBe(fmt(4_000_000))
+      expect(norm(within(goal).getByTestId('savings-goal-initial').textContent)).toContain(
+        `savings.initialAmount${fmt(4_000_000)}`,
+      )
     })
 
     it('offers to set a goal on named places only, and saves it', async () => {
@@ -283,12 +286,14 @@ describe('SavingsPage', () => {
       expect(screen.getByLabelText('savings.startMonth')).toHaveValue('2026-11')
       await user.type(screen.getByLabelText('savings.target'), '30000000')
       await user.type(screen.getByLabelText('savings.months'), '12')
+      await user.type(screen.getByLabelText('savings.initialAmount'), '2000000')
       await user.click(screen.getByRole('button', { name: 'summary.submit' }))
       expect(setSavingsGoal).toHaveBeenCalledWith({
         savingsBank: 'MoMo',
         targetAmount: 30_000_000,
         startPeriod: '2026-11',
         months: 12,
+        initialAmount: 2_000_000,
       })
     })
 

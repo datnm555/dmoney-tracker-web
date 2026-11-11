@@ -239,6 +239,8 @@ export interface SavingsGoalResponse {
   targetAmount: MoneyResponse
   startPeriod: string // YYYY-MM
   months: number
+  /** Saved before tracking began; already included in the account balance. */
+  initialAmount: MoneyResponse
 }
 
 export interface SavingsTransactionResponse {

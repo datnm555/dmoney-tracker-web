@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { goalProgress } from './savings'
 
-const goal = { id: 'g', targetAmount: { amount: 60_000_000, currency: 'VND' }, startPeriod: '2026-11', months: 15 }
+const goal = { id: 'g', targetAmount: { amount: 60_000_000, currency: 'VND' }, startPeriod: '2026-11', months: 15, initialAmount: { amount: 0, currency: 'VND' } }
 
 describe('goalProgress', () => {
   it('first month paid: 4tr of 60tr, 14 months left at 4tr each', () => {
