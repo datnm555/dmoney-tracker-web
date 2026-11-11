@@ -231,6 +231,14 @@ export interface SavingsAccountResponse {
   totalDeposited: MoneyResponse
   totalWithdrawn: MoneyResponse
   transactionCount: number
+  goal: SavingsGoalResponse | null
+}
+
+export interface SavingsGoalResponse {
+  id: string
+  targetAmount: MoneyResponse
+  startPeriod: string // YYYY-MM
+  months: number
 }
 
 export interface SavingsTransactionResponse {
@@ -324,6 +332,7 @@ export interface RecurringPaymentResponse {
   note: string | null
   isActive: boolean
   startPeriod: string | null // YYYY-MM; hidden from earlier months' schedules
+  savingsBank: string | null // "Nơi gửi" prefilled for savings deposits
 }
 
 export interface RecurringPaymentRecordResponse {
@@ -354,6 +363,7 @@ export interface RecurringPaymentInput {
   note: string | null
   isActive: boolean
   startPeriod: string | null // YYYY-MM; hidden from earlier months' schedules
+  savingsBank: string | null // "Nơi gửi" prefilled for savings deposits
 }
 
 export interface TransactionSuggestionResponse {

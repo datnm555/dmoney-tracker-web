@@ -155,6 +155,7 @@ export function RecurringPage() {
         subCategoryId: recording.subCategoryId,
         ...(recording.paymentMethod ? { paymentMethod: recording.paymentMethod as TransactionFormValues['paymentMethod'] } : {}),
         ...(recording.bank ? { bank: recording.bank } : {}),
+        ...(recording.savingsBank ? { savingsBank: recording.savingsBank } : {}),
         date: today,
       }
     : recordingCard
