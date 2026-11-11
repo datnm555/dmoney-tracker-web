@@ -28,6 +28,7 @@ import { getSubCategories } from '../api/subCategoryApi'
 import type { MonthlySummaryResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
 import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { CategoryIcon } from '../components/CategoryIcon'
+import { CategoryBar } from '../components/tremor/CategoryBar'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
@@ -460,7 +461,6 @@ export function TransactionsPage() {
             const debit = counted.reduce((sum, tx) => sum + tx.debit.amount, 0)
             const total = credit + debit
             const balance = credit - debit
-            const creditPct = total > 0 ? (credit / total) * 100 : 0
             return (
               <>
                 <div className="grid grid-cols-3 gap-2">
@@ -482,14 +482,11 @@ export function TransactionsPage() {
                     <strong className="text-expense">−{summary ? formatMoney({ amount: debit, currency }) : '—'}</strong>
                   </SummaryStat>
                 </div>
-                <div className="flex h-2 overflow-hidden rounded-full bg-muted">
-                  {total > 0 && (
-                    <>
-                      <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500" style={{ width: `${creditPct}%` }} />
-                      <div className="h-full flex-1 bg-gradient-to-r from-rose-400 to-rose-500" />
-                    </>
-                  )}
-                </div>
+                <CategoryBar
+                  values={total > 0 ? [credit, debit] : [1]}
+                  colors={total > 0 ? ['emerald', 'rose'] : ['gray']}
+                  showLabels={false}
+                />
               </>
             )
           })()}

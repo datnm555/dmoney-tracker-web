@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, TrendingDown, TrendingUp, WalletCards } from 'lucide-react'
 import type { MoneyResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
+import { CategoryBar } from '../components/tremor/CategoryBar'
 import { formatMoney } from '../utils/money'
 
 interface Props {
@@ -20,7 +21,6 @@ export function CashflowHero({ balance, income, expense, incomeCount, expenseCou
   const { t } = useI18n()
   const inAmount = income?.amount ?? 0
   const outAmount = expense?.amount ?? 0
-  const inPct = inAmount + outAmount > 0 ? (inAmount / (inAmount + outAmount)) * 100 : 50
   const DeltaIcon = (delta ?? 0) >= 0 ? TrendingUp : TrendingDown
   return (
     <section
@@ -51,10 +51,11 @@ export function CashflowHero({ balance, income, expense, incomeCount, expenseCou
         </div>
 
         {/* Income vs expense split. */}
-        <div aria-hidden className="flex h-2 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full bg-gradient-to-r from-emerald-300 to-emerald-400" style={{ width: `${inPct}%` }} />
-          <div className="h-full flex-1 bg-gradient-to-r from-rose-400 to-rose-500" />
-        </div>
+        <CategoryBar
+          values={inAmount + outAmount > 0 ? [inAmount, outAmount] : [1]}
+          colors={inAmount + outAmount > 0 ? ['emerald', 'rose'] : ['gray']}
+          showLabels={false}
+        />
 
         <div className="grid grid-cols-2 gap-2.5">
           <FlowTile
