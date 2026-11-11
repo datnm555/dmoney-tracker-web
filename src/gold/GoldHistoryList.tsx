@@ -22,7 +22,8 @@ interface Props {
 const BADGE_STYLE = {
   buy: 'bg-primary/10 text-primary ring-primary/20',
   sell: 'bg-income/10 text-income ring-income/20',
-  acq: 'bg-amber-500/10 text-amber-700 ring-amber-500/20 dark:text-amber-300',
+  // Dark text: the badge sits next to the gold tile, so amber-on-amber was hard to read.
+  acq: 'bg-amber-300/70 text-amber-950 ring-amber-500/30 dark:bg-amber-400/20 dark:text-amber-100',
 } as const
 
 /** Date tile: gold gradient for gold coming in (buy / pre-owned), emerald for a sale. */
