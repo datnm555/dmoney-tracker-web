@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { read, utils } from 'xlsx'
 import { toast } from 'sonner'
+import { BookOpen, Check, CircleAlert, CircleCheck, FileSpreadsheet, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,6 +34,7 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
   const [fileName, setFileName] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedImport | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [dragging, setDragging] = useState(false)
 
   const reset = () => {
     setFileName(null)
@@ -94,22 +96,61 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
         }
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t('import.title')}</DialogTitle>
           <DialogDescription>{t('import.hint')}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4">
-          <p className="text-xs text-muted-foreground">
-            {t('import.targetPlan')}: <strong>{plans.find((p) => p.id === selectedPlanId)?.name}</strong>
-          </p>
+        <div className="grid gap-5">
+          <div className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+            <BookOpen className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">
+              {t('import.targetPlan')}:{' '}
+              <strong className="font-semibold text-foreground">
+                {plans.find((p) => p.id === selectedPlanId)?.name}
+              </strong>
+            </span>
+          </div>
 
-          <div className="flex items-center gap-3">
-            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
-              {t('import.chooseFile')}
-            </Button>
-            <span className="truncate text-sm text-muted-foreground">{fileName}</span>
+          <div className="flex items-start gap-2">
+            <StepBadge n={1} done={parsed !== null} className="mt-3" />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragging(true)
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault()
+                setDragging(false)
+                const file = e.dataTransfer.files?.[0]
+                if (file) void handleFile(file)
+              }}
+              className={cn(
+                'group flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-6 text-center transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                dragging
+                  ? 'border-primary bg-primary/10'
+                  : fileName
+                    ? 'border-primary/40 bg-primary/5 hover:border-primary/60'
+                    : 'border-border bg-muted/30 hover:border-primary/50 hover:bg-primary/5',
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-transform group-hover:scale-105"
+              >
+                {fileName ? <FileSpreadsheet className="size-5" /> : <Upload className="size-5" />}
+              </span>
+              {fileName ? (
+                <span className="max-w-full truncate text-sm font-semibold">{fileName}</span>
+              ) : (
+                <span className="text-sm font-semibold text-primary">{t('import.chooseFile')}</span>
+              )}
+              <span className="text-xs text-muted-foreground">.csv · .xlsx</span>
+            </button>
             <input
               ref={fileInputRef}
               type="file"
@@ -124,21 +165,32 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
           </div>
 
           {parsed && (
-            <>
-              <div className="flex gap-4 text-sm">
-                <span>
-                  <strong className="text-income">{parsed.valid.length}</strong> {t('import.rowsValid')}
-                </span>
-                {parsed.invalid.length > 0 && (
-                  <span>
-                    <strong className="text-expense">{parsed.invalid.length}</strong> {t('import.rowsInvalid')}
-                  </span>
-                )}
+            <div data-testid="import-preview" className="grid gap-2">
+              <div className="flex items-start gap-2">
+                <StepBadge n={2} done={false} className="mt-3" />
+                <div className="grid flex-1 grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2.5 rounded-xl border border-income/20 bg-income/5 px-3 py-2.5">
+                    <CircleCheck className="size-4 shrink-0 text-income" aria-hidden="true" />
+                    <span className="text-sm">
+                      <strong className="text-lg font-bold tabular-nums text-income">{parsed.valid.length}</strong>{' '}
+                      <span className="text-muted-foreground">{t('import.rowsValid')}</span>
+                    </span>
+                  </div>
+                  {parsed.invalid.length > 0 && (
+                    <div className="flex items-center gap-2.5 rounded-xl border border-expense/20 bg-expense/5 px-3 py-2.5">
+                      <CircleAlert className="size-4 shrink-0 text-expense" aria-hidden="true" />
+                      <span className="text-sm">
+                        <strong className="text-lg font-bold tabular-nums text-expense">{parsed.invalid.length}</strong>{' '}
+                        <span className="text-muted-foreground">{t('import.rowsInvalid')}</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="max-h-72 overflow-y-auto rounded-lg border">
+              <div className="max-h-72 overflow-y-auto rounded-xl border">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
                     <TableRow>
                       <TableHead>{t('form.date')}</TableHead>
                       <TableHead>{t('form.content')}</TableHead>
@@ -148,15 +200,15 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
                   </TableHeader>
                   <TableBody>
                     {previewRows.map(({ key, row, errorKey }) => (
-                      <TableRow key={key} className={cn(errorKey && 'bg-red-50')}>
-                        <TableCell className="whitespace-nowrap">{row.date}</TableCell>
+                      <TableRow key={key} className={cn(errorKey && 'bg-expense/5 hover:bg-expense/10')}>
+                        <TableCell className="whitespace-nowrap tabular-nums">{row.date}</TableCell>
                         <TableCell>
                           <div className="max-w-56 truncate">{row.content}</div>
                           {errorKey && <div className="text-xs text-expense">{t(errorKey)}</div>}
                         </TableCell>
                         <TableCell
                           className={cn(
-                            'whitespace-nowrap text-right',
+                            'whitespace-nowrap text-right font-medium tabular-nums',
                             row.amount !== null && (row.amount >= 0 ? 'text-income' : 'text-expense'),
                           )}
                         >
@@ -174,7 +226,7 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
                   </TableBody>
                 </Table>
               </div>
-            </>
+            </div>
           )}
         </div>
 
@@ -190,10 +242,27 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
             {t('summary.cancel')}
           </Button>
           <Button type="button" disabled={submitting || !parsed || parsed.valid.length === 0} onClick={handleImport}>
+            <Upload className="size-4" aria-hidden="true" />
             {t('import.save')} ({parsed?.valid.length ?? 0})
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Numbered step marker (turns into a check once the step is done). */
+function StepBadge({ n, done, className }: { n: number; done: boolean; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold',
+        done ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary',
+        className,
+      )}
+    >
+      {done ? <Check className="size-3" /> : n}
+    </span>
   )
 }

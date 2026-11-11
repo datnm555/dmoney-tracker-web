@@ -1,14 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { Landmark } from 'lucide-react'
+import { NameCreateDialog } from '@/components/NameCreateDialog'
 import { getApiErrorMessage } from '../api/client'
 import { createBank } from '../api/bankApi'
 import { useI18n } from '../i18n/I18nContext'
@@ -41,27 +34,19 @@ export function CreateBankDialog({ open, onClose, onCreated }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('banks.create')}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-1.5">
-          <span className="text-xs text-muted-foreground">{t('banks.name')}</span>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && void submit()}
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('summary.cancel')}</Button>
-          <Button disabled={saving || !name.trim()} onClick={() => void submit()}>
-            {t('banks.create')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <NameCreateDialog
+      open={open}
+      title={t('banks.create')}
+      icon={<Landmark />}
+      inputId="create-bank-name"
+      label={t('banks.name')}
+      value={name}
+      onChange={setName}
+      onSubmit={() => void submit()}
+      onClose={onClose}
+      submitLabel={t('banks.create')}
+      submitDisabled={saving || !name.trim()}
+      cancelLabel={t('summary.cancel')}
+    />
   )
 }

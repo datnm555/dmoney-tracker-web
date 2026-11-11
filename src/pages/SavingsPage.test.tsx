@@ -325,6 +325,10 @@ describe('SavingsPage', () => {
       await user.type(screen.getByLabelText('savings.target'), '30000000')
       await user.type(screen.getByLabelText('savings.months'), '12')
       await user.type(screen.getByLabelText('savings.initialAmount'), '2000000')
+      // Preview: 30tr target − (−3tr balance + 2tr saved before) over the 11 months left.
+      const preview = screen.getByTestId('savings-goal-preview')
+      expect(preview).toHaveTextContent('accounts.left 11 savings.monthUnit')
+      expect(norm(preview.textContent)).toContain(fmt(2_818_182))
       await user.click(screen.getByRole('button', { name: 'summary.submit' }))
       expect(setSavingsGoal).toHaveBeenCalledWith({
         savingsBank: 'MoMo',

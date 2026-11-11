@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -39,6 +40,9 @@ import {
 import { cn } from '@/lib/utils'
 import { useI18n } from '../i18n/I18nContext'
 import { visualForIcon } from '../utils/categoryIcons'
+
+/** Small uppercase muted label above each field of the create/edit dialog. */
+const DIALOG_LABEL = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
 export function SubCategorySettingsPage() {
   const { t } = useI18n()
@@ -235,11 +239,11 @@ export function SubCategorySettingsPage() {
           <DialogHeader>
             <DialogTitle>{editingSub ? t('subcat.edit') : t('subcat.create')}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label>{t('form.category')}</Label>
+          <form onSubmit={handleSubmit} className="grid gap-5">
+            <div className="grid gap-2">
+              <Label className={DIALOG_LABEL}>{t('form.category')}</Label>
               <Select value={category} onValueChange={setCategory} disabled={editingSub !== null}>
-                <SelectTrigger>
+                <SelectTrigger className="h-11 w-full rounded-xl">
                   <SelectValue>{label(category)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -251,20 +255,21 @@ export function SubCategorySettingsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="subcat-name">{t('subcat.name')}</Label>
+            <div className="grid gap-2">
+              <Label htmlFor="subcat-name" className={DIALOG_LABEL}>{t('subcat.name')}</Label>
               <Input
                 id="subcat-name"
                 maxLength={50}
+                className="h-11 rounded-xl"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label>{t('cat.icon')}</Label>
+            <div className="grid gap-2">
+              <Label className={DIALOG_LABEL}>{t('cat.icon')}</Label>
               <IconPicker value={icon} onChange={setIcon} allowClear />
             </div>
-            <div className="grid gap-3 rounded-2xl border bg-muted/30 p-3">
+            <div className="grid gap-3 rounded-xl border bg-muted/30 p-3">
               <label className="flex items-center gap-2 text-sm font-medium">
                 <Checkbox
                   checked={isDefault}
@@ -285,9 +290,14 @@ export function SubCategorySettingsPage() {
                 <p className="pl-6 text-xs text-muted-foreground">{t('cat.excludeFromStatsHint')}</p>
               </div>
             </div>
-            <Button type="submit" disabled={submitting || !name.trim()}>
-              {t('summary.submit')}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                {t('summary.cancel')}
+              </Button>
+              <Button type="submit" disabled={submitting || !name.trim()}>
+                {t('summary.submit')}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
