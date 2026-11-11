@@ -72,6 +72,7 @@ export function PlanSettingsPage() {
       <SettingsHeader
         icon={BookOpen}
         title={t('plans.title')}
+        description={t('plans.hint')}
         count={plans.length}
         action={
           <Button onClick={() => setCreating(true)}>
