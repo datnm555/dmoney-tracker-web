@@ -332,7 +332,7 @@ export function SavingsPage() {
                       key={key}
                       data-testid={`savings-account-${key}`}
                       className={cn(
-                        'grid content-start gap-3 rounded-2xl border bg-gradient-to-br from-teal-500/5 via-card to-card p-4 text-card-foreground shadow-sm transition-colors hover:border-zinc-300',
+                        'grid content-start gap-3 rounded-2xl border bg-gradient-to-br from-teal-500/5 via-card to-card p-4 text-card-foreground shadow-sm transition-colors hover:border-zinc-300 dark:hover:border-zinc-600',
                         selected && 'border-primary ring-1 ring-primary/30 hover:border-primary',
                       )}
                     >

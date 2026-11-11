@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ArrowDownRight, ArrowUpRight, PiggyBank, WalletCards } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '../theme/ThemeToggle'
 
 /** Gradient logo tile used on the auth pages. */
 function BrandMark({ className }: { className?: string }) {
@@ -67,7 +68,8 @@ export function AuthShell({ brand, children }: { brand: string; children: ReactN
       </aside>
 
       <main className="relative flex flex-1 items-center justify-center overflow-hidden p-4 sm:p-8">
-        <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 size-80 rounded-full bg-violet-300/20 blur-3xl lg:hidden" />
+        <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 size-80 rounded-full bg-violet-300/20 blur-3xl lg:hidden dark:bg-violet-500/10" />
+        <ThemeToggle className="absolute right-4 top-4 bg-background/70 backdrop-blur sm:right-6 sm:top-6" />
         <div className="relative w-full max-w-[400px]">{children}</div>
       </main>
     </div>

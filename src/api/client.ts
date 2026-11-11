@@ -6,6 +6,8 @@ export const STORAGE_KEYS = {
   user: 'dmoney.user',
   lang: 'dmoney.lang',
   planId: 'dmoney.plan',
+  // Also read by the inline boot script in index.html (keep the key in sync).
+  theme: 'dmoney.theme',
 } as const
 
 export const apiClient = axios.create({

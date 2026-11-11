@@ -3,10 +3,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Toaster } from '@/components/ui/sonner'
 import App from './App'
+import { ThemeProvider } from './theme/ThemeContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
-    <Toaster position="top-right" richColors />
+    <ThemeProvider>
+      <App />
+      <Toaster position="top-right" richColors />
+    </ThemeProvider>
   </StrictMode>,
 )
