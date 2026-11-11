@@ -268,8 +268,8 @@ export function AccountsPage() {
                     className={cn(
                       'flex w-12 shrink-0 flex-col items-center rounded-xl py-1.5 leading-none',
                       d.urgent
-                        ? 'bg-rose-500/15 text-rose-700 dark:text-rose-300'
-                        : 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+                        ? 'bg-rose-500 text-white shadow-sm'
+                        : 'bg-amber-400 text-amber-950 shadow-sm',
                     )}
                   >
                     <span className="text-lg font-bold tabular-nums">{date.format('DD')}</span>

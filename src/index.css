@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* The app has no dark theme yet: only apply dark: utilities under an explicit .dark class, never
+   from the OS setting — otherwise macOS dark mode paints light-on-light text on our light UI. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

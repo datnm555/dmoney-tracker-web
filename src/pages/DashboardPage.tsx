@@ -461,7 +461,8 @@ function DueRow({
       <span
         className={cn(
           'flex w-12 shrink-0 flex-col items-center rounded-lg py-1 leading-none',
-          hot ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+          // Inverted (solid fill, contrasting text) so the date reads on the tinted row.
+          hot ? 'bg-rose-500 text-white shadow-sm' : 'bg-amber-400 text-amber-950 shadow-sm',
         )}
       >
         <span className="text-lg font-bold tabular-nums">{date.format('DD')}</span>
