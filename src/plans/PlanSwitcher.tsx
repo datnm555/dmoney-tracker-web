@@ -26,30 +26,35 @@ export function PlanSwitcher() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" className="h-9 gap-2 px-3 text-[12.5px] font-medium">
-            <BookOpen className="h-4 w-4 text-primary" />
-            <span className="max-w-[140px] truncate">{selected?.name ?? t('plans.switcher')}</span>
-            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+          <Button
+            variant="outline"
+            className="h-9 gap-2 rounded-xl border-primary/20 bg-primary/5 pl-1.5 pr-2.5 text-[13px] font-semibold shadow-sm hover:bg-primary/10"
+          >
+            <span className="flex size-6 items-center justify-center rounded-lg bg-gradient-to-br from-[#6C4CF1] to-indigo-600 text-white">
+              <BookOpen className="size-3.5" />
+            </span>
+            <span className="max-w-[90px] truncate sm:max-w-[140px]">{selected?.name ?? t('plans.switcher')}</span>
+            <ChevronDown className="size-3.5 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-[200px]">
+        <DropdownMenuContent align="end" className="min-w-[220px] rounded-xl p-1.5 shadow-lg">
           {plans.map((plan) => (
-            <DropdownMenuItem key={plan.id} onClick={() => selectPlan(plan.id)}>
-              <Check className={cn('mr-2 h-4 w-4', plan.id === selectedPlanId ? 'opacity-100' : 'opacity-0')} />
+            <DropdownMenuItem key={plan.id} className="rounded-lg" onClick={() => selectPlan(plan.id)}>
+              <Check className={cn('mr-2 size-4 text-primary', plan.id === selectedPlanId ? 'opacity-100' : 'opacity-0')} />
               <span className="min-w-0 flex-1 truncate">{plan.name}</span>
               {plan.isDefault && (
-                <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                   {t('plans.default')}
                 </span>
               )}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setCreating(true)}>
+          <DropdownMenuItem className="rounded-lg" onClick={() => setCreating(true)}>
             <Plus className="mr-2 h-4 w-4" />
             {t('plans.create')}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/app/settings/plans')}>
+          <DropdownMenuItem className="rounded-lg" onClick={() => navigate('/app/settings/plans')}>
             <Settings2 className="mr-2 h-4 w-4" />
             {t('plans.manage')}
           </DropdownMenuItem>

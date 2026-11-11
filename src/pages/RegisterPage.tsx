@@ -3,11 +3,12 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { register } from '../api/authApi'
 import { getApiErrorMessage } from '../api/client'
+import { AuthCardHeader, AuthShell } from '../auth/AuthShell'
+import { authCardClass, authInputClass, authLabelClass } from '../auth/authStyles'
 import { useI18n } from '../i18n/I18nContext'
 
 export function RegisterPage() {
@@ -34,71 +35,82 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="items-center text-center">
-          <span className="mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-lg font-extrabold text-primary-foreground">
-            ₫
-          </span>
-          <CardTitle>{t('auth.register')}</CardTitle>
-        </CardHeader>
-        <form onSubmit={onSubmit}>
-          <CardContent className="grid gap-4">
+    <AuthShell brand={t('app.title')}>
+      <div className={authCardClass}>
+        <AuthCardHeader title={t('auth.register')} />
+        <form onSubmit={onSubmit} className="grid gap-6">
+          <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">{t('auth.email')}</Label>
+              <Label htmlFor="email" className={authLabelClass}>
+                {t('auth.email')}
+              </Label>
               <Input
                 id="email"
                 type="email"
                 autoComplete="email"
                 required
+                className={authInputClass}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="username">{t('auth.username')}</Label>
+              <Label htmlFor="username" className={authLabelClass}>
+                {t('auth.username')}
+              </Label>
               <Input
                 id="username"
                 autoComplete="username"
                 required
+                className={authInputClass}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="displayName">{t('auth.displayName')}</Label>
+              <Label htmlFor="displayName" className={authLabelClass}>
+                {t('auth.displayName')}
+              </Label>
               <Input
                 id="displayName"
                 autoComplete="name"
                 required
+                className={authInputClass}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="password">{t('auth.password')}</Label>
+              <Label htmlFor="password" className={authLabelClass}>
+                {t('auth.password')}
+              </Label>
               <Input
                 id="password"
                 type="password"
                 autoComplete="new-password"
                 required
+                className={authInputClass}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-          </CardContent>
-          <CardFooter className="mt-4 flex-col gap-3">
-            <Button type="submit" className="w-full" disabled={submitting}>
+          </div>
+          <div className="grid gap-4">
+            <Button
+              type="submit"
+              className="h-11 w-full rounded-xl text-sm font-semibold shadow-md shadow-violet-900/20"
+              disabled={submitting}
+            >
               {t('auth.register')}
             </Button>
-            <p className="text-sm text-muted-foreground">
-              <Link className="text-primary hover:underline" to="/login">
+            <p className="text-center text-sm text-muted-foreground">
+              <Link className="font-medium text-primary hover:underline" to="/login">
                 {t('auth.haveAccount')}
               </Link>
             </p>
-          </CardFooter>
+          </div>
         </form>
-      </Card>
-    </div>
+      </div>
+    </AuthShell>
   )
 }
