@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { createSnapshot, deleteAccount, getAccounts } from '../api/accountApi'
+import { clearDefaultAccount, createSnapshot, deleteAccount, getAccounts, setDefaultAccount } from '../api/accountApi'
 import { createTransaction, deleteTransaction } from '../api/transactionApi'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
@@ -207,6 +207,15 @@ export function AccountsPage() {
 
   const banks = useMemo(() => groupByBank(accounts), [accounts])
 
+  const toggleDefault = async (a: AccountResponse) => {
+    try {
+      await (a.isDefault ? clearDefaultAccount(a.id) : setDefaultAccount(a.id))
+      await load()
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, t('error.network')))
+    }
+  }
+
   const renderCard = (a: AccountResponse) => (
     <AccountCard
       key={a.id}
@@ -221,6 +230,7 @@ export function AccountsPage() {
         setFormOpen(true)
       }}
       onDelete={() => setDeleting(a)}
+      onToggleDefault={() => void toggleDefault(a)}
       onCloseMonth={() => setClosingAccount(a)}
     />
   )

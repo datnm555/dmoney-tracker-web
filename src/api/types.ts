@@ -294,6 +294,7 @@ export interface AccountResponse {
   interestRatePercent: number | null
   latestSnapshot: AccountSnapshotResponse | null
   bankName: string | null
+  isDefault: boolean // preselected in the transaction form's "Trả bằng"; at most one
 }
 
 // Request body for POST/PUT /accounts (money fields are plain numbers).

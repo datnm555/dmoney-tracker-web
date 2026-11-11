@@ -1278,6 +1278,28 @@ describe('TransactionFormModal pay-with chips', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ paymentMethod: 'transfer', bank: 'MoMo' }))
   })
 
+  it('preselects the default account on create and submits its fields', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      accounts[0],
+      { ...accounts[1], isDefault: true },
+    ] as never)
+    const onSubmit = await fill(renderModal())
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Visa VPBank/ })).toHaveAttribute('aria-pressed', 'true'),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'card', cardType: 'credit', bank: 'VPBank', payWithAccountId: 'a-visa' }),
+    )
+  })
+
+  it('a prefilled payment wins over the default account', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([{ ...accounts[1], isDefault: true }] as never)
+    renderModal(vi.fn(), { prefill: { paymentMethod: 'cash' } })
+    expect(await screen.findByRole('button', { name: 'form.cashChip' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /Visa VPBank/ })).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('picking a chip collapses Khác', async () => {
     vi.mocked(getAccounts).mockResolvedValue(accounts as never)
     renderModal()

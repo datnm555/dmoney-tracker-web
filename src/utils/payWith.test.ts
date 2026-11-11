@@ -14,6 +14,7 @@ function account(over: Partial<AccountResponse>): AccountResponse {
     interestRatePercent: null,
     latestSnapshot: null,
     bankName: 'Techcombank',
+    isDefault: false,
     ...over,
   }
 }

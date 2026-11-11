@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { CalendarCheck, History, Pencil, RefreshCw, Trash2 } from 'lucide-react'
+import { CalendarCheck, History, Pencil, RefreshCw, Star, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ export function AccountCard({
   onEdit,
   onDelete,
   onCloseMonth,
+  onToggleDefault,
 }: {
   account: AccountResponse
   onUpdate: () => void
@@ -23,6 +24,8 @@ export function AccountCard({
   onHistory: () => void
   onEdit: () => void
   onDelete: () => void
+  /** Makes this the transaction form's preselected pay-with account, or clears it. */
+  onToggleDefault: () => void
 }) {
   const { t } = useI18n()
   const snap = account.latestSnapshot
@@ -48,6 +51,11 @@ export function AccountCard({
                 {t(`accounts.type.${account.type}`)}
               </span>
               {account.lastDigits && <span>•••{account.lastDigits}</span>}
+              {account.isDefault && (
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
+                  {t('accounts.default')}
+                </span>
+              )}
             </div>
           </div>
           {snap && (
@@ -79,6 +87,17 @@ export function AccountCard({
           {snap ? `${t('accounts.lastUpdated')} ${dayjs(snap.date).format('DD/MM/YYYY')}` : t('accounts.noSnapshot')}
         </div>
         <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn('h-8 w-8', account.isDefault ? 'text-amber-500 hover:text-amber-600' : 'text-muted-foreground')}
+            aria-label={`${t(account.isDefault ? 'accounts.clearDefault' : 'accounts.setDefault')} ${account.name}`}
+            aria-pressed={account.isDefault}
+            title={t(account.isDefault ? 'accounts.clearDefault' : 'accounts.setDefault')}
+            onClick={onToggleDefault}
+          >
+            <Star className={cn('h-4 w-4', account.isDefault && 'fill-current')} />
+          </Button>
           <Button
             variant="ghost"
             size="icon"

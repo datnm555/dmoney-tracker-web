@@ -105,6 +105,7 @@ const card: AccountResponse = {
   dueDay: null,
   interestRatePercent: null,
   bankName: null,
+  isDefault: false,
   latestSnapshot: {
     id: 'snap-1',
     accountId: 'a-cc',

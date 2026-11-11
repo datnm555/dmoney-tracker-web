@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, KeyboardEvent } from 'react'
 import dayjs from 'dayjs'
 import { toast } from 'sonner'
@@ -24,7 +24,7 @@ import { useContentSuggestions } from './transactionForm/useContentSuggestions'
 import { PayWithChips } from './transactionForm/PayWithChips'
 import { usePayWithAccounts } from './transactionForm/usePayWithAccounts'
 import { buildPayWithChips, selectedPayWithKey } from '../utils/payWith'
-import type { PayWithFields } from '../utils/payWith'
+import type { PayWithChip, PayWithFields } from '../utils/payWith'
 import { parseAmountShorthand } from '../utils/amountShorthand'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
@@ -164,6 +164,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const [pickedPayKey, setPickedPayKey] = useState<string | null>(null)
   const { status: accountsStatus, accounts } = usePayWithAccounts(open)
   const payWithChips = useMemo(() => buildPayWithChips(accounts, t('form.cashChip')), [accounts, t])
+  // A new transaction without a prefilled payment takes the default account once the accounts load.
+  const applyDefaultPayRef = useRef(false)
   const [category, setCategory] = useState<string | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodCode>('transfer')
   const [cardType, setCardType] = useState<CardTypeCode | null>(null)
@@ -253,6 +255,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           editing.isPrepaid ||
           editing.prepaidTransactionId !== null,
       )
+      applyDefaultPayRef.current = false
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -288,6 +291,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       setSavingsBank(null)
       setCustomSavingsBank(false)
       const p = prefillRef.current
+      applyDefaultPayRef.current = p?.paymentMethod === undefined && p?.bank === undefined
       if (p) {
         if (p.content !== undefined) setContent(p.content)
         if (p.amount !== undefined) setAmountText(String(Math.round(p.amount)))
@@ -314,14 +318,28 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   // will be saved is always visible.
   const payWithRef = useRef<PayWithFields>({ paymentMethod, cardType, bank })
   payWithRef.current = { paymentMethod, cardType, bank }
+  const pickPayWith = useCallback((chip: PayWithChip) => {
+    const f = chip.fields
+    setPickedPayKey(chip.key)
+    setPaymentMethod(f.paymentMethod)
+    setCardType(f.cardType)
+    setBank(f.bank)
+    setCustomBank(f.bank !== null && !banksRef.current.some((b) => b.name === f.bank))
+    setPayOtherOpen(false)
+  }, [])
+
   useEffect(() => {
     if (!open) return
     if (accountsStatus === 'error') {
       setPayOtherOpen(true)
     } else if (accountsStatus === 'ready') {
-      setPayOtherOpen(selectedPayWithKey(payWithChips, payWithRef.current) === null)
+      const defaultId = applyDefaultPayRef.current ? accounts.find((a) => a.isDefault)?.id : undefined
+      applyDefaultPayRef.current = false
+      const defaultChip = payWithChips.find((c) => c.key === defaultId)
+      if (defaultChip) pickPayWith(defaultChip)
+      else setPayOtherOpen(selectedPayWithKey(payWithChips, payWithRef.current) === null)
     }
-  }, [open, accountsStatus, payWithChips])
+  }, [open, accountsStatus, accounts, payWithChips, pickPayWith])
 
   useEffect(() => {
     if (!open || !reimburse || !selectedPlanId) return
@@ -778,15 +796,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   <PayWithChips
                     chips={payWithChips}
                     selectedKey={payWithKey}
-                    onPick={(chip) => {
-                      const f = chip.fields
-                      setPickedPayKey(chip.key)
-                      setPaymentMethod(f.paymentMethod)
-                      setCardType(f.cardType)
-                      setBank(f.bank)
-                      setCustomBank(f.bank !== null && !banksRef.current.some((b) => b.name === f.bank))
-                      setPayOtherOpen(false)
-                    }}
+                    onPick={pickPayWith}
                   />
                 )}
                 <button
