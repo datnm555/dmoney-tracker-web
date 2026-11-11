@@ -187,7 +187,9 @@ describe('AccountsPage', () => {
     expect(screen.getByLabelText('recurring.amount')).toHaveValue('5.000.000')
     const from = screen.getByLabelText('accounts.payFrom')
     expect(within(from).queryByText('Visa', { exact: false })).toBeNull()
-    await user.selectOptions(from, 'a-od')
+    expect(within(from).getByRole('radio', { name: 'accounts.payFromNone' })).toHaveAttribute('aria-checked', 'true')
+    // Pay-from is a tile radiogroup (was a <select>); picking the overdraft tile selects a-od.
+    await user.click(within(from).getByRole('radio', { name: /Thấu chi VPB/ }))
     await user.click(screen.getByRole('button', { name: 'summary.submit' }))
     expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 5_000_000, fromAccountId: 'a-od' })
     expect(updateSnapshot).not.toHaveBeenCalled()
