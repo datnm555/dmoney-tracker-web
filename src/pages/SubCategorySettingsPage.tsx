@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { ListTree, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -29,6 +28,14 @@ import type { SubCategoryResponse } from '../api/types'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { IconPicker } from '../components/IconPicker'
+import {
+  SettingsBadge,
+  SettingsEmpty,
+  SettingsHeader,
+  SettingsList,
+  SettingsRow,
+  SettingsSectionLabel,
+} from '../components/settings/SettingsKit'
 import { cn } from '@/lib/utils'
 import { useI18n } from '../i18n/I18nContext'
 import { visualForIcon } from '../utils/categoryIcons'
@@ -116,99 +123,99 @@ export function SubCategorySettingsPage() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-bold">{t('settings.subcategories')}</h1>
-          <p className="text-sm text-muted-foreground">{t('subcat.hint')}</p>
-        </div>
-        <Button
-          onClick={() => {
-            setEditingSub(null)
-            setName('')
-            setIcon(null)
-            setIsDefault(false)
-            setExcludeFromStats(false)
-            // Categories come from the db; make sure the select holds a valid one.
-            setCategory((prev) =>
-              options.some((o) => o.code === prev) ? prev : (options[0]?.code ?? ''),
-            )
-            setOpen(true)
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          {t('subcat.create')}
-        </Button>
-      </div>
+      <SettingsHeader
+        icon={ListTree}
+        title={t('settings.subcategories')}
+        description={t('subcat.hint')}
+        count={subCategories.length}
+        action={
+          <Button
+            onClick={() => {
+              setEditingSub(null)
+              setName('')
+              setIcon(null)
+              setIsDefault(false)
+              setExcludeFromStats(false)
+              // Categories come from the db; make sure the select holds a valid one.
+              setCategory((prev) =>
+                options.some((o) => o.code === prev) ? prev : (options[0]?.code ?? ''),
+              )
+              setOpen(true)
+            }}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            {t('subcat.create')}
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('settings.subcategories')}</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          {grouped.length === 0 && (
-            <p className="py-4 text-center text-sm text-muted-foreground">{t('subcat.empty')}</p>
-          )}
+      {grouped.length === 0 && <SettingsEmpty icon={ListTree}>{t('subcat.empty')}</SettingsEmpty>}
 
-          {grouped.map(({ option, items }) => (
-            <div key={option.code} className="grid gap-2">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <CategoryIcon category={option.code} className="h-6 w-6 rounded-md" />
-                {option.label}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {items.map((sub) => {
-                  const subVisual = sub.icon ? visualForIcon(sub.icon) : null
-                  return (
-                    <span
-                      key={sub.id}
-                      className="flex items-center gap-1.5 rounded-lg border bg-zinc-50 py-1 pl-2 pr-1 text-sm"
-                    >
-                      {subVisual && (
-                        <span
-                          aria-hidden
-                          className={cn(
-                            'flex h-5 w-5 items-center justify-center rounded',
-                            subVisual.chipClass,
-                          )}
-                        >
-                          <subVisual.icon className={cn('h-3 w-3', subVisual.iconClass)} />
-                        </span>
-                      )}
-                      {sub.name}
-                      {sub.isDefault && (
-                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                          {t('subcat.default')}
-                        </span>
-                      )}
+      {grouped.map(({ option, items }) => (
+        <section key={option.code} className="grid gap-2">
+          <div className="flex items-center gap-2">
+            <CategoryIcon category={option.code} className="h-5 w-5 rounded-md [&>svg]:h-3 [&>svg]:w-3" />
+            <SettingsSectionLabel>{option.label}</SettingsSectionLabel>
+            <span className="text-xs tabular-nums text-muted-foreground">{items.length}</span>
+          </div>
+          <SettingsList>
+            {items.map((sub) => {
+              const subVisual = sub.icon ? visualForIcon(sub.icon) : null
+              return (
+                <SettingsRow
+                  key={sub.id}
+                  leading={
+                    subVisual ? (
+                      <span
+                        aria-hidden
+                        className={cn(
+                          'flex size-9 shrink-0 items-center justify-center rounded-xl shadow-sm',
+                          subVisual.chipClass,
+                        )}
+                      >
+                        <subVisual.icon className={cn('h-4 w-4', subVisual.iconClass)} />
+                      </span>
+                    ) : (
+                      <CategoryIcon category={option.code} className="h-9 w-9 rounded-xl opacity-60" />
+                    )
+                  }
+                  title={<span className="truncate font-medium">{sub.name}</span>}
+                  badges={
+                    <>
+                      {sub.isDefault && <SettingsBadge tone="primary">{t('subcat.default')}</SettingsBadge>}
                       {sub.excludeFromStats && (
-                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-500">
-                          {t('summary.excludedBadge')}
-                        </span>
+                        <SettingsBadge tone="warning">{t('summary.excludedBadge')}</SettingsBadge>
                       )}
-                      <button
-                        type="button"
+                    </>
+                  }
+                  actions={
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
                         aria-label={`${t('summary.edit')} ${sub.name}`}
-                        className="rounded p-1 text-muted-foreground hover:bg-zinc-100 hover:text-foreground"
                         onClick={() => openEdit(sub)}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
                         aria-label={`${t('summary.delete')} ${sub.name}`}
-                        className="rounded p-1 text-muted-foreground hover:bg-expense/10 hover:text-expense"
                         onClick={() => setDeleting(sub)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </span>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  }
+                />
+              )
+            })}
+          </SettingsList>
+        </section>
+      ))}
 
       <AlertDialog open={deleting !== null} onOpenChange={(next) => !next && setDeleting(null)}>
         <AlertDialogContent>
@@ -257,24 +264,26 @@ export function SubCategorySettingsPage() {
               <Label>{t('cat.icon')}</Label>
               <IconPicker value={icon} onChange={setIcon} allowClear />
             </div>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={isDefault}
-                onCheckedChange={(checked) => setIsDefault(checked === true)}
-                aria-label={t('subcat.default')}
-              />
-              {t('subcat.default')}
-            </label>
-            <div className="grid gap-1">
-              <label className="flex items-center gap-2 text-sm">
+            <div className="grid gap-3 rounded-2xl border bg-muted/30 p-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
                 <Checkbox
-                  checked={excludeFromStats}
-                  onCheckedChange={(checked) => setExcludeFromStats(checked === true)}
-                  aria-label={t('cat.excludeFromStats')}
+                  checked={isDefault}
+                  onCheckedChange={(checked) => setIsDefault(checked === true)}
+                  aria-label={t('subcat.default')}
                 />
-                {t('cat.excludeFromStats')}
+                {t('subcat.default')}
               </label>
-              <p className="pl-6 text-xs text-muted-foreground">{t('cat.excludeFromStatsHint')}</p>
+              <div className="grid gap-1">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <Checkbox
+                    checked={excludeFromStats}
+                    onCheckedChange={(checked) => setExcludeFromStats(checked === true)}
+                    aria-label={t('cat.excludeFromStats')}
+                  />
+                  {t('cat.excludeFromStats')}
+                </label>
+                <p className="pl-6 text-xs text-muted-foreground">{t('cat.excludeFromStatsHint')}</p>
+              </div>
             </div>
             <Button type="submit" disabled={submitting || !name.trim()}>
               {t('summary.submit')}

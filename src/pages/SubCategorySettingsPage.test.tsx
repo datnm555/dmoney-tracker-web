@@ -56,8 +56,8 @@ describe('SubCategorySettingsPage exclude from stats', () => {
     render(<SubCategorySettingsPage />)
     expect(await screen.findByText('Cho vay')).toBeInTheDocument()
     expect(screen.getAllByText('summary.excludedBadge')).toHaveLength(1)
-    expect(screen.getByText('Cho vay').closest('span')).toHaveTextContent('summary.excludedBadge')
-    expect(screen.getByText('Lãi vay').closest('span')).not.toHaveTextContent('summary.excludedBadge')
+    expect(screen.getByText('Cho vay').parentElement).toHaveTextContent('summary.excludedBadge')
+    expect(screen.getByText('Lãi vay').parentElement).not.toHaveTextContent('summary.excludedBadge')
   })
 
   it('sends excludeFromStats=true on create when the box is checked', async () => {
