@@ -1,8 +1,9 @@
 import { Banknote, Check, CreditCard, Landmark, Smartphone, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AccountType } from '../../api/types'
+import { bankBrand } from '../../banks/bankBrand'
 import { useI18n } from '../../i18n/I18nContext'
-import type { PayWithChip } from '../../utils/payWith'
+import { groupPayWithChips, type PayWithChip } from '../../utils/payWith'
 
 interface Props {
   chips: PayWithChip[]
@@ -18,49 +19,87 @@ const TYPE_STYLE: Record<AccountType, { icon: LucideIcon; tint: string }> = {
   cash: { icon: Banknote, tint: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
 }
 
+/** Pay-with accounts grouped under their bank, one row per account. */
 export function PayWithChips({ chips, selectedKey, onPick }: Props) {
   const { t } = useI18n()
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {chips.map((chip) => {
-        const selected = chip.key === selectedKey
-        const { icon: Icon, tint } = TYPE_STYLE[chip.type]
-        // No card digits: fall back to the type label so cards and overdrafts still read apart.
-        // It is aria-hidden to keep the button's accessible name to the account name.
-        const typeHint = !chip.lastDigits && chip.type !== 'checking' && chip.type !== 'cash'
+    <div className="grid gap-3">
+      {groupPayWithChips(chips).map((group) => {
+        const brand = group.bank ? bankBrand(group.bank) : null
         return (
-          <button
-            key={chip.key}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => onPick(chip)}
-            className={cn(
-              'relative flex min-w-0 items-center gap-2.5 rounded-xl border bg-card p-2.5 text-left transition-colors hover:border-zinc-300 hover:bg-muted/40',
-              selected && 'border-primary bg-primary/5 ring-1 ring-primary/30 hover:border-primary hover:bg-primary/5',
-            )}
-          >
-            <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-full', tint)}>
-              <Icon className="size-4" aria-hidden />
-            </span>
-            <span className="grid min-w-0 pr-3">
-              <span className="truncate text-sm font-medium">{chip.label}</span>
-              {chip.lastDigits && (
-                <span className="text-xs text-muted-foreground tabular-nums">•••{chip.lastDigits}</span>
-              )}
-              {typeHint && (
-                <span aria-hidden className="truncate text-xs text-muted-foreground">
-                  {t(`accounts.type.${chip.type}`)}
+          <section key={group.bank ?? '__none__'} className="grid gap-1.5">
+            <div className="flex items-center gap-2 px-1">
+              {brand && (
+                <span
+                  aria-hidden
+                  className="flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white"
+                  style={{ backgroundColor: brand.color }}
+                >
+                  {brand.short}
                 </span>
               )}
-            </span>
-            {selected && (
-              <span className="absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                <Check className="size-3" strokeWidth={3} aria-hidden />
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.bank ?? t('accounts.noBank')}
               </span>
-            )}
-          </button>
+            </div>
+            <div className="divide-y overflow-hidden rounded-xl border bg-card">
+              {group.chips.map((chip) => (
+                <PayWithRow key={chip.key} chip={chip} selected={chip.key === selectedKey} onPick={onPick} />
+              ))}
+            </div>
+          </section>
         )
       })}
     </div>
+  )
+}
+
+function PayWithRow({
+  chip,
+  selected,
+  onPick,
+}: {
+  chip: PayWithChip
+  selected: boolean
+  onPick: (chip: PayWithChip) => void
+}) {
+  const { t } = useI18n()
+  const { icon: Icon, tint } = TYPE_STYLE[chip.type]
+  // The type label is aria-hidden to keep the button's accessible name to the account name
+  // (+ digits); cash skips it because its name already says "Tiền mặt".
+  const typeLabel = chip.type === 'cash' ? null : t(`accounts.type.${chip.type}`)
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={() => onPick(chip)}
+      className={cn(
+        'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-muted/50',
+        selected && 'bg-primary/5 hover:bg-primary/5',
+      )}
+    >
+      <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-full', tint)}>
+        <Icon className="size-4" aria-hidden />
+      </span>
+      <span className="grid min-w-0 flex-1">
+        <span className={cn('text-sm font-medium break-words', selected && 'text-primary')}>{chip.label}</span>
+        {(typeLabel || chip.lastDigits) && (
+          <span className="text-xs text-muted-foreground">
+            {typeLabel && <span aria-hidden>{typeLabel}</span>}
+            {typeLabel && chip.lastDigits && <span aria-hidden> · </span>}
+            {chip.lastDigits && <span className="tabular-nums">•••{chip.lastDigits}</span>}
+          </span>
+        )}
+      </span>
+      <span
+        aria-hidden
+        className={cn(
+          'flex size-5 shrink-0 items-center justify-center rounded-full border',
+          selected ? 'border-primary bg-primary text-primary-foreground' : 'border-zinc-300',
+        )}
+      >
+        {selected && <Check className="size-3" strokeWidth={3} />}
+      </span>
+    </button>
   )
 }

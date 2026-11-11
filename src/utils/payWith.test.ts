@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountResponse } from '../api/types'
-import { buildPayWithChips, matchesPayWith, payWithFields, selectedPayWithKey } from './payWith'
+import { buildPayWithChips, groupPayWithChips, matchesPayWith, payWithFields, selectedPayWithKey } from './payWith'
 
 function account(over: Partial<AccountResponse>): AccountResponse {
   return {
@@ -123,5 +123,24 @@ describe('selectedPayWithKey normalisation', () => {
   it('a non-card state with a leftover cardType matches the transfer chip', () => {
     const chips = buildPayWithChips([account({ bankName: 'Techcombank' })], 'Tiền mặt')
     expect(selectedPayWithKey(chips, { paymentMethod: 'transfer', cardType: 'credit', bank: 'Techcombank' })).toBe('a1')
+  })
+})
+
+describe('groupPayWithChips', () => {
+  it('groups by bank A→Z keeping chip order, with cash and bankless accounts last', () => {
+    const chips = buildPayWithChips(
+      [
+        account({ id: 'vp-1', name: 'VP lương', bankName: 'VPBank' }),
+        account({ id: 'tcb', name: 'TCB Visa', type: 'credit_card', bankName: 'Techcombank' }),
+        account({ id: 'none', name: 'Không rõ', bankName: null }),
+        account({ id: 'vp-2', name: 'VP thấu chi', type: 'overdraft', bankName: ' VPBank ' }),
+      ],
+      'Tiền mặt',
+    )
+    expect(groupPayWithChips(chips).map((g) => [g.bank, g.chips.map((c) => c.key)])).toEqual([
+      ['Techcombank', ['tcb']],
+      ['VPBank', ['vp-1', 'vp-2']],
+      [null, ['none', '__cash__']],
+    ])
   })
 })
