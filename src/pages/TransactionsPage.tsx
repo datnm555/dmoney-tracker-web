@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import dayjs from 'dayjs'
-import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, CornerDownRight, Download, Funnel, Pencil, Plus, Trash2, Upload, type LucideIcon } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, CornerDownRight, Download, Funnel, Pencil, Plus, Trash2, Upload, RotateCcw, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -45,6 +45,8 @@ import { toTransactionPayload } from '../utils/transactionPayload'
 
 type Filter = 'all' | 'in' | 'out' | 'advance'
 
+const FILTER_LABEL = 'text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'
+
 export function TransactionsPage() {
   const { t, lang } = useI18n()
   const { selectedPlanId } = usePlans()
@@ -62,6 +64,17 @@ export function TransactionsPage() {
   const [filterSub, setFilterSub] = useState<string>('all')
   const [filterBeneficiary, setFilterBeneficiary] = useState<string>('all')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // Narrowing filters in use (the period picker is not counted: it always has a value).
+  const activeFilters = [
+    filter !== 'all',
+    searchContent.trim() !== '',
+    amountFromDigits !== '',
+    amountToDigits !== '',
+    searchNote.trim() !== '',
+    filterCategory !== 'all',
+    filterSub !== 'all',
+    filterBeneficiary !== 'all',
+  ].filter(Boolean).length
   const [allSubCategories, setAllSubCategories] = useState<SubCategoryResponse[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
@@ -225,19 +238,22 @@ export function TransactionsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center rounded-xl border bg-card p-0.5 shadow-sm">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
+            className="h-8 rounded-lg"
             disabled={!summary || summary.items.length === 0}
             onClick={() => summary && exportTransactionsToExcel(summary.items, t, monthKey, categoryLabel)}
           >
             <Download className="mr-1 h-4 w-4" />
             {t('export.button')}
           </Button>
-          <Button type="button" variant="outline" onClick={() => setImportOpen(true)}>
+          <Button type="button" variant="ghost" className="h-8 rounded-lg" onClick={() => setImportOpen(true)}>
             <Upload className="mr-1 h-4 w-4" />
             {t('import.button')}
           </Button>
+          </div>
           <Button
             onClick={() => {
               setEditing(null)
@@ -253,14 +269,24 @@ export function TransactionsPage() {
       {/* Collapsed: the whole card is the expand target, not just the chevron. */}
       <Card
         data-testid="filters-card"
-        className={cn(!filtersOpen && 'cursor-pointer transition-colors hover:bg-zinc-50')}
+        className={cn('rounded-2xl', !filtersOpen && 'cursor-pointer transition-colors hover:bg-muted/40')}
         onClick={filtersOpen ? undefined : () => setFiltersOpen(true)}
       >
         <CardContent className="grid gap-4 p-4 md:p-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Funnel className="h-4 w-4 text-primary" />
+            <div className="flex items-center gap-2.5 text-sm font-semibold">
+              <span className="flex size-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Funnel className="h-4 w-4" />
+              </span>
               {t('filters.title')}
+              {activeFilters > 0 && (
+                <span
+                  data-testid="active-filters"
+                  className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold tabular-nums text-primary-foreground"
+                >
+                  {activeFilters}
+                </span>
+              )}
             </div>
             <Button
               type="button"
@@ -279,19 +305,19 @@ export function TransactionsPage() {
             <>
               <div className="grid items-end gap-4 md:grid-cols-3">
                 <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('form.content')}</span>
-                  <Input value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
+                  <span className={FILTER_LABEL}>{t('form.content')}</span>
+                  <Input className="rounded-xl" value={searchContent} onChange={(e) => setSearchContent(e.target.value)} />
                 </div>
 
                 <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">
+                  <span className={FILTER_LABEL}>
                     {t('form.amount')} ({t('filters.amountFrom')} → {t('filters.amountTo')})
                   </span>
                   <div className="flex items-center gap-1.5">
                     <Input
                       inputMode="numeric"
                       aria-label={t('filters.amountFrom')}
-                      className="flex-1"
+                      className="flex-1 rounded-xl"
                       value={amountFromDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       onChange={(e) => setAmountFromDigits(e.target.value.replace(/\D/g, ''))}
                     />
@@ -299,7 +325,7 @@ export function TransactionsPage() {
                     <Input
                       inputMode="numeric"
                       aria-label={t('filters.amountTo')}
-                      className="flex-1"
+                      className="flex-1 rounded-xl"
                       value={amountToDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                       onChange={(e) => setAmountToDigits(e.target.value.replace(/\D/g, ''))}
                     />
@@ -307,16 +333,16 @@ export function TransactionsPage() {
                 </div>
 
                 <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('form.note')}</span>
-                  <Input value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
+                  <span className={FILTER_LABEL}>{t('form.note')}</span>
+                  <Input className="rounded-xl" value={searchNote} onChange={(e) => setSearchNote(e.target.value)} />
                 </div>
               </div>
 
               <div className="grid items-end gap-4 md:grid-cols-4">
                 <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('filters.type')}</span>
+                  <span className={FILTER_LABEL}>{t('filters.type')}</span>
                   <Select value={filter} onValueChange={(value) => setFilter(value as Filter)}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -329,12 +355,12 @@ export function TransactionsPage() {
                 </div>
 
                 <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">
+                  <span className={FILTER_LABEL}>
                     {t('filters.month')} {t('filters.optional')}
                   </span>
                   <div className="flex items-center gap-2">
                     <Select value={selMonth} onValueChange={(value) => applyPeriod(selYear, value)}>
-                      <SelectTrigger className="flex-1">
+                      <SelectTrigger className="flex-1 rounded-xl">
                         <div className="flex min-w-0 items-center gap-2">
                           <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <SelectValue />
@@ -349,7 +375,7 @@ export function TransactionsPage() {
                       </SelectContent>
                     </Select>
                     <Select value={String(selYear)} onValueChange={(value) => applyPeriod(Number(value), selMonth)}>
-                      <SelectTrigger className="w-28 shrink-0">
+                      <SelectTrigger className="w-28 shrink-0 rounded-xl">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -364,7 +390,7 @@ export function TransactionsPage() {
                 </div>
 
                 <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('form.category')}</span>
+                  <span className={FILTER_LABEL}>{t('form.category')}</span>
                   <Select
                     value={filterCategory}
                     onValueChange={(value) => {
@@ -372,7 +398,7 @@ export function TransactionsPage() {
                       setFilterSub('all')
                     }}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -387,9 +413,9 @@ export function TransactionsPage() {
                 </div>
 
                 <div className="grid gap-1.5">
-                  <span className="text-xs text-muted-foreground">{t('filters.beneficiary')}</span>
+                  <span className={FILTER_LABEL}>{t('filters.beneficiary')}</span>
                   <Select value={filterBeneficiary} onValueChange={setFilterBeneficiary}>
-                    <SelectTrigger aria-label={t('filters.beneficiary')} className="w-full">
+                    <SelectTrigger aria-label={t('filters.beneficiary')} className="w-full rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -406,9 +432,9 @@ export function TransactionsPage() {
 
                 {filterCategory !== 'all' && (
                   <div className="grid gap-1.5">
-                    <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
+                    <span className={FILTER_LABEL}>{t('form.subCategory')}</span>
                     <Select value={filterSub} onValueChange={setFilterSub}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full rounded-xl">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -427,7 +453,8 @@ export function TransactionsPage() {
               <div className="flex justify-end border-t pt-3">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
+                  className="text-muted-foreground hover:text-foreground"
                   onClick={() => {
                     setFilter('all')
                     setMonthKey(dayjs().format('YYYY-MM'))
@@ -440,6 +467,7 @@ export function TransactionsPage() {
                     setFilterBeneficiary('all')
                   }}
                 >
+                  <RotateCcw className="mr-1 h-4 w-4" />
                   {t('filters.reset')}
                 </Button>
               </div>

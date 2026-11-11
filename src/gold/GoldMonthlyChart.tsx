@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import dayjs from 'dayjs'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { GoldTransactionResponse } from '../api/types'
+import { BarChart, type TooltipProps } from '../components/tremor/BarChart'
 import { useI18n } from '../i18n/I18nContext'
 import { goldMonthly } from '../utils/chartData'
 import type { GoldMonthDatum } from '../utils/chartData'
@@ -11,19 +11,22 @@ import { formatMoney } from '../utils/money'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 
-/** Chỉ bought / sold per month over the last 12 months (styling mirrors the savings chart). */
+/** Chỉ bought / sold per month over the last 12 months (Tremor BarChart, like the savings chart). */
 export function GoldMonthlyChart({ transactions }: { transactions: GoldTransactionResponse[] }) {
   const { t } = useI18n()
   const monthly = useMemo(() => goldMonthly(transactions, dayjs()), [transactions])
   const unit = t('gold.unit')
 
-  // Only the fields we read — structurally compatible with Recharts' tooltip content props.
-  const renderTooltip = ({ active, payload }: { active?: boolean; payload?: ReadonlyArray<{ payload?: unknown }> }) => {
+  const boughtKey = `${t('gold.bought')} (${unit})`
+  const soldKey = `${t('gold.sold')} (${unit})`
+
+  // Tremor's default tooltip only knows the plotted chỉ; ours adds the money moved.
+  const renderTooltip = ({ active, payload }: TooltipProps) => {
     if (!active || !payload?.length) return null
-    const datum = payload[0].payload as GoldMonthDatum
+    const datum = payload[0].payload as GoldMonthDatum & { full: string }
     return (
-      <div className="grid gap-1 rounded-lg border bg-background px-3 py-2 text-xs shadow-sm">
-        <div className="font-semibold">{datum.month}</div>
+      <div className="grid gap-1 rounded-xl border bg-background px-3 py-2 text-xs shadow-lg">
+        <div className="font-semibold">{datum.full}</div>
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-income" />
           {t('gold.bought')}: <strong>{formatGoldQuantity(datum.bought)} {unit}</strong>
@@ -39,44 +42,37 @@ export function GoldMonthlyChart({ transactions }: { transactions: GoldTransacti
   }
 
   return (
-    <Card>
+    <Card className="rounded-2xl">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{t('gold.monthlyChart')}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-2">
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthly} barGap={4}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-              {/* Ticks show "T10"; the tooltip keeps the full MM/YYYY label. */}
-              <XAxis
-                dataKey="month"
-                tickFormatter={(month: string) => `T${Number(month.slice(0, 2))}`}
-                tickLine={false}
-                axisLine={false}
-                fontSize={12}
-              />
-              <YAxis
-                tickFormatter={(value: number) => formatGoldQuantity(value)}
-                tickLine={false}
-                axisLine={false}
-                fontSize={11}
-                width={40}
-                allowDecimals
-              />
-              <Tooltip content={renderTooltip} cursor={{ fill: '#f4f4f5' }} />
-              <Bar dataKey="bought" name={t('gold.bought')} fill="#16a34a" radius={[7, 7, 7, 7]} barSize={10} />
-              <Bar dataKey="sold" name={t('gold.sold')} fill="#dc2626" radius={[7, 7, 7, 7]} barSize={10} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <BarChart
+          className="h-64"
+          data={monthly.map((m) => ({
+            ...m,
+            full: m.month,
+            // Ticks show "T10"; the tooltip keeps the full MM/YYYY label.
+            month: `T${Number(m.month.slice(0, 2))}`,
+            [boughtKey]: m.bought,
+            [soldKey]: m.sold,
+          }))}
+          index="month"
+          categories={[boughtKey, soldKey]}
+          colors={['emerald', 'rose']}
+          valueFormatter={(value) => formatGoldQuantity(value)}
+          yAxisWidth={40}
+          allowDecimals
+          showLegend={false}
+          customTooltip={renderTooltip}
+        />
         <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-income" />
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
             {t('gold.bought')} ({unit})
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-expense" />
+            <span className="h-2 w-2 rounded-full bg-rose-500" />
             {t('gold.sold')} ({unit})
           </span>
         </div>
