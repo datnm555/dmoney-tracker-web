@@ -26,6 +26,7 @@ export function SavingsGoalDialog({
   const [targetDigits, setTargetDigits] = useState('')
   const [startPeriod, setStartPeriod] = useState('')
   const [months, setMonths] = useState('')
+  const [initialDigits, setInitialDigits] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export function SavingsGoalDialog({
     setTargetDigits(toDigits(account.goal?.targetAmount.amount))
     setStartPeriod(account.goal?.startPeriod ?? dayjs().format('YYYY-MM'))
     setMonths(account.goal ? String(account.goal.months) : '')
+    setInitialDigits(toDigits(account.goal?.initialAmount.amount || null))
   }, [account])
 
   const target = digitsToNumber(targetDigits) ?? 0
@@ -55,7 +57,13 @@ export function SavingsGoalDialog({
   const submit = () =>
     account?.savingsBank &&
     run(() =>
-      setSavingsGoal({ savingsBank: account.savingsBank!, targetAmount: target, startPeriod, months: monthCount }),
+      setSavingsGoal({
+        savingsBank: account.savingsBank!,
+        targetAmount: target,
+        startPeriod,
+        months: monthCount,
+        initialAmount: digitsToNumber(initialDigits) ?? 0,
+      }),
     )
 
   return (
@@ -83,6 +91,12 @@ export function SavingsGoalDialog({
               />
             </div>
           </div>
+          <MoneyInput
+            id="goal-initial"
+            label={t('savings.initialAmount')}
+            digits={initialDigits}
+            onChange={setInitialDigits}
+          />
         </div>
         <DialogFooter className="gap-2 sm:justify-between">
           {account?.goal ? (

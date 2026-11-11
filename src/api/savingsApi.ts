@@ -11,6 +11,7 @@ export async function setSavingsGoal(input: {
   targetAmount: number
   startPeriod: string
   months: number
+  initialAmount: number
 }): Promise<{ id: string }> {
   const { data } = await apiClient.put<{ id: string }>('/savings/goals', input)
   return data

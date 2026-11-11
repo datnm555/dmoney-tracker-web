@@ -89,6 +89,12 @@ function GoalBlock({ account, onEdit }: { account: SavingsAccountResponse; onEdi
       <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
         <div className="h-full bg-income" style={{ width: `${p.pct}%` }} />
       </div>
+      {goal.initialAmount.amount > 0 && (
+        <div data-testid="savings-goal-initial" className="flex justify-between text-muted-foreground">
+          <span>{t('savings.initialAmount')}</span>
+          <span className="tabular-nums">{formatMoney(goal.initialAmount)}</span>
+        </div>
+      )}
       <div className="flex justify-between text-muted-foreground">
         <span className="font-medium text-income">{p.pct}%</span>
         <span>
