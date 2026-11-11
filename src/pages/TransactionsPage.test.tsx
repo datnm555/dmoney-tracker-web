@@ -180,8 +180,11 @@ describe('TransactionsPage summary card', () => {
     // Filters start collapsed; expand before touching the inputs.
     await userEvent.click(screen.getByRole('button', { name: 'filters.expand' }))
 
+    expect(screen.queryByTestId('active-filters')).not.toBeInTheDocument()
+
     // Amount ≥ 5.000.000 leaves only the 10M salary.
     await userEvent.type(screen.getByLabelText('filters.amountFrom'), '5000000')
+    expect(screen.getByTestId('active-filters')).toHaveTextContent('1')
 
     expect(screen.queryByText(`+${fmt(13_000_000)}`)).not.toBeInTheDocument()
     expect(screen.queryByText(`−${fmt(2_500_000)}`)).not.toBeInTheDocument()
