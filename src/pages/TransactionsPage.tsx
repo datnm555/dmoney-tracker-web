@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import dayjs from 'dayjs'
-import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, CornerDownRight, Download, Funnel, Pencil, Plus, Trash2, Upload, RotateCcw, type LucideIcon } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, Download, Funnel, Plus, Upload, RotateCcw, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -27,7 +27,6 @@ import {
 import { getSubCategories } from '../api/subCategoryApi'
 import type { MonthlySummaryResponse, SubCategoryResponse, TransactionResponse } from '../api/types'
 import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
-import { CategoryIcon } from '../components/CategoryIcon'
 import { CategoryBar } from '../components/tremor/CategoryBar'
 import { DailySpendChart } from '../transactions/DailySpendChart'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
@@ -36,13 +35,12 @@ import type { SubmitOptions, TransactionFormValues } from '../components/Transac
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { formatMoney } from '../utils/money'
-import { paymentMethodChipLabel } from '../utils/paymentLabel'
-import { formatGoldQuantity } from '../utils/gold'
 import { groupTransactionsByDay } from '../utils/transactionGroups'
 import { matchesSearch } from '../utils/transactionSearch'
 import { exportTransactionsToExcel } from '../utils/exportExcel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { toTransactionPayload } from '../utils/transactionPayload'
+import { TransactionDayList } from '../transactions/TransactionDayList'
 
 type Filter = 'all' | 'in' | 'out' | 'advance'
 
@@ -51,7 +49,7 @@ const FILTER_LABEL = 'text-[11px] font-semibold uppercase tracking-wide text-mut
 export function TransactionsPage() {
   const { t, lang } = useI18n()
   const { selectedPlanId } = usePlans()
-  const { label: categoryLabel, visual: categoryDisplayVisual, options: categoryOptions } = useCategoryDisplay()
+  const { label: categoryLabel, options: categoryOptions } = useCategoryDisplay()
   const { beneficiaries } = useBeneficiaries()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year.
   const [monthKey, setMonthKey] = useState<string>(() => dayjs().format('YYYY-MM'))
@@ -523,143 +521,15 @@ export function TransactionsPage() {
         </CardContent>
       </Card>
 
-      {groups.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">{t('summary.empty')}</CardContent>
-        </Card>
-      )}
-
-      {groups.map((group) => (
-        <section key={group.date} className="grid gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {dayTitle(group.date)} · {dayjs(group.date).format('DD/MM')}
-            </span>
-            {group.net >= 0 ? (
-              <span className="rounded-full bg-income/10 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-income">
-                {t('transactions.net')} +{formatMoney({ amount: group.net, currency: 'VND' })}
-              </span>
-            ) : (
-              <span className="rounded-full bg-expense/10 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-expense">
-                −{formatMoney({ amount: Math.abs(group.net), currency: 'VND' })}
-              </span>
-            )}
-          </div>
-        <Card className="overflow-hidden rounded-2xl py-0">
-          <CardContent className="divide-y p-0">
-            {group.items.map((tx) => {
-              const isIncome = tx.credit.amount > 0
-              return (
-                <div key={tx.id} className="group transition-colors hover:bg-muted/40">
-                  <div className="relative flex items-center gap-3 px-4 py-3">
-                  <CategoryIcon category={tx.categoryId} className="h-11 w-11 rounded-2xl" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="truncate font-semibold">{tx.content}</span>
-                      <span
-                        className={cn(
-                          'shrink-0 text-base font-bold tabular-nums',
-                          isIncome ? 'text-income' : 'text-expense',
-                        )}
-                      >
-                        {isIncome ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] font-medium">
-                      {tx.categoryId && (
-                        <span
-                          className={cn(
-                            'rounded-full px-2 py-0.5',
-                            categoryDisplayVisual(tx.categoryId).labelClass,
-                          )}
-                        >
-                          {categoryLabel(tx.categoryId)}
-                        </span>
-                      )}
-                      {tx.subCategoryName && <MetaChip>{tx.subCategoryName}</MetaChip>}
-                      {tx.beneficiaryName && <MetaChip>{tx.beneficiaryName}</MetaChip>}
-                      {tx.goldQuantity !== null && (
-                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-400">
-                          {formatGoldQuantity(tx.goldQuantity)} {t('gold.unit')}
-                          {tx.goldTypeName ? ` · ${tx.goldTypeName}` : ''}
-                        </span>
-                      )}
-                      {tx.bank && <MetaChip>{tx.bank}</MetaChip>}
-                      <MetaChip>{paymentMethodChipLabel(tx, t)}</MetaChip>
-                      {tx.savingsBank && <MetaChip>→ {tx.savingsBank}</MetaChip>}
-                      {tx.isAdvance && (
-                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-400">
-                          {t('form.isAdvance')}
-                        </span>
-                      )}
-                      {tx.excludedFromStats && (
-                        <span className="rounded-full border border-dashed px-2 py-0.5 text-muted-foreground">
-                          {t('summary.excludedBadge')}
-                        </span>
-                      )}
-                    </div>
-                    {tx.note && (
-                      <div className="mt-1 truncate text-xs italic text-muted-foreground">
-                        {t('form.note')}: {tx.note}
-                      </div>
-                    )}
-                  </div>
-                  {/* sm+: float over the row's right edge on hover so the amount sits flush right. */}
-                  <div className="flex shrink-0 items-center gap-0.5 transition-opacity sm:absolute sm:right-3 sm:top-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:bg-card sm:p-0.5 sm:opacity-0 sm:shadow-md sm:ring-1 sm:ring-border sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                      aria-label={`${t('summary.edit')} ${tx.content}`}
-                      onClick={() => {
-                        setEditing(tx)
-                        setModalOpen(true)
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                      aria-label={`${t('summary.delete')} ${tx.content}`}
-                      onClick={() => setDeleting(tx)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  </div>
-                  {tx.links && tx.links.length > 0 && (
-                    <div className="grid gap-1 px-4 pb-3 pl-[4.25rem]">
-                      {tx.links.map((l) => (
-                        <div
-                          key={`${l.relation}-${l.id}`}
-                          className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-xs"
-                        >
-                          <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                          <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
-                            {t(`links.${l.relation}`)}
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                            {dayjs(l.date).format('DD/MM/YYYY')} · {l.content}
-                          </span>
-                          <span
-                            className={l.credit.amount > 0 ? 'font-medium text-income' : 'font-medium text-expense'}
-                          >
-                            {l.credit.amount > 0 ? `+${formatMoney(l.credit)}` : `−${formatMoney(l.debit)}`}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-
-          </CardContent>
-        </Card>
-        </section>
-      ))}
+      <TransactionDayList
+        groups={groups}
+        dayTitle={dayTitle}
+        onEdit={(tx) => {
+          setEditing(tx)
+          setModalOpen(true)
+        }}
+        onDelete={setDeleting}
+      />
 
       <TransactionFormModal
         open={modalOpen}
@@ -693,11 +563,6 @@ export function TransactionsPage() {
       </AlertDialog>
     </div>
   )
-}
-
-/** Neutral meta chip (sub-category, beneficiary, payment, bank): the category chip stays the only colour. */
-function MetaChip({ children }: { children: ReactNode }) {
-  return <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{children}</span>
 }
 
 function SummaryStat({
