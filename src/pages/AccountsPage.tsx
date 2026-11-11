@@ -205,39 +205,7 @@ export function AccountsPage() {
     }
   }
 
-  const groups: {
-    key: string
-    title: string
-    icon: LucideIcon
-    items: AccountResponse[]
-    byBank: boolean
-    debt: boolean
-  }[] = [
-    {
-      key: 'money',
-      title: t('accounts.groupMoney'),
-      icon: Wallet,
-      items: accounts.filter((a) => ['checking', 'ewallet', 'cash'].includes(a.type)),
-      byBank: true,
-      debt: false,
-    },
-    {
-      key: 'overdraft',
-      title: t('accounts.groupOverdraft'),
-      icon: Landmark,
-      items: accounts.filter((a) => a.type === 'overdraft'),
-      byBank: true,
-      debt: true,
-    },
-    {
-      key: 'credit',
-      title: t('accounts.groupCredit'),
-      icon: CreditCard,
-      items: accounts.filter((a) => a.type === 'credit_card'),
-      byBank: true,
-      debt: true,
-    },
-  ].filter((g) => g.items.length > 0)
+  const banks = useMemo(() => groupByBank(accounts), [accounts])
 
   const renderCard = (a: AccountResponse) => (
     <AccountCard
@@ -340,51 +308,30 @@ export function AccountsPage() {
         </Card>
       )}
 
-      {groups.map((g) => (
+      {banks.map((bg) => (
         <section
-          key={g.key}
-          data-testid={`group-${g.key}`}
+          key={bg.bankName ?? ''}
+          data-testid={`bank-section-${bg.bankName ?? 'none'}`}
           className="grid gap-3 rounded-xl border bg-muted/30 p-3 sm:p-4"
         >
-          {/* Parent level: account type (payment accounts / overdraft / credit cards) with its total. */}
-          <div className="flex items-center gap-3 border-b pb-3">
-            <span
-              className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-                g.debt ? 'bg-expense/10 text-expense' : 'bg-income/10 text-income',
+          {/* Parent level: the bank; its payment accounts, overdraft and cards sit inside. */}
+          <div data-testid="bank-header" className="flex items-center gap-3 border-b pb-3">
+            <BankBadge name={bg.bankName} />
+            <h2 className="min-w-0 flex-1 truncate text-lg font-bold">{bg.bankName ?? t('accounts.noBank')}</h2>
+            <div className="grid justify-items-end text-sm font-bold tabular-nums">
+              {(bg.money > 0 || bg.debt === 0) && (
+                <span data-testid="bank-money" className="text-income">
+                  {vnd(bg.money)}
+                </span>
               )}
-            >
-              <g.icon className="h-5 w-5" />
-            </span>
-            <h2 className="min-w-0 flex-1 truncate text-lg font-bold">{g.title}</h2>
-            <span
-              data-testid="group-total"
-              className={cn('text-lg font-bold tabular-nums', g.debt ? 'text-expense' : 'text-income')}
-            >
-              {vnd(g.items.reduce((s, a) => s + (a.latestSnapshot?.balance.amount ?? 0), 0))}
-            </span>
+              {bg.debt > 0 && (
+                <span data-testid="bank-debt" className="text-expense">
+                  −{vnd(bg.debt)}
+                </span>
+              )}
+            </div>
           </div>
-          {g.byBank ? (
-            groupByBank(g.items).map((bg) => (
-              <div key={bg.bankName ?? ''} data-testid={`bank-section-${g.key}-${bg.bankName ?? 'none'}`} className="grid gap-2">
-                <div data-testid="bank-header" className="flex items-center gap-3 pt-1">
-                  <BankBadge name={bg.bankName} />
-                  <span className="min-w-0 flex-1 truncate text-base font-semibold">
-                    {bg.bankName ?? t('accounts.noBank')}
-                  </span>
-                  <span
-                    data-testid="bank-total"
-                    className={cn('text-base font-bold tabular-nums', g.debt ? 'text-expense' : 'text-foreground')}
-                  >
-                    {vnd(bg.total)}
-                  </span>
-                </div>
-                <div className="grid gap-2">{bg.accounts.map(renderCard)}</div>
-              </div>
-            ))
-          ) : (
-            <div className="grid gap-2">{g.items.map(renderCard)}</div>
-          )}
+          <div className="grid gap-2">{bg.accounts.map(renderCard)}</div>
         </section>
       ))}
 
