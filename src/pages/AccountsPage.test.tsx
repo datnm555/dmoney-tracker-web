@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
 import {
@@ -151,7 +151,8 @@ describe('AccountsPage', () => {
   it('shows the three totals', async () => {
     renderPage()
     expect(await screen.findByText('accounts.cashTotal')).toBeInTheDocument()
-    expect(norm(screen.getByTestId('tile-cash').textContent)).toContain(fmt(10_000_000))
+    // The hero renders before getAccounts resolves (as 0 ₫), so wait for the loaded amount.
+    await waitFor(() => expect(norm(screen.getByTestId('tile-cash').textContent)).toContain(fmt(10_000_000)))
     expect(norm(screen.getByTestId('tile-debt').textContent)).toContain(fmt(120_000_000))
     expect(norm(screen.getByTestId('tile-available').textContent)).toContain(fmt(180_000_000))
   })
