@@ -73,6 +73,7 @@ describe('buildPayWithChips / selectedPayWithKey', () => {
     const chips = buildPayWithChips([account({ id: 'a1', name: 'TCB' })], 'Tiền mặt')
     expect(chips.map((c) => c.label)).toEqual(['TCB', 'Tiền mặt'])
     expect(chips[1].fields).toEqual({ paymentMethod: 'cash', cardType: null, bank: null })
+    expect(chips.map((c) => c.type)).toEqual(['checking', 'cash'])
   })
 
   it('does not add the synthetic chip when a cash account exists', () => {

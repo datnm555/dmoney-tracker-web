@@ -1,4 +1,4 @@
-import type { AccountResponse } from '../api/types'
+import type { AccountResponse, AccountType } from '../api/types'
 import type { CardTypeCode, PaymentMethodCode } from './paymentMethods'
 
 export interface PayWithFields {
@@ -11,6 +11,7 @@ export interface PayWithChip {
   key: string
   label: string
   lastDigits: string | null
+  type: AccountType
   fields: PayWithFields
 }
 
@@ -55,6 +56,7 @@ export function buildPayWithChips(accounts: AccountResponse[], cashLabel: string
     key: a.id,
     label: a.name,
     lastDigits: a.lastDigits,
+    type: a.type,
     fields: payWithFields(a),
   }))
   if (!accounts.some((a) => a.type === 'cash')) {
@@ -62,6 +64,7 @@ export function buildPayWithChips(accounts: AccountResponse[], cashLabel: string
       key: SYNTHETIC_CASH_KEY,
       label: cashLabel,
       lastDigits: null,
+      type: 'cash',
       fields: { paymentMethod: 'cash', cardType: null, bank: null },
     })
   }
