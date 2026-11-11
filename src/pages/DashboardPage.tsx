@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -28,15 +27,21 @@ import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
-import { BarList } from '../components/finance/BarList'
+import { BarChart } from '../components/tremor/BarChart'
+import { DonutChart } from '../components/tremor/DonutChart'
+import { ProgressBar } from '../components/tremor/ProgressBar'
+import { getColorClassName, type AvailableChartColorsKeys } from '../components/tremor/utils/chartColors'
 import { CashflowHero } from '../dashboard/CashflowHero'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 
+/** Donut slices by spending rank (Tremor palette; expense rose stays for the cashflow chart). */
+const DONUT_COLORS: AvailableChartColorsKeys[] = ['violet', 'blue', 'cyan', 'emerald', 'lime', 'amber', 'pink', 'fuchsia']
+
 export function DashboardPage() {
   const { t, lang } = useI18n()
   const { selectedPlanId } = usePlans()
-  const { label: categoryLabel, visual: categoryDisplayVisual } = useCategoryDisplay()
+  const { label: categoryLabel } = useCategoryDisplay()
   // 'YYYY-MM' for a single month, bare 'YYYY' for the whole current year (default).
   const [monthKey, setMonthKey] = useState<string>(() => String(dayjs().year()))
   const [stats, setStats] = useState<DashboardStatsResponse | null>(null)
@@ -238,42 +243,20 @@ export function DashboardPage() {
             )}
           </CardHeader>
           <CardContent className="grid gap-2">
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={bars} barGap={6}>
-                  <defs>
-                    <linearGradient id="dash-in" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#34d399" />
-                      <stop offset="100%" stopColor="#059669" />
-                    </linearGradient>
-                    <linearGradient id="dash-out" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#fb7185" />
-                      <stop offset="100%" stopColor="#e11d48" />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e4e4e7" strokeOpacity={0.6} />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
-                  <YAxis tickFormatter={vnd} tickLine={false} axisLine={false} fontSize={11} width={86} />
-                  <Tooltip
-                    cursor={{ fill: 'rgba(108, 76, 241, 0.06)', radius: 8 }}
-                    contentStyle={{ borderRadius: 12, border: '1px solid #e4e4e7', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
-                    formatter={(value) => vnd(Number(value))}
-                  />
-                  <Bar dataKey="income" name={t('dashboard.legendIn')} fill="url(#dash-in)" radius={[8, 8, 3, 3]} barSize={16} />
-                  <Bar dataKey="expense" name={t('dashboard.legendOut')} fill="url(#dash-out)" radius={[8, 8, 3, 3]} barSize={16} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                {t('dashboard.legendIn')}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-rose-500" />
-                {t('dashboard.legendOut')}
-              </span>
-            </div>
+            <BarChart
+              className="h-64"
+              data={bars.map((b) => ({
+                month: b.month,
+                [t('dashboard.legendIn')]: b.income,
+                [t('dashboard.legendOut')]: b.expense,
+              }))}
+              index="month"
+              categories={[t('dashboard.legendIn'), t('dashboard.legendOut')]}
+              colors={['emerald', 'rose']}
+              valueFormatter={vnd}
+              yAxisWidth={86}
+              barCategoryGap="30%"
+            />
           </CardContent>
         </Card>
 
@@ -332,33 +315,16 @@ export function DashboardPage() {
           {categorySpending.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">{t('summary.empty')}</p>
           ) : (
-            <div className="grid items-center gap-6 md:grid-cols-[240px_1fr]">
-              <div className="relative h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categorySpending}
-                      dataKey="amount"
-                      nameKey="category"
-                      innerRadius={68}
-                      outerRadius={96}
-                      paddingAngle={3}
-                      cornerRadius={6}
-                      strokeWidth={0}
-                    >
-                      {categorySpending.map((d) => (
-                        <Cell key={d.category} fill={categoryDisplayVisual(d.category).hex} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ borderRadius: 12, border: '1px solid #e4e4e7' }}
-                      formatter={(value, _name, entry) => [
-                        vnd(Number(value)),
-                        categoryLabel((entry?.payload as { category?: string })?.category ?? 'uncategorized'),
-                      ]}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+            <div className="grid items-center gap-6 md:grid-cols-[220px_1fr]">
+              <div className="relative mx-auto">
+                <DonutChart
+                  className="size-52"
+                  data={categorySpending.map((d) => ({ name: categoryLabel(d.category), amount: d.amount }))}
+                  category="name"
+                  value="amount"
+                  colors={DONUT_COLORS}
+                  valueFormatter={vnd}
+                />
                 {/* Total in the donut hole. */}
                 <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
                   <span className="text-[11px] text-muted-foreground">{t('summary.colDebit')}</span>
@@ -367,33 +333,40 @@ export function DashboardPage() {
                   </span>
                 </div>
               </div>
-              <BarList
-                valueClass="text-expense"
-                items={categorySpending.map((d) => {
+              <ul className="grid gap-3">
+                {categorySpending.map((d, i) => {
+                  const share = spendingTotal > 0 ? (d.amount / spendingTotal) * 100 : 0
                   const hasSubs = d.subs.some((s) => s.name !== null)
-                  return {
-                    key: d.category,
-                    label: categoryLabel(d.category),
-                    icon: <CategoryIcon category={d.category} className="h-6 w-6 rounded-md" />,
-                    valueLabel: `−${vnd(d.amount)}`,
-                    share: spendingTotal > 0 ? (d.amount / spendingTotal) * 100 : 0,
-                    color: categoryDisplayVisual(d.category).hex,
-                    children: hasSubs ? (
-                      <div className="mb-1 ml-5 grid gap-1 border-l-2 border-muted pl-5">
-                        {d.subs.map((s) => (
-                          <div key={s.name ?? '__none'} className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="flex-1 truncate">{s.name ?? t('dashboard.noSubCategory')}</span>
-                            <span className="tabular-nums">−{vnd(s.amount)}</span>
-                            <span className="w-12 text-right tabular-nums">
-                              {d.amount > 0 ? ((s.amount / d.amount) * 100).toFixed(1) : 0}%
-                            </span>
-                          </div>
-                        ))}
+                  return (
+                    <li key={d.category} data-testid="category-row" className="grid gap-1.5">
+                      <div className="flex items-center gap-2.5 text-sm">
+                        <span
+                          aria-hidden
+                          className={cn('size-2.5 shrink-0 rounded-full', getColorClassName(DONUT_COLORS[i % DONUT_COLORS.length], 'bg'))}
+                        />
+                        <CategoryIcon category={d.category} className="h-7 w-7 rounded-lg" />
+                        <span className="min-w-0 flex-1 truncate font-medium">{categoryLabel(d.category)}</span>
+                        <span className="font-semibold tabular-nums text-expense">−{vnd(d.amount)}</span>
+                        <span className="w-12 text-right text-xs tabular-nums text-muted-foreground">{share.toFixed(1)}%</span>
                       </div>
-                    ) : undefined,
-                  }
+                      <ProgressBar value={share} variant="neutral" className="pl-5" />
+                      {hasSubs && (
+                        <div className="ml-5 grid gap-1 border-l-2 border-muted pl-5">
+                          {d.subs.map((s) => (
+                            <div key={s.name ?? '__none'} className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="flex-1 truncate">{s.name ?? t('dashboard.noSubCategory')}</span>
+                              <span className="tabular-nums">−{vnd(s.amount)}</span>
+                              <span className="w-12 text-right tabular-nums">
+                                {d.amount > 0 ? ((s.amount / d.amount) * 100).toFixed(1) : 0}%
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  )
                 })}
-              />
+              </ul>
             </div>
           )}
         </CardContent>

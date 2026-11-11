@@ -282,7 +282,7 @@ describe('DashboardPage overview', () => {
   it('lists recent transactions and ranks spending by category with the donut total', async () => {
     renderPage()
     await waitFor(() => expect(screen.getAllByTestId('recent-row')).toHaveLength(3))
-    const rows = screen.getAllByTestId('bar-list-row')
+    const rows = screen.getAllByTestId('category-row')
     expect(rows.map((r) => r.textContent?.match(/\d+\.\d%/)?.[0])).toEqual(['75.0%', '25.0%'])
     expect(screen.getByTestId('donut-total')).toBeInTheDocument()
   })

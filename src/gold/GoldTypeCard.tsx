@@ -2,6 +2,7 @@ import { Coins } from 'lucide-react'
 import type { GoldTypeSummaryResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { formatGoldQuantity } from '../utils/gold'
+import { ProgressBar } from '../components/tremor/ProgressBar'
 import { formatMoney } from '../utils/money'
 
 /** One gold type: held quantity as the headline, a held/sold bar and the buy/sell figures as mini tiles. */
@@ -32,12 +33,7 @@ export function GoldTypeCard({ type }: { type: GoldTypeSummaryResponse }) {
 
       {/* Held vs sold share of everything bought. */}
       <div className="mt-3 grid gap-1">
-        <div className="h-1.5 overflow-hidden rounded-full bg-amber-100 dark:bg-amber-500/10">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-yellow-400 to-amber-600"
-            style={{ width: `${heldPct}%` }}
-          />
-        </div>
+        <ProgressBar value={heldPct} variant="warning" />
         <div className="flex justify-between text-[11px] text-muted-foreground">
           <span>
             {t('gold.bought')} <span className="font-medium text-foreground tabular-nums">{formatGoldQuantity(type.boughtQuantity)} {unit}</span>
