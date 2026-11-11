@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { AdvanceResponse, CreditResponse, DashboardStatsResponse, MonthlySummaryResponse, PrepaidCreditResponse, TransactionSuggestionResponse } from './types'
+import type { AdvanceResponse, DayRange, CreditResponse, DashboardStatsResponse, MonthlySummaryResponse, PrepaidCreditResponse, TransactionSuggestionResponse } from './types'
 
 export interface TransactionPayload {
   date: string // YYYY-MM-DD
@@ -27,8 +27,13 @@ export interface TransactionPayload {
   savingsBank: string | null
 }
 
-export async function getMonthlySummary(month: string, planId: string): Promise<MonthlySummaryResponse> {
-  const { data } = await apiClient.get<MonthlySummaryResponse>('/transactions', { params: { month, planId } })
+/**
+ * Transactions + totals for a period: 'YYYY-MM' (month), 'YYYY' (whole year) or an inclusive
+ * `{ from, to }` day range ('YYYY-MM-DD', at most MAX_RANGE_DAYS days — sent as ?from=&to=).
+ */
+export async function getMonthlySummary(period: string | DayRange, planId: string): Promise<MonthlySummaryResponse> {
+  const params = typeof period === 'string' ? { month: period, planId } : { from: period.from, to: period.to, planId }
+  const { data } = await apiClient.get<MonthlySummaryResponse>('/transactions', { params })
   return data
 }
 
