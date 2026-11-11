@@ -46,12 +46,20 @@ export function AccountCard({
         </div>
         {debt && snap && limit > 0 && (
           <div className="grid gap-1">
-            <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100">
+            {/* One bar for the whole limit: red = owed, green = still available. */}
+            <div data-testid="credit-bar" className="flex h-2 overflow-hidden rounded-full bg-income">
               <div className="h-full bg-expense" style={{ width: `${pct}%` }} />
             </div>
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{t('accounts.available')}</span>
-              <span className="tabular-nums">{formatMoney({ amount: Math.max(0, limit - owed), currency: 'VND' })}</span>
+            <div data-testid="credit-split" className="flex justify-between gap-2 text-xs">
+              <span className="text-expense">
+                {t('accounts.owed')} <span className="font-medium tabular-nums">{pct}%</span>
+              </span>
+              <span className="text-income">
+                {t('accounts.available')}{' '}
+                <span className="font-medium tabular-nums">
+                  {formatMoney({ amount: Math.max(0, limit - owed), currency: 'VND' })}
+                </span>
+              </span>
             </div>
           </div>
         )}

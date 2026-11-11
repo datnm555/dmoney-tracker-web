@@ -400,6 +400,19 @@ describe('AccountsPage', () => {
     })
   })
 
+  it('shows owed (red) and available (green) on one line under a two-tone bar', async () => {
+    renderPage()
+    const card = await screen.findByTestId('account-a-cc')
+    const split = within(card).getByTestId('credit-split')
+    expect(norm(split.textContent)).toContain('accounts.owed 40%')
+    expect(norm(split.textContent)).toContain(`accounts.available ${fmt(30_000_000)}`)
+    expect(split.querySelector('.text-expense')).not.toBeNull()
+    expect(split.querySelector('.text-income')).not.toBeNull()
+    const bar = within(card).getByTestId('credit-bar')
+    expect(bar).toHaveClass('bg-income')
+    expect((bar.firstChild as HTMLElement).style.width).toBe('40%')
+  })
+
   describe('Chốt tháng', () => {
     async function openClose(user: ReturnType<typeof userEvent.setup>) {
       renderPage()
