@@ -78,6 +78,8 @@ export interface TransactionFormValues {
   purchasePlaceId: string | null
   /** Where savings are held ("Nơi gửi"); only set for the savings-book sub-category. */
   savingsBank: string | null
+  /** The account whose "Trả bằng" chip is selected (not saved on the transaction). */
+  payWithAccountId?: string | null
 }
 
 export interface SubmitOptions {
@@ -159,6 +161,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const amountRef = useRef<HTMLInputElement>(null)
   const [moreOpen, setMoreOpen] = useState(false)
   const [payOtherOpen, setPayOtherOpen] = useState(false)
+  const [pickedPayKey, setPickedPayKey] = useState<string | null>(null)
   const { status: accountsStatus, accounts } = usePayWithAccounts(open)
   const payWithChips = useMemo(() => buildPayWithChips(accounts, t('form.cashChip')), [accounts, t])
   const [category, setCategory] = useState<string | null>(null)
@@ -189,12 +192,15 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const [goldQuantityText, setGoldQuantityText] = useState('')
   const [purchasePlaceId, setPurchasePlaceId] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const payWithKey =
+    accountsStatus === 'ready' ? selectedPayWithKey(payWithChips, { paymentMethod, cardType, bank }, pickedPayKey) : null
 
   useEffect(() => {
     if (!open) return
     setErrors({})
     setCustomBank(false)
     setPayOtherOpen(false)
+    setPickedPayKey(null)
     if (editing) {
       const isIncome = editing.credit.amount > 0
       setType(isIncome ? 'in' : 'out')
@@ -487,6 +493,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       goldQuantity: isGold ? goldQuantity : null,
       purchasePlaceId: isGold ? purchasePlaceId : null,
       savingsBank: isSavings ? (savingsBank?.trim() || null) : null,
+      payWithAccountId: accounts.some((a) => a.id === payWithKey) ? payWithKey : null,
     }
   }
 
@@ -766,8 +773,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                 {accountsStatus === 'ready' && (
                   <PayWithChips
                     chips={payWithChips}
-                    value={{ paymentMethod, cardType, bank }}
-                    onPick={(f) => {
+                    selectedKey={payWithKey}
+                    onPick={(chip) => {
+                      const f = chip.fields
+                      setPickedPayKey(chip.key)
                       setPaymentMethod(f.paymentMethod)
                       setCardType(f.cardType)
                       setBank(f.bank)

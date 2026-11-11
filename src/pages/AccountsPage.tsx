@@ -16,15 +16,16 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { deleteAccount, getAccounts, updateSnapshot } from '../api/accountApi'
+import { deleteAccount, getAccounts } from '../api/accountApi'
 import { getApiErrorMessage } from '../api/client'
 import type { AccountResponse, AccountSnapshotResponse } from '../api/types'
 import { AccountCard } from '../accounts/AccountCard'
 import { AccountDialog } from '../accounts/AccountDialog'
+import { PayStatementDialog } from '../accounts/PayStatementDialog'
 import { SnapshotDialog } from '../accounts/SnapshotDialog'
 import { SnapshotHistoryDialog } from '../accounts/SnapshotHistoryDialog'
 import { useI18n } from '../i18n/I18nContext'
-import { availableCredit, cashTotal, debtTotal, groupByBank, monthlyInterest, paidSnapshotInput, upcomingDues } from '../utils/accounts'
+import { availableCredit, cashTotal, debtTotal, groupByBank, monthlyInterest, upcomingDues } from '../utils/accounts'
 import { formatMoney } from '../utils/money'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
@@ -69,6 +70,7 @@ export function AccountsPage() {
   const [snapEditing, setSnapEditing] = useState<AccountSnapshotResponse | null>(null)
   const [historyAccount, setHistoryAccount] = useState<AccountResponse | null>(null)
   const [historyKey, setHistoryKey] = useState(0)
+  const [paying, setPaying] = useState<AccountResponse | null>(null)
   const [deleting, setDeleting] = useState<AccountResponse | null>(null)
 
   const load = useCallback(async () => {
@@ -90,17 +92,6 @@ export function AccountsPage() {
   const dues = useMemo(() => upcomingDues(accounts, dayjs().format('YYYY-MM-DD')), [accounts])
   const interest = useMemo(() => accounts.reduce((s, a) => s + monthlyInterest(a), 0), [accounts])
   const debt = debtTotal(accounts)
-
-  const markPaid = async (account: AccountResponse) => {
-    const s = account.latestSnapshot
-    if (!s) return
-    try {
-      await updateSnapshot(s.id, paidSnapshotInput(s))
-      await load()
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, t('error.network')))
-    }
-  }
 
   const submitDelete = async () => {
     if (!deleting) return
@@ -222,7 +213,7 @@ export function AccountsPage() {
                   </div>
                 </div>
                 <span className="font-bold tabular-nums">{vnd(d.amount)}</span>
-                <Button size="sm" variant="outline" onClick={() => void markPaid(d.account)}>
+                <Button size="sm" variant="outline" onClick={() => setPaying(d.account)}>
                   {t('accounts.markPaid')}
                 </Button>
               </div>
@@ -262,6 +253,16 @@ export function AccountsPage() {
       ))}
 
       <AccountDialog open={formOpen} editing={editing} onClose={() => setFormOpen(false)} onSaved={() => void load()} />
+      <PayStatementDialog
+        card={paying}
+        accounts={accounts}
+        today={dayjs().format('YYYY-MM-DD')}
+        onClose={() => setPaying(null)}
+        onSaved={() => {
+          setHistoryKey((k) => k + 1)
+          void load()
+        }}
+      />
       <SnapshotDialog
         account={snapAccount}
         editing={snapEditing}

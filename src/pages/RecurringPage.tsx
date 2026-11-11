@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { getAccounts, updateSnapshot } from '../api/accountApi'
+import { getAccounts, payStatement } from '../api/accountApi'
 import { getApiErrorMessage } from '../api/client'
 import { createRecord, deleteRecord, getSchedule } from '../api/recurringPaymentApi'
 import { createTransaction, deleteTransaction } from '../api/transactionApi'
@@ -15,12 +15,12 @@ import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
+import { PayStatementDialog } from '../accounts/PayStatementDialog'
 import { MarkPaidDialog } from '../recurring/MarkPaidDialog'
 import { RecordHistoryDialog } from '../recurring/RecordHistoryDialog'
 import { RecurringManageDialog } from '../recurring/RecurringManageDialog'
 import { ScheduleCardRow, ScheduleItemRow } from '../recurring/ScheduleRow'
 import { formatMoney } from '../utils/money'
-import { paidSnapshotInput } from '../utils/accounts'
 import { cardDuesInMonth, scheduleTotals } from '../utils/recurring'
 import type { CardDue } from '../utils/recurring'
 import { toTransactionPayload } from '../utils/transactionPayload'
@@ -48,6 +48,7 @@ export function RecurringPage() {
   const [manageOpen, setManageOpen] = useState(false)
   const [recording, setRecording] = useState<RecurringPaymentResponse | null>(null)
   const [recordingCard, setRecordingCard] = useState<CardDue | null>(null)
+  const [payingCard, setPayingCard] = useState<AccountResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [undoingId, setUndoingId] = useState<string | null>(null)
   const [markPaidItem, setMarkPaidItem] = useState<RecurringPaymentResponse | null>(null)
@@ -114,8 +115,12 @@ export function RecurringPage() {
     try {
       if (item) {
         await createRecord(item.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
-      } else if (card?.account.latestSnapshot) {
-        await updateSnapshot(card.account.latestSnapshot.id, paidSnapshotInput(card.account.latestSnapshot))
+      } else if (card) {
+        await payStatement(card.account.id, {
+          date: values.date,
+          amount: values.amount,
+          fromAccountId: values.payWithAccountId ?? null,
+        })
       }
     } catch (error) {
       // Compensate: remove the orphan transaction, then surface the record error (e.g. already paid).
@@ -140,13 +145,6 @@ export function RecurringPage() {
       setUndoingId(null)
     }
   }
-
-  const markCardPaid = (account: AccountResponse) =>
-    guarded(async () => {
-      const s = account.latestSnapshot
-      if (!s) return
-      await updateSnapshot(s.id, paidSnapshotInput(s))
-    })
 
   const prefill: Partial<TransactionFormValues> | undefined = recording
     ? {
@@ -222,7 +220,7 @@ export function RecurringPage() {
               today={today}
               canRecord={selectedPlanId !== null}
               onRecord={() => setRecordingCard(entry.card)}
-              onPaid={() => void markCardPaid(entry.card!.account)}
+              onPaid={() => setPayingCard(entry.card!.account)}
             />
           ),
         )}
@@ -238,6 +236,13 @@ export function RecurringPage() {
           setRecording(null)
           setRecordingCard(null)
         }}
+      />
+      <PayStatementDialog
+        card={payingCard}
+        accounts={accounts}
+        today={today}
+        onClose={() => setPayingCard(null)}
+        onSaved={() => void load()}
       />
       <MarkPaidDialog
         item={markPaidItem}

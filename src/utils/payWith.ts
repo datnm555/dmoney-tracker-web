@@ -68,7 +68,17 @@ export function buildPayWithChips(accounts: AccountResponse[], cashLabel: string
   return chips
 }
 
-/** Key of the first chip matching the current values, or null. */
-export function selectedPayWithKey(chips: PayWithChip[], current: PayWithFields): string | null {
+/**
+ * Key of the chip matching the current values, or null. Several accounts can share the same
+ * payment fields (a salary account and an overdraft at one bank), so the chip the owner actually
+ * picked wins while its fields still match; otherwise the first match.
+ */
+export function selectedPayWithKey(
+  chips: PayWithChip[],
+  current: PayWithFields,
+  pickedKey: string | null = null,
+): string | null {
+  const picked = pickedKey !== null ? chips.find((c) => c.key === pickedKey) : undefined
+  if (picked && sameFields(picked.fields, current)) return picked.key
   return chips.find((c) => sameFields(c.fields, current))?.key ?? null
 }
