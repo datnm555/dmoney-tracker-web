@@ -125,6 +125,7 @@ function renderPage(data: SavingsSummaryResponse = summary) {
   )
 }
 
+// Wait on `savings-plan`, not static labels like 'savings.total': it only renders once the summary loaded.
 const accountCard = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}`) })
 
 describe('SavingsPage', () => {
@@ -146,7 +147,7 @@ describe('SavingsPage', () => {
     setToday('2026-10-11T09:00:00')
     renderPage()
 
-    await screen.findByText('savings.total')
+    await screen.findByTestId('savings-plan')
     expect(norm(screen.getByTestId('savings-stat-deposited').textContent)).toContain(fmt(22_000_000))
     expect(screen.getByTestId('savings-stat-deposited')).toHaveTextContent('savings.totalDeposited')
     expect(norm(screen.getByTestId('savings-stat-withdrawn').textContent)).toContain(fmt(9_000_000))
@@ -167,7 +168,7 @@ describe('SavingsPage', () => {
       ],
     })
 
-    await screen.findByText('savings.total')
+    await screen.findByTestId('savings-plan')
     expect(norm(screen.getByTestId('savings-stat-this-month').textContent)).toContain(fmt(3_000_000))
     expect(norm(screen.getByTestId('savings-stat-deposited').textContent)).toContain(fmt(25_000_000))
   })
@@ -181,7 +182,8 @@ describe('SavingsPage', () => {
   it('renders the total savings', async () => {
     renderPage()
 
-    expect(await screen.findByText('savings.total')).toBeInTheDocument()
+    await screen.findByTestId('savings-plan')
+    expect(screen.getByText('savings.total')).toBeInTheDocument()
     expect(norm(screen.getByTestId('savings-total').textContent)).toBe(fmt(13_000_000))
     expect(screen.getByText('savings.hint')).toBeInTheDocument()
   })
@@ -189,7 +191,7 @@ describe('SavingsPage', () => {
   it('renders one card per account with the unassigned label for null', async () => {
     renderPage()
 
-    await screen.findByText('savings.total')
+    await screen.findByTestId('savings-plan')
     const vietin = accountCard('Vietinbank')
     expect(norm(vietin.textContent)).toContain(fmt(15_000_000))
     expect(norm(vietin.textContent)).toContain(fmt(20_000_000))
@@ -202,7 +204,7 @@ describe('SavingsPage', () => {
   it('renders a negative balance with − and the absolute amount', async () => {
     renderPage()
 
-    await screen.findByText('savings.total')
+    await screen.findByTestId('savings-plan')
     const balance = within(accountCard('MoMo')).getByTestId('savings-balance')
     expect(norm(balance.textContent)).toBe(`−${fmt(3_000_000)}`)
     expect(balance.textContent).not.toContain('+')
@@ -212,7 +214,7 @@ describe('SavingsPage', () => {
   it('history shows deposits as + and withdrawals as −, with sub-category and note', async () => {
     renderPage()
 
-    await screen.findByText('savings.total')
+    await screen.findByTestId('savings-plan')
     const deposit = screen.getByTestId('savings-row-tx-1')
     expect(norm(deposit.textContent)).toContain(`+${fmt(20_000_000)}`)
     expect(deposit).toHaveTextContent('05/10/2026')
@@ -224,7 +226,7 @@ describe('SavingsPage', () => {
   it('clicking an account card filters the history and the select follows; filterAll resets', async () => {
     renderPage()
 
-    await screen.findByText('savings.total')
+    await screen.findByTestId('savings-plan')
     expect(screen.getAllByTestId(/^savings-row-/)).toHaveLength(5)
 
     await userEvent.click(accountCard('MoMo'))
@@ -280,7 +282,7 @@ describe('SavingsPage', () => {
       const user = userEvent.setup()
       setToday('2026-11-11T09:00:00')
       renderPage()
-      await screen.findByText('savings.total')
+      await screen.findByTestId('savings-plan')
       expect(within(screen.getByTestId('savings-account-__unassigned__')).queryByText('savings.setGoal')).toBeNull()
       await user.click(within(screen.getByTestId('savings-account-MoMo')).getByText('savings.setGoal'))
       expect(screen.getByLabelText('savings.startMonth')).toHaveValue('2026-11')
