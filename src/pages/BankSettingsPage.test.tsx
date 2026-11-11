@@ -31,7 +31,7 @@ vi.mock('../i18n/I18nContext', () => ({
 describe('BankSettingsPage', () => {
   it('lists banks', () => {
     render(<BankSettingsPage />)
-    expect(screen.getByText('MoMo')).toBeInTheDocument()
+    expect(screen.getByText('MoMo', { selector: '.font-medium' })).toBeInTheDocument() // the logo also says MoMo
     expect(screen.getByText('Techcombank')).toBeInTheDocument()
     expect(screen.getAllByRole('button', { name: /banks.delete/ })).toHaveLength(2)
   })
