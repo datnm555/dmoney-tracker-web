@@ -113,6 +113,7 @@ const card: AccountResponse = {
     installmentRemaining: null,
     statementPaid: false,
     note: null,
+    statementUntracked: false,
   },
 }
 
@@ -306,7 +307,45 @@ describe('RecurringPage', () => {
       installmentRemaining: null,
       note: null,
       statementPaid: true,
+      statementUntracked: false,
     })
+  })
+
+  it('card row has no Ghi nhận when its statement spending is tracked', async () => {
+    renderPage()
+    const cardRow = await screen.findByTestId('card-row-a-cc')
+    expect(within(cardRow).queryByText('recurring.record')).toBeNull()
+    expect(within(cardRow).getByText('accounts.markPaid')).toBeInTheDocument()
+  })
+
+  it('card row Ghi nhận on an untracked statement creates the expense then marks it paid', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      { ...card, latestSnapshot: { ...card.latestSnapshot!, statementUntracked: true } },
+    ])
+    const user = userEvent.setup()
+    renderPage()
+    const cardRow = await screen.findByTestId('card-row-a-cc')
+    await user.click(within(cardRow).getByText('recurring.record'))
+    const prefill = JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)
+    expect(prefill).toMatchObject({ content: 'recurring.cardRow Visa', type: 'out', amount: 3_000_000, date: '2026-11-10' })
+
+    await user.click(screen.getByText('tx-submit'))
+    await waitFor(() => expect(updateSnapshot).toHaveBeenCalled())
+    expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ debitAmount: 2_500_000, planId: 'p-default' }))
+    expect(updateSnapshot).toHaveBeenCalledWith('snap-1', expect.objectContaining({ statementPaid: true, statementUntracked: true }))
+    expect(createRecord).not.toHaveBeenCalled()
+  })
+
+  it('removes the card expense again when marking the statement paid fails', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      { ...card, latestSnapshot: { ...card.latestSnapshot!, statementUntracked: true } },
+    ])
+    vi.mocked(updateSnapshot).mockRejectedValue(new Error('boom'))
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(within(await screen.findByTestId('card-row-a-cc')).getByText('recurring.record'))
+    await user.click(await screen.findByText('tx-submit'))
+    await waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith('tx-new'))
   })
 
   it('manage dialog sends the start month when set', async () => {

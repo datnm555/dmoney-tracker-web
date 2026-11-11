@@ -24,7 +24,7 @@ import { AccountDialog } from '../accounts/AccountDialog'
 import { SnapshotDialog } from '../accounts/SnapshotDialog'
 import { SnapshotHistoryDialog } from '../accounts/SnapshotHistoryDialog'
 import { useI18n } from '../i18n/I18nContext'
-import { availableCredit, cashTotal, debtTotal, groupByBank, monthlyInterest, upcomingDues } from '../utils/accounts'
+import { availableCredit, cashTotal, debtTotal, groupByBank, monthlyInterest, paidSnapshotInput, upcomingDues } from '../utils/accounts'
 import { formatMoney } from '../utils/money'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
@@ -95,15 +95,7 @@ export function AccountsPage() {
     const s = account.latestSnapshot
     if (!s) return
     try {
-      await updateSnapshot(s.id, {
-        date: s.date,
-        balance: s.balance.amount,
-        statementAmount: s.statementAmount?.amount ?? null,
-        dueDate: s.dueDate,
-        installmentRemaining: s.installmentRemaining?.amount ?? null,
-        note: s.note,
-        statementPaid: true,
-      })
+      await updateSnapshot(s.id, paidSnapshotInput(s))
       await load()
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))

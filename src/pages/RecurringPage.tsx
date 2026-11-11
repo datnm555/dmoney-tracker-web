@@ -20,7 +20,9 @@ import { RecordHistoryDialog } from '../recurring/RecordHistoryDialog'
 import { RecurringManageDialog } from '../recurring/RecurringManageDialog'
 import { ScheduleCardRow, ScheduleItemRow } from '../recurring/ScheduleRow'
 import { formatMoney } from '../utils/money'
+import { paidSnapshotInput } from '../utils/accounts'
 import { cardDuesInMonth, scheduleTotals } from '../utils/recurring'
+import type { CardDue } from '../utils/recurring'
 import { toTransactionPayload } from '../utils/transactionPayload'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
@@ -45,6 +47,7 @@ export function RecurringPage() {
   const [loaded, setLoaded] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [recording, setRecording] = useState<RecurringPaymentResponse | null>(null)
+  const [recordingCard, setRecordingCard] = useState<CardDue | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [undoingId, setUndoingId] = useState<string | null>(null)
   const [markPaidItem, setMarkPaidItem] = useState<RecurringPaymentResponse | null>(null)
@@ -92,7 +95,10 @@ export function RecurringPage() {
   }
 
   const submitRecord = async (values: TransactionFormValues) => {
-    if (!recording || !selectedPlanId) return // Record button is disabled without a plan
+    // Record buttons are disabled without a plan.
+    const item = recording
+    const card = recordingCard
+    if ((!item && !card) || !selectedPlanId) return
     setSubmitting(true)
     let transactionId: string
     try {
@@ -104,8 +110,13 @@ export function RecurringPage() {
     }
     // The transaction exists now: close the form either way so a retry cannot duplicate it.
     setRecording(null)
+    setRecordingCard(null)
     try {
-      await createRecord(recording.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
+      if (item) {
+        await createRecord(item.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
+      } else if (card?.account.latestSnapshot) {
+        await updateSnapshot(card.account.latestSnapshot.id, paidSnapshotInput(card.account.latestSnapshot))
+      }
     } catch (error) {
       // Compensate: remove the orphan transaction, then surface the record error (e.g. already paid).
       try {
@@ -134,15 +145,7 @@ export function RecurringPage() {
     guarded(async () => {
       const s = account.latestSnapshot
       if (!s) return
-      await updateSnapshot(s.id, {
-        date: s.date,
-        balance: s.balance.amount,
-        statementAmount: s.statementAmount?.amount ?? null,
-        dueDate: s.dueDate,
-        installmentRemaining: s.installmentRemaining?.amount ?? null,
-        note: s.note,
-        statementPaid: true,
-      })
+      await updateSnapshot(s.id, paidSnapshotInput(s))
     })
 
   const prefill: Partial<TransactionFormValues> | undefined = recording
@@ -156,7 +159,14 @@ export function RecurringPage() {
         ...(recording.bank ? { bank: recording.bank } : {}),
         date: today,
       }
-    : undefined
+    : recordingCard
+      ? {
+          content: `${t('recurring.cardRow')} ${recordingCard.account.name}`,
+          type: 'out',
+          amount: recordingCard.amount,
+          date: today,
+        }
+      : undefined
 
   return (
     <div className="grid gap-4">
@@ -206,18 +216,28 @@ export function RecurringPage() {
               onHistory={() => setHistoryItem(entry.row.item)}
             />
           ) : (
-            <ScheduleCardRow key={entry.key} due={entry.card!} today={today} onPaid={() => void markCardPaid(entry.card!.account)} />
+            <ScheduleCardRow
+              key={entry.key}
+              due={entry.card!}
+              today={today}
+              canRecord={selectedPlanId !== null}
+              onRecord={() => setRecordingCard(entry.card)}
+              onPaid={() => void markCardPaid(entry.card!.account)}
+            />
           ),
         )}
       </div>
 
       <TransactionFormModal
-        open={recording !== null}
+        open={recording !== null || recordingCard !== null}
         editing={null}
         submitting={submitting}
         prefill={prefill}
         onSubmit={(values) => void submitRecord(values)}
-        onCancel={() => setRecording(null)}
+        onCancel={() => {
+          setRecording(null)
+          setRecordingCard(null)
+        }}
       />
       <MarkPaidDialog
         item={markPaidItem}
