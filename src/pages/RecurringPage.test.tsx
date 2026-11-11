@@ -432,19 +432,18 @@ describe('RecurringPage', () => {
     })
   })
 
-  it('hero tracker shows one block per item of the month, coloured by status in due-date order', async () => {
+  it('hero tracker shows one block per recurring item (no card statements), coloured by status in due-date order', async () => {
     renderPage()
     await screen.findByTestId('row-i-paid')
     const tracker = screen.getByTestId('hero-tracker')
     const blocks = Array.from(tracker.children)
-    expect(blocks).toHaveLength(5)
-    // paid 02/11, overdue 05/11, due soon 12/11, card 15/11 (5 days → upcoming), upcoming 25/11.
+    // paid 02/11, overdue 05/11, due soon 12/11, upcoming 25/11 — the 15/11 card statement is left out.
+    expect(blocks).toHaveLength(4)
     const colours = blocks.map((b) => (b.firstElementChild as HTMLElement).className)
     expect(colours[0]).toContain('bg-emerald-500')
     expect(colours[1]).toContain('bg-rose-500')
     expect(colours[2]).toContain('bg-amber-400')
     expect(colours[3]).toContain('bg-slate-500')
-    expect(colours[4]).toContain('bg-slate-500')
   })
 
   it('hides the hero tracker when nothing is due this month', async () => {

@@ -19,7 +19,7 @@ import { RecurringHero } from '../recurring/RecurringHero'
 import { RecurringManageDialog } from '../recurring/RecurringManageDialog'
 import { ScheduleCardRow, ScheduleItemRow } from '../recurring/ScheduleRow'
 import { formatMoney } from '../utils/money'
-import { cardDuesInMonth, dueStatus, scheduleStatus, scheduleTotals } from '../utils/recurring'
+import { cardDuesInMonth, scheduleStatus, scheduleTotals } from '../utils/recurring'
 import type { CardDue } from '../utils/recurring'
 import { toTransactionPayload } from '../utils/transactionPayload'
 
@@ -71,23 +71,19 @@ export function RecurringPage() {
     [rows, cards],
   )
 
-  const trackerEntries = list.map((e) => {
-    if (e.row) {
-      const { item, record } = e.row
+  // Recurring items only: card statements stay in the list and the paid count, not in the tracker.
+  const trackerEntries = rows
+    .slice()
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .map((row) => {
+      const { item, record } = row
       const amount = record
         ? formatMoney(record.amount)
         : item.isVariable && item.amount.amount === 0
           ? t('recurring.enterAmount')
           : formatMoney(item.amount)
-      return { key: e.key, status: scheduleStatus(e.row, today).status, tooltip: `${item.name} · ${amount}` }
-    }
-    const c = e.card!
-    return {
-      key: e.key,
-      status: dueStatus(c.paid, c.dueDate, today).status,
-      tooltip: `${c.account.name} · ${formatMoney({ amount: c.amount, currency: 'VND' })}`,
-    }
-  })
+      return { key: item.id, status: scheduleStatus(row, today).status, tooltip: `${item.name} · ${amount}` }
+    })
 
   const paidCount = list.filter((e) => (e.row ? !!e.row.record : e.card!.paid)).length
 

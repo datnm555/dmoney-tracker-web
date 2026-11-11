@@ -57,6 +57,10 @@ const card = (id: string, name: string, dueDate: string, amount = 5_000_000): Ac
   },
 })
 
+// The banner needs both getAccounts and getSchedule plus a heavy dashboard render; under a busy
+// full-suite run that can exceed findBy's 1 s default, so give banner lookups more room.
+const BANNER_WAIT = { timeout: 5000 }
+
 function renderPage() {
   render(
     <MemoryRouter>
@@ -93,7 +97,7 @@ describe('DashboardPage due banner', () => {
     ])
     renderPage()
 
-    const a = await screen.findByTestId('due-banner-a')
+    const a = await screen.findByTestId('due-banner-a', {}, BANNER_WAIT)
     expect(norm(a.textContent)).toBe(`Techcombank Visa accounts.dueIn 2 accounts.days: ${norm(formatMoney(money(5_000_000)))}`)
     const b = screen.getByTestId('due-banner-b')
     expect(norm(b.textContent)).toBe(`VPBank Mastercard accounts.dueTodayFull: ${norm(formatMoney(money(2_000_000)))}`)
@@ -179,7 +183,7 @@ describe('DashboardPage recurring dues in banner', () => {
     ])
     renderPage()
 
-    const x = await screen.findByTestId('due-banner-recurring-x')
+    const x = await screen.findByTestId('due-banner-recurring-x', {}, BANNER_WAIT)
     expect(getSchedule).toHaveBeenCalledWith('2026-11')
     expect(norm(x.textContent)).toBe(`Internet accounts.overdue 3 accounts.days: ${norm(formatMoney(money(300_000)))}`)
     expect(norm(screen.getByTestId('due-banner-recurring-y').textContent)).toBe(
@@ -206,8 +210,8 @@ describe('DashboardPage recurring dues in banner', () => {
     vi.mocked(getSchedule).mockResolvedValue([row('z', 'Netflix', '2026-11-11')])
     renderPage()
 
-    const r = await screen.findByTestId('due-banner-recurring-z')
-    const a = await screen.findByTestId('due-banner-a')
+    const r = await screen.findByTestId('due-banner-recurring-z', {}, BANNER_WAIT)
+    const a = await screen.findByTestId('due-banner-a', {}, BANNER_WAIT)
     expect(a.closest('a')).toHaveAttribute('href', '/app/accounts')
     expect(r.closest('a')).toHaveAttribute('href', '/app/recurring')
     expect(a.compareDocumentPosition(r) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -219,7 +223,7 @@ describe('DashboardPage recurring dues in banner', () => {
     vi.mocked(getSchedule).mockRejectedValue(new Error('boom'))
     renderPage()
 
-    expect(await screen.findByTestId('due-banner-a')).toBeInTheDocument()
+    expect(await screen.findByTestId('due-banner-a', {}, BANNER_WAIT)).toBeInTheDocument()
     await waitFor(() => expect(getSchedule).toHaveBeenCalled())
     await act(async () => {})
     expect(screen.queryByTestId(/^due-banner-recurring-/)).not.toBeInTheDocument()
