@@ -137,6 +137,9 @@ function bankChipColor(name: string): string {
   return BANK_CHIP_COLORS[hash % BANK_CHIP_COLORS.length]
 }
 
+/** Small muted uppercase heading shared by every section of the form. */
+const SECTION_LABEL = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+
 export function TransactionFormModal({ open, editing, submitting, defaultDate, prefill, onSubmit, onCancel }: Props) {
   const { t } = useI18n()
   const { plans, selectedPlanId } = usePlans()
@@ -586,7 +589,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onCancel()}>
       <DialogContent
-        className="max-h-[90vh] overflow-y-auto sm:max-w-md"
+        className="max-h-[90vh] overflow-y-auto sm:max-w-md sm:rounded-2xl"
         // Esc first closes an open suggestion list, not the dialog.
         onEscapeKeyDown={(event) => {
           if (suggestions.visible) event.preventDefault()
@@ -601,58 +604,81 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           <DialogTitle>{editing ? t('summary.editTitle') : t('summary.createTitle')}</DialogTitle>
           <DialogDescription>{editing ? t('summary.editTitle') : t('summary.createTitle')}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="grid gap-4">
-          <div className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1">
+        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="grid gap-5">
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1">
             {(['out', 'in'] as const).map((value) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => changeType(value)}
                 className={cn(
-                  'flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium',
-                  type === value ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground',
+                  'flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  type === value
+                    ? cn(
+                        'bg-background font-semibold shadow-sm ring-1',
+                        value === 'out' ? 'text-expense ring-expense/20' : 'text-income ring-income/20',
+                      )
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {value === 'out' ? (
-                  <ArrowDown className={cn('h-3.5 w-3.5', type === value ? '' : 'text-expense')} />
-                ) : (
-                  <ArrowUp className={cn('h-3.5 w-3.5', type === value ? '' : 'text-income')} />
-                )}
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'flex h-5 w-5 items-center justify-center rounded-full',
+                    value === 'out' ? 'bg-expense/10 text-expense' : 'bg-income/10 text-income',
+                  )}
+                >
+                  {value === 'out' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                </span>
                 {value === 'out' ? t('form.moneyOut') : t('form.moneyIn')}
               </button>
             ))}
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="tx-amount">{t('form.amount')}</Label>
+          <div
+            className={cn(
+              'grid gap-1 rounded-2xl border px-4 pb-3 pt-3.5 text-center transition-colors focus-within:ring-[3px]',
+              type === 'out'
+                ? 'border-expense/20 bg-expense/5 focus-within:ring-expense/15'
+                : 'border-income/20 bg-income/5 focus-within:ring-income/15',
+            )}
+          >
+            <Label htmlFor="tx-amount" className={cn(SECTION_LABEL, 'justify-center')}>
+              {t('form.amount')}
+            </Label>
             <div className="relative">
               <Input
                 id="tx-amount"
                 ref={amountRef}
                 inputMode="text"
                 autoComplete="off"
-                className="h-12 pr-9 text-2xl font-semibold md:text-2xl"
+                placeholder="0"
+                className={cn(
+                  'h-14 border-0 bg-transparent px-10 text-center text-4xl font-bold tracking-tight tabular-nums shadow-none focus-visible:ring-0 md:text-4xl dark:bg-transparent',
+                  type === 'out' ? 'text-expense' : 'text-income',
+                )}
                 value={displayAmount(amountText)}
                 onChange={(e) => setAmountText(normalizeAmountInput(e.target.value, amountText))}
                 onBlur={handleAmountBlur}
               />
-              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+              <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xl font-semibold text-muted-foreground">
                 ₫
               </span>
             </div>
             {amountPreview !== null && (
-              <p className="text-xs text-muted-foreground">= {formatMoney({ amount: amountPreview, currency: 'VND' })}</p>
+              <p className="text-xs tabular-nums text-muted-foreground">= {formatMoney({ amount: amountPreview, currency: 'VND' })}</p>
             )}
             {errors.amount && <p className="text-xs text-expense">{errors.amount}</p>}
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="tx-content">{t('form.content')}</Label>
+            <Label htmlFor="tx-content" className={SECTION_LABEL}>{t('form.content')}</Label>
             <div className="relative">
               <Input
                 id="tx-content"
                 maxLength={500}
                 autoComplete="off"
+                className="h-11 rounded-xl"
                 value={content}
                 onChange={(e) => {
                   suggestions.markFocused()
@@ -675,7 +701,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           </div>
 
           <div className="grid gap-2">
-            <Label>{t('form.category')}</Label>
+            <Label className={SECTION_LABEL}>{t('form.category')}</Label>
             {errors.category && <p className="text-xs text-expense">{errors.category}</p>}
             <div className="grid grid-cols-4 gap-2">
               {visibleCategories.map((option) => {
@@ -696,21 +722,32 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                       )
                     }}
                     className={cn(
-                      'flex flex-col items-center gap-1 rounded-lg border px-1.5 py-2.5 text-xs',
+                      'relative flex flex-col items-center gap-1.5 rounded-xl px-1 pb-2 pt-2.5 text-[11px] leading-tight transition-colors',
                       selected
-                        ? 'border-primary bg-primary/5 font-medium text-primary'
-                        : 'text-muted-foreground hover:border-zinc-300',
+                        ? 'bg-primary/10 font-semibold text-primary ring-2 ring-primary'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground',
                     )}
                   >
-                    <visual.icon className={cn('h-4 w-4', selected ? 'text-primary' : visual.iconClass)} />
-                    <span className="max-w-full truncate">{option.label}</span>
+                    {selected && (
+                      <CircleCheck className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-background fill-primary text-primary-foreground" />
+                    )}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-lg bg-background shadow-xs',
+                        selected && 'bg-primary/15 shadow-none',
+                      )}
+                    >
+                      <visual.icon className={cn('h-4 w-4', selected ? 'text-primary' : visual.iconClass)} />
+                    </span>
+                    <span className="line-clamp-2 max-w-full break-words text-center">{option.label}</span>
                   </button>
                 )
               })}
             </div>
             {category !== null && subCategories.some((s) => s.categoryId === category) && (
               <div className="grid gap-1.5">
-                <span className="text-xs text-muted-foreground">{t('form.subCategory')}</span>
+                <span className="text-xs font-medium text-muted-foreground">{t('form.subCategory')}</span>
                 <div className="flex flex-wrap gap-1.5">
                   {subCategories
                     .filter((s) => s.categoryId === category)
@@ -720,10 +757,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                         type="button"
                         onClick={() => selectSubCategory(subCategoryId === s.id ? null : s.id)}
                         className={cn(
-                          'rounded-lg border px-2.5 py-1 text-xs font-medium',
+                          'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                           subCategoryId === s.id
-                            ? 'border-primary bg-primary/5 text-primary'
-                            : 'text-muted-foreground hover:border-zinc-300',
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:border-zinc-300 hover:text-foreground',
                         )}
                       >
                         {s.name}
@@ -735,8 +772,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           </div>
 
           {isSavings && (
-            <div role="group" aria-label={t('form.savingsBank')} className="grid gap-2 rounded-lg bg-zinc-50 p-3">
-              <Label>{t('form.savingsBank')}</Label>
+            <div role="group" aria-label={t('form.savingsBank')} className="grid gap-2 rounded-xl bg-muted/50 p-3">
+              <Label className={SECTION_LABEL}>{t('form.savingsBank')}</Label>
               <div className="flex flex-wrap gap-1.5">
                 {banks.map((catalogBank) => (
                   <button
@@ -747,14 +784,14 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                       setCustomSavingsBank(false)
                     }}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
+                      'flex items-center gap-1.5 rounded-full border bg-background py-1 pl-1 pr-2.5 text-xs font-medium',
                       savingsBank === catalogBank.name && !customSavingsBank && 'border-primary ring-1 ring-primary/30',
                     )}
                   >
                     <span
                       aria-hidden="true"
                       className={cn(
-                        'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
+                        'flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white',
                         bankChipColor(catalogBank.name),
                       )}
                     >
@@ -770,7 +807,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                     setSavingsBank(null)
                   }}
                   className={cn(
-                    'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                    'rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground',
                     customSavingsBank && 'border-primary text-primary ring-1 ring-primary/30',
                   )}
                 >
@@ -792,7 +829,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           <div role="group" aria-label={t('form.payWith')} className="grid gap-4">
             {accountsStatus !== 'error' && (
               <div className="grid gap-2">
-                <Label>{t('form.payWith')}</Label>
+                <Label className={SECTION_LABEL}>{t('form.payWith')}</Label>
                 {accountsStatus === 'ready' && (
                   <PayWithChips
                     chips={payWithChips}
@@ -805,7 +842,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   type="button"
                   aria-expanded={payOtherOpen}
                   onClick={() => setPayOtherOpen((v) => !v)}
-                  className="w-fit text-xs font-medium text-muted-foreground hover:text-foreground"
+                  className="w-fit px-1 text-xs font-medium text-primary hover:underline"
                 >
                   {t('form.payWithOther')}
                 </button>
@@ -834,8 +871,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                           key={code}
                           htmlFor={`tx-pm-${code}`}
                           className={cn(
-                            'relative flex cursor-pointer flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-sm',
-                            selected ? 'border-primary bg-primary/5 text-primary' : 'text-muted-foreground',
+                            'relative flex cursor-pointer flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-sm transition-colors',
+                            selected
+                              ? 'bg-primary/10 text-primary ring-2 ring-primary'
+                              : 'bg-muted/60 text-muted-foreground hover:bg-muted',
                           )}
                         >
                           <RadioGroupItem id={`tx-pm-${code}`} value={code} className="sr-only" />
@@ -851,10 +890,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                 </div>
 
                 {paymentMethod !== 'cash' && (
-                  <div className="grid gap-3 rounded-lg bg-zinc-50 p-3">
+                  <div className="grid gap-3 rounded-xl bg-muted/50 p-3">
                     {paymentMethod === 'card' && (
                     <div className="grid gap-2">
-                      <Label>{t('payment.cardType')}</Label>
+                      <Label className={SECTION_LABEL}>{t('payment.cardType')}</Label>
                       <RadioGroup
                         value={cardType ?? ''}
                         onValueChange={(value) => setCardType(value as CardTypeCode)}
@@ -865,7 +904,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                             key={code}
                             htmlFor={`tx-ct-${code}`}
                             className={cn(
-                              'flex cursor-pointer items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm',
+                              'flex cursor-pointer items-center gap-2 rounded-xl border bg-background px-3 py-2 text-sm',
                               cardType === code && 'border-primary ring-1 ring-primary/30',
                             )}
                           >
@@ -886,7 +925,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                     </div>
                     )}
                     <div className="grid gap-2">
-                      <Label>{t('payment.bank')}</Label>
+                      <Label className={SECTION_LABEL}>{t('payment.bank')}</Label>
                       <div className="flex flex-wrap gap-1.5">
                         {banks.map((catalogBank) => (
                           <button
@@ -897,14 +936,14 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                               setCustomBank(false)
                             }}
                             className={cn(
-                              'flex items-center gap-1.5 rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium',
+                              'flex items-center gap-1.5 rounded-full border bg-background py-1 pl-1 pr-2.5 text-xs font-medium',
                               bank === catalogBank.name && !customBank && 'border-primary ring-1 ring-primary/30',
                             )}
                           >
                             <span
                               aria-hidden="true"
                               className={cn(
-                                'flex h-4 w-4 items-center justify-center rounded text-[9px] font-bold text-white',
+                                'flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-bold text-white',
                                 bankChipColor(catalogBank.name),
                               )}
                             >
@@ -920,7 +959,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                             setBank(null)
                           }}
                           className={cn(
-                            'rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium text-muted-foreground',
+                            'rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground',
                             customBank && 'border-primary text-primary ring-1 ring-primary/30',
                           )}
                         >
@@ -945,20 +984,27 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
 
           <div className="grid gap-1">
             <div className="grid grid-cols-[auto_1fr] items-center gap-2">
-              <Label htmlFor="tx-date">{t('form.date')}</Label>
+              <Label htmlFor="tx-date" className={SECTION_LABEL}>{t('form.date')}</Label>
               <div className="flex items-center gap-1.5">
-                <Input id="tx-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+                <Input
+                  id="tx-date"
+                  type="date"
+                  required
+                  className="rounded-xl"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
                 <button
                   type="button"
                   onClick={() => setDate(dayjs().format('YYYY-MM-DD'))}
-                  className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-zinc-300"
+                  className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
                 >
                   {t('form.today')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setDate(dayjs().subtract(1, 'day').format('YYYY-MM-DD'))}
-                  className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:border-zinc-300"
+                  className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
                 >
                   {t('form.yesterday')}
                 </button>
@@ -986,19 +1032,19 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           )}
 
           <div className="grid gap-2">
-            <Label htmlFor="tx-note">{t('form.note')}</Label>
+            <Label htmlFor="tx-note" className={SECTION_LABEL}>{t('form.note')}</Label>
             <textarea
               id="tx-note"
               rows={2}
               maxLength={1000}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              className="rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="rounded-xl border border-input bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             />
           </div>
 
           <MoreOptionsSection open={moreOpen} onOpenChange={setMoreOpen} label={t('form.moreOptions')}>
-            <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+            <div className="grid gap-2 rounded-xl border bg-card px-3 py-2.5">
               <label className="flex items-start gap-2.5">
                 <Checkbox
                   checked={isGold}
@@ -1095,7 +1141,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   </Select>
                 </div>
 
-                <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+                <div className="grid gap-2 rounded-xl border bg-card px-3 py-2.5">
                   <label className="flex items-start gap-2.5">
                     <Checkbox
                       checked={isAdvance}
@@ -1135,7 +1181,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   )}
                 </div>
 
-                <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+                <div className="grid gap-2 rounded-xl border bg-card px-3 py-2.5">
                   <label className="flex items-start gap-2.5">
                     <Checkbox
                       checked={alreadyPrepaid}
@@ -1176,7 +1222,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
             )}
 
             {type === 'in' && (
-              <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+              <div className="grid gap-2 rounded-xl border bg-card px-3 py-2.5">
                 <label className="flex items-center gap-2.5">
                   <Checkbox
                     checked={reimburse}
@@ -1190,7 +1236,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                 </label>
                 {reimburse && (
                   <>
-                    <div className="grid max-h-44 gap-1 overflow-y-auto rounded-lg border p-2">
+                    <div className="grid max-h-44 gap-1 overflow-y-auto rounded-xl border p-2">
                       {advances.length === 0 && (
                         <p className="py-2 text-center text-xs text-muted-foreground">{t('form.selectAdvance')}</p>
                       )}
@@ -1219,7 +1265,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
             )}
 
             {type === 'in' && (
-              <div className="grid gap-2 rounded-lg border px-3 py-2.5">
+              <div className="grid gap-2 rounded-xl border bg-card px-3 py-2.5">
                 <label className="flex items-start gap-2.5">
                   <Checkbox
                     checked={isPrepaid}
@@ -1259,7 +1305,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
             )}
           </MoreOptionsSection>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 gap-2 border-t bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <Button type="button" variant="outline" onClick={onCancel}>
               {t('summary.cancel')}
             </Button>
