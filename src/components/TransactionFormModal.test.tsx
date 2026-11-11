@@ -1562,7 +1562,7 @@ describe('TransactionFormModal suggestions', () => {
     await advance(300)
     fireEvent.mouseDown(await screen.findByRole('option', { name: /Lãi tiết kiệm/ }))
     await advance(50)
-    expect(screen.getByRole('button', { name: /form.moneyIn/ })).toHaveClass('bg-foreground')
+    expect(screen.getByRole('button', { name: /form.moneyIn/ })).toHaveClass('text-income')
     expect(screen.getByRole('button', { name: /Tích luỹ/ })).toHaveClass('text-primary')
     fireEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
     expect(onSubmit).toHaveBeenCalledWith(
