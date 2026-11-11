@@ -1,25 +1,59 @@
 import dayjs from 'dayjs'
+import type { ReactNode } from 'react'
+import { AlarmClock, CalendarClock, CircleAlert, CircleCheck, CreditCard, History, Undo2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { RecurringScheduleItemResponse } from '../api/types'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { useI18n } from '../i18n/I18nContext'
 import { formatMoney } from '../utils/money'
-import type { CardDue } from '../utils/recurring'
+import type { CardDue, ScheduleStatus } from '../utils/recurring'
 import { scheduleStatus } from '../utils/recurring'
 
-function StatusChip({ text, danger, good }: { text: string; danger?: boolean; good?: boolean }) {
+const TONE: Record<ScheduleStatus, { tile: string; chip: string; icon: LucideIcon }> = {
+  paid: {
+    tile: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    chip: 'bg-emerald-500/10 text-emerald-700 ring-emerald-500/20 dark:text-emerald-300',
+    icon: CircleCheck,
+  },
+  overdue: {
+    tile: 'bg-rose-500/10 text-rose-700 dark:text-rose-300',
+    chip: 'bg-rose-500/10 text-rose-700 ring-rose-500/20 dark:text-rose-300',
+    icon: CircleAlert,
+  },
+  dueSoon: {
+    tile: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    chip: 'bg-amber-500/10 text-amber-700 ring-amber-500/25 dark:text-amber-300',
+    icon: AlarmClock,
+  },
+  upcoming: {
+    tile: 'bg-muted/60 text-foreground',
+    chip: 'bg-muted/60 text-muted-foreground ring-border',
+    icon: CalendarClock,
+  },
+}
+
+function StatusChip({ status, text }: { status: ScheduleStatus; text: string }) {
+  const { chip, icon: Icon } = TONE[status]
   return (
-    <span
-      className={cn(
-        'rounded-full border px-2 py-0.5 text-xs',
-        danger && 'border-expense/40 bg-expense/5 text-expense',
-        good && 'border-income/40 bg-income/5 text-income',
-      )}
-    >
+    <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset', chip)}>
+      <Icon className="size-3 shrink-0" aria-hidden />
       {text}
     </span>
+  )
+}
+
+/** Day number + month/year, tinted by status — the timeline anchor of a row. */
+function DateTile({ date, status }: { date: string; status: ScheduleStatus }) {
+  const d = dayjs(date)
+  return (
+    <time
+      dateTime={date}
+      className={cn('flex w-12 shrink-0 flex-col items-center rounded-xl py-1.5 leading-none', TONE[status].tile)}
+    >
+      <span className="text-lg font-bold tabular-nums">{d.format('DD')}</span>
+      <span className="mt-0.5 text-[10px] tabular-nums opacity-70">{d.format('MM/YYYY')}</span>
+    </time>
   )
 }
 
@@ -27,6 +61,43 @@ function dueText(t: (k: string) => string, daysLeft: number) {
   if (daysLeft < 0) return `${t('accounts.overdue')} ${-daysLeft} ${t('accounts.days')}`
   if (daysLeft === 0) return t('accounts.dueToday')
   return `${t('accounts.left')} ${daysLeft} ${t('accounts.days')}`
+}
+
+/** Shared row layout: date tile · title + chips · amount · actions (wrap under on narrow screens). */
+function RowShell({
+  testId,
+  date,
+  status,
+  title,
+  meta,
+  amount,
+  actions,
+}: {
+  testId: string
+  date: string
+  status: ScheduleStatus
+  title: ReactNode
+  meta: ReactNode
+  amount: ReactNode
+  actions: ReactNode
+}) {
+  return (
+    <li
+      data-testid={testId}
+      className={cn(
+        'flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors hover:bg-muted/30 sm:flex-nowrap sm:gap-4',
+        status === 'paid' && 'bg-muted/20',
+      )}
+    >
+      <DateTile date={date} status={status} />
+      <div className="grid min-w-0 flex-1 gap-1">
+        <div className="flex min-w-0 items-center gap-2">{title}</div>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">{meta}</div>
+      </div>
+      <div className="shrink-0 text-right">{amount}</div>
+      {actions && <div className="flex basis-full flex-wrap justify-end gap-1 sm:basis-auto sm:flex-nowrap">{actions}</div>}
+    </li>
+  )
 }
 
 export function ScheduleItemRow({
@@ -52,53 +123,68 @@ export function ScheduleItemRow({
   const { item, record, dueDate } = row
   const { status, daysLeft } = scheduleStatus(row, today)
   const unpaid = !record
+  const needsAmount = !record && item.isVariable && item.amount.amount === 0
   const amountText = record
     ? formatMoney(record.amount)
-    : item.isVariable && item.amount.amount === 0
+    : needsAmount
       ? t('recurring.enterAmount')
       : `${item.isVariable ? '≈ ' : ''}${formatMoney(item.amount)}`
 
   return (
-    <Card data-testid={`row-${item.id}`}>
-      <CardContent className="grid gap-2 p-3">
-        <div className="flex items-center gap-2">
-          <CategoryIcon category={item.categoryId} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{item.name}</div>
-            <div className="text-xs text-muted-foreground">{dayjs(dueDate).format('DD/MM')}</div>
-          </div>
-          <span className="text-sm font-bold tabular-nums">{amountText}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {status === 'paid' && record && (
-            <StatusChip good text={`${t('recurring.paid')} · ${t('recurring.paidOn')} ${dayjs(record.paidDate).format('DD/MM')}`} />
+    <RowShell
+      testId={`row-${item.id}`}
+      date={dueDate}
+      status={status}
+      title={
+        <>
+          <CategoryIcon category={item.categoryId} className="h-6 w-6 rounded-md [&_svg]:h-3.5 [&_svg]:w-3.5" />
+          <span className={cn('truncate text-sm font-semibold', status === 'paid' && 'text-muted-foreground')}>{item.name}</span>
+        </>
+      }
+      meta={
+        status === 'paid' && record ? (
+          <StatusChip status="paid" text={`${t('recurring.paid')} · ${t('recurring.paidOn')} ${dayjs(record.paidDate).format('DD/MM')}`} />
+        ) : (
+          <StatusChip status={status} text={dueText(t, daysLeft)} />
+        )
+      }
+      amount={
+        <span
+          className={cn(
+            'text-sm font-bold tabular-nums sm:text-base',
+            needsAmount && 'rounded-md border border-dashed px-2 py-0.5 text-xs font-medium text-muted-foreground sm:text-xs',
+            status === 'paid' && 'text-emerald-700 dark:text-emerald-300',
           )}
-          {status === 'overdue' && <StatusChip danger text={dueText(t, daysLeft)} />}
-          {status === 'dueSoon' && <StatusChip danger text={dueText(t, daysLeft)} />}
-          {status === 'upcoming' && <StatusChip text={dueText(t, daysLeft)} />}
-          <div className="ml-auto flex flex-wrap gap-1.5">
-            {unpaid && (
-              <>
-                <Button size="sm" disabled={!canRecord} onClick={onRecord}>
-                  {t('recurring.record')}
-                </Button>
-                <Button size="sm" variant="outline" onClick={onMarkPaid}>
-                  {t('recurring.markPaid')}
-                </Button>
-              </>
-            )}
-            {!unpaid && (
-              <Button size="sm" variant="outline" disabled={undoing} onClick={onUndo}>
-                {t('recurring.undo')}
+        >
+          {amountText}
+        </span>
+      }
+      actions={
+        <>
+          {unpaid && (
+            <>
+              <Button size="sm" className="rounded-full" disabled={!canRecord} onClick={onRecord}>
+                {t('recurring.record')}
               </Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={onHistory}>
-              {t('recurring.history')}
+              <Button size="sm" variant="ghost" className="rounded-full" onClick={onMarkPaid}>
+                <CircleCheck className="mr-1 size-3.5" aria-hidden />
+                {t('recurring.markPaid')}
+              </Button>
+            </>
+          )}
+          {!unpaid && (
+            <Button size="sm" variant="ghost" className="rounded-full" disabled={undoing} onClick={onUndo}>
+              <Undo2 className="mr-1 size-3.5" aria-hidden />
+              {t('recurring.undo')}
             </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+          )}
+          <Button size="sm" variant="ghost" className="rounded-full text-muted-foreground" onClick={onHistory}>
+            <History className="mr-1 size-3.5" aria-hidden />
+            {t('recurring.history')}
+          </Button>
+        </>
+      }
+    />
   )
 }
 
@@ -117,42 +203,50 @@ export function ScheduleCardRow({
 }) {
   const { t } = useI18n()
   const daysLeft = dayjs(due.dueDate).diff(dayjs(today), 'day')
+  const status: ScheduleStatus = due.paid ? 'paid' : daysLeft < 0 ? 'overdue' : daysLeft <= 3 ? 'dueSoon' : 'upcoming'
   return (
-    <Card data-testid={`card-row-${due.account.id}`}>
-      <CardContent className="grid gap-2 p-3">
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">
-              {due.account.name}
-              {due.account.lastDigits && <span className="ml-1 text-xs font-normal">•••{due.account.lastDigits}</span>}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {t('recurring.cardRow')} · {dayjs(due.dueDate).format('DD/MM')}
-            </div>
-          </div>
-          <span className="text-sm font-bold tabular-nums">{formatMoney({ amount: due.amount, currency: 'VND' })}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {due.paid ? (
-            <StatusChip good text={t('recurring.paid')} />
-          ) : (
-            <StatusChip danger={daysLeft <= 3} text={dueText(t, daysLeft)} />
+    <RowShell
+      testId={`card-row-${due.account.id}`}
+      date={due.dueDate}
+      status={status}
+      title={
+        <>
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-300">
+            <CreditCard className="size-3.5" aria-hidden />
+          </span>
+          <span className={cn('truncate text-sm font-semibold', due.paid && 'text-muted-foreground')}>{due.account.name}</span>
+          {due.account.lastDigits && (
+            <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">•••{due.account.lastDigits}</span>
           )}
-          {!due.paid && (
-            <div className="ml-auto flex gap-1.5">
-              {/* Only statements whose spending was never recorded become an expense when paid. */}
-              {due.untracked && (
-                <Button size="sm" disabled={!canRecord} onClick={onRecord}>
-                  {t('recurring.record')}
-                </Button>
-              )}
-              <Button size="sm" variant="outline" onClick={onPaid}>
-                {t('accounts.markPaid')}
+        </>
+      }
+      meta={
+        <>
+          <StatusChip status={status} text={due.paid ? t('recurring.paid') : dueText(t, daysLeft)} />
+          <span>{t('recurring.cardRow')}</span>
+        </>
+      }
+      amount={
+        <span className={cn('text-sm font-bold tabular-nums sm:text-base', due.paid && 'text-emerald-700 dark:text-emerald-300')}>
+          {formatMoney({ amount: due.amount, currency: 'VND' })}
+        </span>
+      }
+      actions={
+        !due.paid && (
+          <>
+            {/* Only statements whose spending was never recorded become an expense when paid. */}
+            {due.untracked && (
+              <Button size="sm" className="rounded-full" disabled={!canRecord} onClick={onRecord}>
+                {t('recurring.record')}
               </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            )}
+            <Button size="sm" variant="ghost" className="rounded-full" onClick={onPaid}>
+              <CircleCheck className="mr-1 size-3.5" aria-hidden />
+              {t('accounts.markPaid')}
+            </Button>
+          </>
+        )
+      }
+    />
   )
 }
