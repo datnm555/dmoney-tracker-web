@@ -41,6 +41,7 @@ function acc(
             installmentRemaining: null,
             statementPaid: snap.statementPaid ?? false,
             note: null,
+            statementUntracked: false,
           },
     ...extra,
   }

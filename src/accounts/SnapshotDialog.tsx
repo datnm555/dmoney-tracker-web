@@ -34,6 +34,7 @@ export function SnapshotDialog({
   const [dueDate, setDueDate] = useState('')
   const [installment, setInstallment] = useState('')
   const [paid, setPaid] = useState(false)
+  const [untracked, setUntracked] = useState(false)
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -48,6 +49,7 @@ export function SnapshotDialog({
     setDueDate(src?.dueDate ?? '')
     setInstallment(toDigits(src?.installmentRemaining?.amount))
     setPaid(src?.statementPaid ?? false)
+    setUntracked(src?.statementUntracked ?? false)
     setNote(editing?.note ?? '')
   }, [account, editing])
 
@@ -70,6 +72,7 @@ export function SnapshotDialog({
       dueDate: card && dueDate ? dueDate : null,
       installmentRemaining: card ? digitsToNumber(installment) : null,
       statementPaid: card ? paid : false,
+      statementUntracked: card ? untracked : false,
       note: note.trim() || null,
     }
     setSaving(true)
@@ -117,7 +120,16 @@ export function SnapshotDialog({
               />
               <div className="grid gap-1.5">
                 <Label htmlFor="snap-due">{t('accounts.dueDate')}</Label>
-                <Input id="snap-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+                <Input
+                  id="snap-due"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => {
+                    setDueDate(e.target.value)
+                    // A different due date means a new statement: its spending is tracked unless re-ticked.
+                    setUntracked(false)
+                  }}
+                />
               </div>
               <MoneyInput
                 id="snap-inst"
@@ -128,6 +140,10 @@ export function SnapshotDialog({
               <label className="flex items-center gap-2.5 text-sm">
                 <Checkbox checked={paid} onCheckedChange={(c) => setPaid(c === true)} />
                 {t('accounts.statementPaid')}
+              </label>
+              <label className="flex items-center gap-2.5 text-sm">
+                <Checkbox checked={untracked} onCheckedChange={(c) => setUntracked(c === true)} />
+                {t('accounts.statementUntracked')}
               </label>
             </>
           )}

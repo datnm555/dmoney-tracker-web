@@ -102,7 +102,19 @@ export function ScheduleItemRow({
   )
 }
 
-export function ScheduleCardRow({ due, today, onPaid }: { due: CardDue; today: string; onPaid: () => void }) {
+export function ScheduleCardRow({
+  due,
+  today,
+  canRecord,
+  onRecord,
+  onPaid,
+}: {
+  due: CardDue
+  today: string
+  canRecord: boolean
+  onRecord: () => void
+  onPaid: () => void
+}) {
   const { t } = useI18n()
   const daysLeft = dayjs(due.dueDate).diff(dayjs(today), 'day')
   return (
@@ -127,9 +139,17 @@ export function ScheduleCardRow({ due, today, onPaid }: { due: CardDue; today: s
             <StatusChip danger={daysLeft <= 3} text={dueText(t, daysLeft)} />
           )}
           {!due.paid && (
-            <Button size="sm" variant="outline" className="ml-auto" onClick={onPaid}>
-              {t('accounts.markPaid')}
-            </Button>
+            <div className="ml-auto flex gap-1.5">
+              {/* Only statements whose spending was never recorded become an expense when paid. */}
+              {due.untracked && (
+                <Button size="sm" disabled={!canRecord} onClick={onRecord}>
+                  {t('recurring.record')}
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={onPaid}>
+                {t('accounts.markPaid')}
+              </Button>
+            </div>
           )}
         </div>
       </CardContent>

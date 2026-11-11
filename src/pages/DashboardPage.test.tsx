@@ -52,6 +52,7 @@ const card = (id: string, name: string, dueDate: string, amount = 5_000_000): Ac
     installmentRemaining: null,
     statementPaid: false,
     note: null,
+    statementUntracked: false,
   },
 })
 

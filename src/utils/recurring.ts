@@ -13,7 +13,7 @@ export function scheduleStatus(
   return { status: daysLeft <= 3 ? 'dueSoon' : 'upcoming', daysLeft }
 }
 
-export type CardDue = { account: AccountResponse; amount: number; dueDate: string; paid: boolean }
+export type CardDue = { account: AccountResponse; amount: number; dueDate: string; paid: boolean; untracked: boolean }
 
 /** Credit-card statements (paid or not) whose latest-snapshot due date falls in `month` (YYYY-MM). */
 export function cardDuesInMonth(accounts: AccountResponse[], month: string): CardDue[] {
@@ -24,7 +24,7 @@ export function cardDuesInMonth(accounts: AccountResponse[], month: string): Car
     if (!snap.dueDate.startsWith(month)) continue
     const amount = snap.statementAmount?.amount ?? 0
     if (amount <= 0) continue
-    result.push({ account, amount, dueDate: snap.dueDate, paid: snap.statementPaid })
+    result.push({ account, amount, dueDate: snap.dueDate, paid: snap.statementPaid, untracked: snap.statementUntracked })
   }
   return result.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 }

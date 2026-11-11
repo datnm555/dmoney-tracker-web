@@ -269,6 +269,7 @@ export interface AccountSnapshotResponse {
   installmentRemaining: MoneyResponse | null
   statementPaid: boolean
   note: string | null
+  statementUntracked: boolean // statement spending was never recorded as transactions
 }
 
 // Mirrors Application/Accounts/AccountResponse.cs on the backend.
@@ -306,6 +307,7 @@ export interface SnapshotInput {
   installmentRemaining: number | null
   statementPaid: boolean
   note: string | null
+  statementUntracked: boolean // statement spending was never recorded as transactions
 }
 
 // Mirrors Application/RecurringPayments/* responses on the backend.

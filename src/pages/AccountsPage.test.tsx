@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
 import { createAccount, createSnapshot, deleteSnapshot, getAccounts, getSnapshots, updateAccount, updateSnapshot } from '../api/accountApi'
@@ -56,6 +56,7 @@ const snap = (over: Partial<NonNullable<AccountResponse['latestSnapshot']>>) => 
   installmentRemaining: null,
   statementPaid: false,
   note: null,
+  statementUntracked: false,
   ...over,
 })
 
@@ -137,6 +138,7 @@ describe('AccountsPage', () => {
       installmentRemaining: null,
       note: 'n',
       statementPaid: true,
+      statementUntracked: false,
     })
     expect(getAccounts).toHaveBeenCalledTimes(2)
   })
@@ -184,6 +186,27 @@ describe('AccountsPage', () => {
       expect.objectContaining({ date: '2026-11-10', balance: 128_492_665 }),
     )
   })
+  it('sends the untracked-statement flag and clears it when the due date changes', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await screen.findByText('Techcombank')
+    await user.click(screen.getByRole('button', { name: 'accounts.updateBalance Visa' }))
+    await user.type(await screen.findByLabelText('accounts.owed'), '21000000')
+    await user.click(screen.getByLabelText('accounts.statementUntracked'))
+    await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(createSnapshot).toHaveBeenLastCalledWith('a-cc', expect.objectContaining({ statementUntracked: true }))
+
+    await user.click(screen.getByRole('button', { name: 'accounts.updateBalance Visa' }))
+    await user.type(await screen.findByLabelText('accounts.owed'), '1')
+    await user.click(screen.getByLabelText('accounts.statementUntracked'))
+    fireEvent.change(screen.getByLabelText('accounts.dueDate'), { target: { value: '2026-12-12' } })
+    await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(createSnapshot).toHaveBeenLastCalledWith(
+      'a-cc',
+      expect.objectContaining({ dueDate: '2026-12-12', statementUntracked: false }),
+    )
+  })
+
   it('carries the card due reminder into a new reading', async () => {
     const user = userEvent.setup()
     renderPage()
@@ -200,6 +223,7 @@ describe('AccountsPage', () => {
       installmentRemaining: null,
       statementPaid: false,
       note: null,
+      statementUntracked: false,
     })
   })
 
