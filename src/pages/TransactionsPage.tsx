@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import dayjs from 'dayjs'
-import { CalendarDays, ChevronDown, CornerDownRight, Download, Funnel, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, CalendarDays, ChevronDown, CornerDownRight, Download, Funnel, Pencil, Plus, Trash2, Upload, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -447,8 +447,8 @@ export function TransactionsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="grid gap-2.5 p-4 md:p-5">
+      <Card className="rounded-2xl">
+        <CardContent className="grid gap-3 p-4 md:p-5">
           {(() => {
             // Totals over the filtered rows, not the raw month — the card must
             // agree with the list it sits above.
@@ -463,33 +463,32 @@ export function TransactionsPage() {
             const creditPct = total > 0 ? (credit / total) * 100 : 0
             return (
               <>
-                <div className="flex h-2.5 overflow-hidden rounded-full bg-zinc-100">
-                  {total > 0 && (
-                    <>
-                      <div className="h-full rounded-l-full bg-income" style={{ width: `${creditPct}%` }} />
-                      <div className="h-full flex-1 rounded-r-full bg-expense" />
-                    </>
-                  )}
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
-                  <span>
-                    <span className="text-muted-foreground">{t('summary.colCredit')} </span>
-                    <strong className="text-income underline decoration-income/30 underline-offset-4">
-                      +{summary ? formatMoney({ amount: credit, currency }) : '—'}
-                    </strong>
-                  </span>
-                  <span data-testid="month-balance">
-                    <span className="text-muted-foreground">{t('summary.balance')} </span>
-                    <strong className={balance >= 0 ? 'text-income' : 'text-expense'}>
+                <div className="grid grid-cols-3 gap-2">
+                  <SummaryStat icon={ArrowUpRight} tone="income" label={t('summary.colCredit')}>
+                    <strong className="text-income">+{summary ? formatMoney({ amount: credit, currency }) : '—'}</strong>
+                  </SummaryStat>
+                  <div data-testid="month-balance" className="grid justify-items-center gap-1 text-center">
+                    <span className="text-xs text-muted-foreground">{t('summary.balance')} </span>
+                    <strong
+                      className={cn(
+                        'text-base tabular-nums sm:text-xl',
+                        balance >= 0 ? 'text-income' : 'text-expense',
+                      )}
+                    >
                       {summary ? `${balance >= 0 ? '+' : '−'}${formatMoney({ amount: Math.abs(balance), currency })}` : '—'}
                     </strong>
-                  </span>
-                  <span>
-                    <span className="text-muted-foreground">{t('summary.colDebit')} </span>
-                    <strong className="text-expense underline decoration-expense/30 underline-offset-4">
-                      −{summary ? formatMoney({ amount: debit, currency }) : '—'}
-                    </strong>
-                  </span>
+                  </div>
+                  <SummaryStat icon={ArrowDownRight} tone="expense" label={t('summary.colDebit')} align="right">
+                    <strong className="text-expense">−{summary ? formatMoney({ amount: debit, currency }) : '—'}</strong>
+                  </SummaryStat>
+                </div>
+                <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+                  {total > 0 && (
+                    <>
+                      <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500" style={{ width: `${creditPct}%` }} />
+                      <div className="h-full flex-1 bg-gradient-to-r from-rose-400 to-rose-500" />
+                    </>
+                  )}
                 </div>
               </>
             )
@@ -504,102 +503,81 @@ export function TransactionsPage() {
       )}
 
       {groups.map((group) => (
-        <Card key={group.date} className="overflow-hidden py-0">
-          <CardContent className="divide-y p-0">
-            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-              <span className="flex items-center gap-2.5 font-bold">
-                <span
-                  aria-hidden="true"
-                  className={cn('h-2 w-2 rounded-full', group.net >= 0 ? 'bg-primary' : 'bg-expense')}
-                />
-                {dayTitle(group.date)} · {dayjs(group.date).format('DD/MM')}
+        <section key={group.date} className="grid gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {dayTitle(group.date)} · {dayjs(group.date).format('DD/MM')}
+            </span>
+            {group.net >= 0 ? (
+              <span className="rounded-full bg-income/10 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-income">
+                {t('transactions.net')} +{formatMoney({ amount: group.net, currency: 'VND' })}
               </span>
-              {group.net >= 0 ? (
-                <span className="rounded-lg bg-income/10 px-2.5 py-1 text-sm font-semibold text-income">
-                  {t('transactions.net')} +{formatMoney({ amount: group.net, currency: 'VND' })}
-                </span>
-              ) : (
-                <span className="text-sm font-semibold text-expense">
-                  −{formatMoney({ amount: Math.abs(group.net), currency: 'VND' })}
-                </span>
-              )}
-            </div>
+            ) : (
+              <span className="rounded-full bg-expense/10 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-expense">
+                −{formatMoney({ amount: Math.abs(group.net), currency: 'VND' })}
+              </span>
+            )}
+          </div>
+        <Card className="overflow-hidden rounded-2xl py-0">
+          <CardContent className="divide-y p-0">
             {group.items.map((tx) => {
               const isIncome = tx.credit.amount > 0
               return (
-                <div key={tx.id}>
-                  <div className="flex items-center gap-3 px-4 py-3.5">
-                  <span
-                    aria-hidden
-                    className={cn('h-10 w-1 shrink-0 rounded-full', isIncome ? 'bg-income' : 'bg-expense')}
-                  />
+                <div key={tx.id} className="group transition-colors hover:bg-muted/40">
+                  <div className="flex items-center gap-3 px-4 py-3">
                   <CategoryIcon category={tx.categoryId} className="h-11 w-11 rounded-2xl" />
                   <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold">{tx.content}</div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1 text-xs font-medium">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="truncate font-semibold">{tx.content}</span>
+                      <span
+                        className={cn(
+                          'shrink-0 text-base font-bold tabular-nums',
+                          isIncome ? 'text-income' : 'text-expense',
+                        )}
+                      >
+                        {isIncome ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px] font-medium">
                       {tx.categoryId && (
                         <span
                           className={cn(
-                            'rounded-md px-1.5 py-0.5',
+                            'rounded-full px-2 py-0.5',
                             categoryDisplayVisual(tx.categoryId).labelClass,
                           )}
                         >
                           {categoryLabel(tx.categoryId)}
                         </span>
                       )}
-                      {tx.subCategoryName && (
-                        <span className="rounded-md bg-indigo-50 px-1.5 py-0.5 text-indigo-700">
-                          {tx.subCategoryName}
-                        </span>
-                      )}
-                      {tx.beneficiaryName && (
-                        <span className="rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-700">{tx.beneficiaryName}</span>
-                      )}
+                      {tx.subCategoryName && <MetaChip>{tx.subCategoryName}</MetaChip>}
+                      {tx.beneficiaryName && <MetaChip>{tx.beneficiaryName}</MetaChip>}
                       {tx.goldQuantity !== null && (
-                        <span className="rounded-md bg-yellow-50 px-1.5 py-0.5 text-yellow-700">
+                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-400">
                           {formatGoldQuantity(tx.goldQuantity)} {t('gold.unit')}
                           {tx.goldTypeName ? ` · ${tx.goldTypeName}` : ''}
                         </span>
                       )}
-                      {tx.bank && (
-                        <span className="rounded-md bg-sky-50 px-1.5 py-0.5 text-sky-700">{tx.bank}</span>
-                      )}
-                      {tx.savingsBank && (
-                        <span className="rounded-md bg-teal-50 px-1.5 py-0.5 text-teal-700">→ {tx.savingsBank}</span>
-                      )}
-                      <span
-                        className={cn(
-                          'rounded-md px-1.5 py-0.5',
-                          tx.paymentMethod === 'card'
-                            ? 'bg-violet-50 text-violet-700'
-                            : tx.paymentMethod === 'cash'
-                              ? 'bg-lime-50 text-lime-700'
-                              : 'bg-emerald-50 text-emerald-700',
-                        )}
-                      >
-                        {paymentMethodChipLabel(tx, t)}
-                      </span>
+                      {tx.bank && <MetaChip>{tx.bank}</MetaChip>}
+                      <MetaChip>{paymentMethodChipLabel(tx, t)}</MetaChip>
+                      {tx.savingsBank && <MetaChip>→ {tx.savingsBank}</MetaChip>}
                       {tx.isAdvance && (
-                        <span className="rounded-md bg-amber-50 px-1.5 py-0.5 text-amber-700">
+                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-amber-700 dark:text-amber-400">
                           {t('form.isAdvance')}
                         </span>
                       )}
                       {tx.excludedFromStats && (
-                        <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-zinc-500">
+                        <span className="rounded-full border border-dashed px-2 py-0.5 text-muted-foreground">
                           {t('summary.excludedBadge')}
                         </span>
                       )}
                     </div>
                     {tx.note && (
-                      <div className="mt-0.5 truncate text-xs italic text-muted-foreground">
+                      <div className="mt-1 truncate text-xs italic text-muted-foreground">
                         {t('form.note')}: {tx.note}
                       </div>
                     )}
                   </div>
-                  <span className={isIncome ? 'font-semibold text-income' : 'font-semibold text-expense'}>
-                    {isIncome ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
-                  </span>
-                  <div className="flex shrink-0 items-center gap-0.5">
+                  <div className="flex shrink-0 items-center gap-0.5 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -624,11 +602,11 @@ export function TransactionsPage() {
                   </div>
                   </div>
                   {tx.links && tx.links.length > 0 && (
-                    <div className="grid gap-1 px-4 pb-3 pl-16">
+                    <div className="grid gap-1 px-4 pb-3 pl-[4.25rem]">
                       {tx.links.map((l) => (
                         <div
                           key={`${l.relation}-${l.id}`}
-                          className="flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs"
+                          className="flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2 text-xs"
                         >
                           <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                           <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 font-medium text-primary">
@@ -652,6 +630,7 @@ export function TransactionsPage() {
 
           </CardContent>
         </Card>
+        </section>
       ))}
 
       <TransactionFormModal
@@ -684,6 +663,42 @@ export function TransactionsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  )
+}
+
+/** Neutral meta chip (sub-category, beneficiary, payment, bank): the category chip stays the only colour. */
+function MetaChip({ children }: { children: ReactNode }) {
+  return <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{children}</span>
+}
+
+function SummaryStat({
+  icon: Icon,
+  tone,
+  label,
+  align = 'left',
+  children,
+}: {
+  icon: LucideIcon
+  tone: 'income' | 'expense'
+  label: string
+  align?: 'left' | 'right'
+  children: ReactNode
+}) {
+  return (
+    <div className={cn('grid gap-1', align === 'right' && 'justify-items-end text-right')}>
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span
+          className={cn(
+            'flex size-5 items-center justify-center rounded-full',
+            tone === 'income' ? 'bg-income/10 text-income' : 'bg-expense/10 text-expense',
+          )}
+        >
+          <Icon className="size-3" aria-hidden />
+        </span>
+        {label}
+      </span>
+      <span className="text-sm tabular-nums sm:text-base">{children}</span>
     </div>
   )
 }
