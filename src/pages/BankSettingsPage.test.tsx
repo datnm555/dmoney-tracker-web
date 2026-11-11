@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { deleteBank, updateBank } from '../api/bankApi'
+import { deleteBank, reorderBanks, updateBank } from '../api/bankApi'
 import { BankSettingsPage } from './BankSettingsPage'
 
 const refresh = vi.fn()
@@ -11,6 +11,7 @@ vi.mock('../api/bankApi', () => ({
   updateBank: vi.fn().mockResolvedValue(undefined),
   deleteBank: vi.fn().mockResolvedValue(undefined),
   setDefaultBank: vi.fn().mockResolvedValue(undefined),
+  reorderBanks: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('../banks/BanksContext', () => ({
@@ -54,6 +55,15 @@ describe('BankSettingsPage', () => {
     expect(setButtons).toHaveLength(1) // only Techcombank
     await userEvent.click(setButtons[0])
     expect(setDefaultBank).toHaveBeenCalledWith('b-2')
+    expect(refresh).toHaveBeenCalled()
+  })
+
+  it('moves a bank up by sending the whole swapped order', async () => {
+    render(<BankSettingsPage />)
+    expect(screen.getByRole('button', { name: 'banks.moveUp MoMo' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'banks.moveDown Techcombank' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'banks.moveUp Techcombank' }))
+    expect(reorderBanks).toHaveBeenCalledWith(['b-2', 'b-1'])
     expect(refresh).toHaveBeenCalled()
   })
 

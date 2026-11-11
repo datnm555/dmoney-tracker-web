@@ -1219,7 +1219,25 @@ describe('TransactionFormModal pay-with chips', () => {
     renderModal()
     expect(await screen.findByRole('button', { name: /Techcombank CK/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Visa VPBank/ })).toHaveTextContent('•••4321')
+    // Only the top 2 bank groups show; cash (the third group) sits behind "Xem thêm".
+    expect(screen.queryByRole('button', { name: 'form.cashChip' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'form.payWithMore (1)' }))
     expect(screen.getByRole('button', { name: 'form.cashChip' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'form.payWithLess' }))
+    expect(screen.queryByRole('button', { name: 'form.cashChip' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a picked account visible when its bank group is past the top 2', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      ...accounts,
+      acct({ id: 'a-zalo', name: 'ZaloPay ví', type: 'ewallet', bankName: 'ZaloPay', isDefault: true }),
+    ] as never)
+    renderModal()
+    // ZaloPay sorts third (A→Z without a bank order), but it holds the picked default account.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'ZaloPay ví' })).toHaveAttribute('aria-pressed', 'true'),
+    )
+    expect(screen.getByRole('button', { name: 'form.payWithMore (1)' })).toBeInTheDocument()
   })
 
   it('omits the synthetic cash chip when a cash account exists', async () => {
@@ -1258,7 +1276,8 @@ describe('TransactionFormModal pay-with chips', () => {
   it('picking the cash chip sets cash with no bank', async () => {
     vi.mocked(getAccounts).mockResolvedValue(accounts as never)
     const onSubmit = await fill(renderModal())
-    await userEvent.click(await screen.findByRole('button', { name: 'form.cashChip' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'form.payWithMore (1)' }))
+    await userEvent.click(screen.getByRole('button', { name: 'form.cashChip' }))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ paymentMethod: 'cash', cardType: null, bank: null }),

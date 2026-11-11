@@ -143,4 +143,23 @@ describe('groupPayWithChips', () => {
       [null, ['none', '__cash__']],
     ])
   })
+
+  it('follows the bank display order, case-insensitively, before unranked banks', () => {
+    const chips = buildPayWithChips(
+      [
+        account({ id: 'acb', bankName: 'ACB' }),
+        account({ id: 'tcb', bankName: 'Techcombank' }),
+        account({ id: 'vp', bankName: 'VPBank' }),
+        account({ id: 'agr', bankName: 'Agribank' }),
+      ],
+      'Tiền mặt',
+    )
+    expect(groupPayWithChips(chips, ['vpbank', 'Techcombank']).map((g) => g.bank)).toEqual([
+      'VPBank',
+      'Techcombank',
+      'ACB',
+      'Agribank',
+      null,
+    ])
+  })
 })

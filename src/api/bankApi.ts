@@ -22,3 +22,8 @@ export async function deleteBank(id: string): Promise<void> {
 export async function setDefaultBank(id: string): Promise<void> {
   await apiClient.put(`/banks/${id}/default`)
 }
+
+/** Rewrites the display order; `ids` must list every one of the user's banks, top priority first. */
+export async function reorderBanks(ids: string[]): Promise<void> {
+  await apiClient.put('/banks/order', { ids })
+}

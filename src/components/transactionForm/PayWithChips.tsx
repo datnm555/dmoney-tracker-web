@@ -1,4 +1,5 @@
-import { Banknote, Check, CreditCard, Landmark, Smartphone, type LucideIcon } from 'lucide-react'
+import { useState } from 'react'
+import { Banknote, Check, ChevronDown, ChevronUp, CreditCard, Landmark, Smartphone, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { AccountType } from '../../api/types'
 import { bankBrand } from '../../banks/bankBrand'
@@ -9,7 +10,12 @@ interface Props {
   chips: PayWithChip[]
   selectedKey: string | null
   onPick: (chip: PayWithChip) => void
+  /** Bank names in the user's display priority (Cài đặt → Ngân hàng). */
+  bankOrder?: string[]
 }
+
+/** Bank groups shown before "Xem thêm". */
+const VISIBLE_GROUPS = 2
 
 const TYPE_STYLE: Record<AccountType, { icon: LucideIcon; tint: string }> = {
   checking: { icon: Landmark, tint: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
@@ -19,12 +25,19 @@ const TYPE_STYLE: Record<AccountType, { icon: LucideIcon; tint: string }> = {
   cash: { icon: Banknote, tint: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
 }
 
-/** Pay-with accounts grouped under their bank, one row per account. */
-export function PayWithChips({ chips, selectedKey, onPick }: Props) {
+/** Pay-with accounts grouped under their bank, one row per account; only the top banks until expanded. */
+export function PayWithChips({ chips, selectedKey, onPick, bankOrder }: Props) {
   const { t } = useI18n()
+  const [expanded, setExpanded] = useState(false)
+  const groups = groupPayWithChips(chips, bankOrder)
+  // A collapsed list never hides the current pick: its group stays visible.
+  const visible = expanded
+    ? groups
+    : groups.filter((g, i) => i < VISIBLE_GROUPS || g.chips.some((c) => c.key === selectedKey))
+  const hiddenCount = groups.length - visible.length
   return (
     <div className="grid gap-3">
-      {groupPayWithChips(chips).map((group) => {
+      {visible.map((group) => {
         const brand = group.bank ? bankBrand(group.bank) : null
         return (
           <section key={group.bank ?? '__none__'} className="grid gap-1.5">
@@ -50,6 +63,26 @@ export function PayWithChips({ chips, selectedKey, onPick }: Props) {
           </section>
         )
       })}
+      {(hiddenCount > 0 || expanded) && groups.length > VISIBLE_GROUPS && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center justify-center gap-1 rounded-xl border border-dashed py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-zinc-300 hover:text-foreground"
+        >
+          {expanded ? (
+            <>
+              {t('form.payWithLess')}
+              <ChevronUp className="size-3.5" aria-hidden />
+            </>
+          ) : (
+            <>
+              {t('form.payWithMore')} ({hiddenCount})
+              <ChevronDown className="size-3.5" aria-hidden />
+            </>
+          )}
+        </button>
+      )}
     </div>
   )
 }
