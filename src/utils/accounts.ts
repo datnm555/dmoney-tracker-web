@@ -76,3 +76,11 @@ export function groupByBank(accounts: AccountResponse[]): BankGroup[] {
     return y.total - x.total || x.bankName.localeCompare(y.bankName)
   })
 }
+
+/**
+ * Month close for an account whose small transactions aren't recorded one by one:
+ * what left the account = opening + money added − closing. Negative means more came in than went out.
+ */
+export function closeMonthNet(opening: number, topUps: number, closing: number): number {
+  return opening + topUps - closing
+}

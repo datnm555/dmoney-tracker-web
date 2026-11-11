@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { History, Pencil, RefreshCw, Trash2 } from 'lucide-react'
+import { CalendarCheck, History, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import type { AccountResponse } from '../api/types'
@@ -13,9 +13,12 @@ export function AccountCard({
   onHistory,
   onEdit,
   onDelete,
+  onCloseMonth,
 }: {
   account: AccountResponse
   onUpdate: () => void
+  /** Money accounts only: record the month's small spending as one transaction. */
+  onCloseMonth?: () => void
   onHistory: () => void
   onEdit: () => void
   onDelete: () => void
@@ -65,6 +68,18 @@ export function AccountCard({
           >
             <RefreshCw className="h-4 w-4" />
           </Button>
+          {!debt && onCloseMonth && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              aria-label={`${t('accounts.closeMonth')} ${account.name}`}
+              title={t('accounts.closeMonth')}
+              onClick={onCloseMonth}
+            >
+              <CalendarCheck className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

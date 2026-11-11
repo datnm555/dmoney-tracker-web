@@ -16,11 +16,19 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { deleteAccount, getAccounts } from '../api/accountApi'
+import { createSnapshot, deleteAccount, getAccounts } from '../api/accountApi'
+import { createTransaction, deleteTransaction } from '../api/transactionApi'
+import { TransactionFormModal } from '../components/TransactionFormModal'
+import type { TransactionFormValues } from '../components/TransactionFormModal'
+import { usePlans } from '../plans/PlanContext'
+import { payWithFields } from '../utils/payWith'
+import { toTransactionPayload } from '../utils/transactionPayload'
 import { getApiErrorMessage } from '../api/client'
 import type { AccountResponse, AccountSnapshotResponse } from '../api/types'
 import { AccountCard } from '../accounts/AccountCard'
 import { AccountDialog } from '../accounts/AccountDialog'
+import { CloseMonthDialog } from '../accounts/CloseMonthDialog'
+import type { CloseMonthResult } from '../accounts/CloseMonthDialog'
 import { PayStatementDialog } from '../accounts/PayStatementDialog'
 import { SnapshotDialog } from '../accounts/SnapshotDialog'
 import { SnapshotHistoryDialog } from '../accounts/SnapshotHistoryDialog'
@@ -71,6 +79,10 @@ export function AccountsPage() {
   const [historyAccount, setHistoryAccount] = useState<AccountResponse | null>(null)
   const [historyKey, setHistoryKey] = useState(0)
   const [paying, setPaying] = useState<AccountResponse | null>(null)
+  const [closingAccount, setClosingAccount] = useState<AccountResponse | null>(null)
+  const [closeResult, setCloseResult] = useState<CloseMonthResult | null>(null)
+  const [closeBusy, setCloseBusy] = useState(false)
+  const { selectedPlanId } = usePlans()
   const [deleting, setDeleting] = useState<AccountResponse | null>(null)
 
   const load = useCallback(async () => {
@@ -92,6 +104,81 @@ export function AccountsPage() {
   const dues = useMemo(() => upcomingDues(accounts, dayjs().format('YYYY-MM-DD')), [accounts])
   const interest = useMemo(() => accounts.reduce((s, a) => s + monthlyInterest(a), 0), [accounts])
   const debt = debtTotal(accounts)
+
+  const closingSnapshot = (date: string, balance: number) => ({
+    date,
+    balance,
+    statementAmount: null,
+    dueDate: null,
+    installmentRemaining: null,
+    statementPaid: false,
+    note: null,
+    statementUntracked: false,
+  })
+
+  const refreshAfterClose = async () => {
+    setHistoryKey((k) => k + 1)
+    await load()
+  }
+
+  // Nothing changed hands: just record the closing balance. Otherwise confirm the combined transaction first.
+  const continueClose = async (result: CloseMonthResult) => {
+    setClosingAccount(null)
+    if (result.net !== 0) {
+      setCloseResult(result)
+      return
+    }
+    setCloseBusy(true)
+    try {
+      await createSnapshot(result.account.id, closingSnapshot(result.date, result.closing))
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, t('error.network')))
+    } finally {
+      setCloseBusy(false)
+    }
+    await refreshAfterClose()
+  }
+
+  const submitClose = async (values: TransactionFormValues) => {
+    const result = closeResult
+    if (!result || !selectedPlanId) return
+    setCloseBusy(true)
+    let transactionId: string
+    try {
+      transactionId = (await createTransaction(toTransactionPayload(values, selectedPlanId))).id
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, t('error.network')))
+      setCloseBusy(false)
+      return
+    }
+    // The transaction exists now: close the form either way so a retry cannot duplicate it.
+    setCloseResult(null)
+    try {
+      await createSnapshot(result.account.id, closingSnapshot(result.date, result.closing))
+    } catch (error) {
+      // Compensate so the combined transaction never exists without its closing balance.
+      try {
+        await deleteTransaction(transactionId)
+      } catch {
+        // The reload below shows the real state.
+      }
+      toast.error(getApiErrorMessage(error, t('error.network')))
+    } finally {
+      setCloseBusy(false)
+    }
+    await refreshAfterClose()
+  }
+
+  const closePrefill: Partial<TransactionFormValues> | undefined = closeResult
+    ? {
+        content: `${t('accounts.closeContent')} ${closeResult.account.name} ${dayjs(closeResult.date).format('MM/YYYY')}`,
+        type: closeResult.net > 0 ? 'out' : 'in',
+        amount: Math.abs(closeResult.net),
+        date: closeResult.date,
+        paymentMethod: payWithFields(closeResult.account).paymentMethod,
+        bank: payWithFields(closeResult.account).bank,
+      }
+    : undefined
 
   const submitDelete = async () => {
     if (!deleting) return
@@ -142,6 +229,7 @@ export function AccountsPage() {
         setFormOpen(true)
       }}
       onDelete={() => setDeleting(a)}
+      onCloseMonth={() => setClosingAccount(a)}
     />
   )
 
@@ -253,6 +341,21 @@ export function AccountsPage() {
       ))}
 
       <AccountDialog open={formOpen} editing={editing} onClose={() => setFormOpen(false)} onSaved={() => void load()} />
+      <CloseMonthDialog
+        account={closingAccount}
+        today={dayjs().format('YYYY-MM-DD')}
+        busy={closeBusy}
+        onClose={() => setClosingAccount(null)}
+        onContinue={(r) => void continueClose(r)}
+      />
+      <TransactionFormModal
+        open={closeResult !== null}
+        editing={null}
+        submitting={closeBusy}
+        prefill={closePrefill}
+        onSubmit={(values) => void submitClose(values)}
+        onCancel={() => setCloseResult(null)}
+      />
       <PayStatementDialog
         card={paying}
         accounts={accounts}
