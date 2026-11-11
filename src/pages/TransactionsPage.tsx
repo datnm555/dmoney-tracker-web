@@ -29,6 +29,7 @@ import type { MonthlySummaryResponse, SubCategoryResponse, TransactionResponse }
 import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { CategoryBar } from '../components/tremor/CategoryBar'
+import { DailySpendChart } from '../transactions/DailySpendChart'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { SubmitOptions, TransactionFormValues } from '../components/TransactionFormModal'
@@ -515,6 +516,7 @@ export function TransactionsPage() {
                   colors={total > 0 ? ['emerald', 'rose'] : ['gray']}
                   showLabels={false}
                 />
+                <DailySpendChart items={items} from={rangeStart} to={rangeEnd} currency={currency} />
               </>
             )
           })()}
