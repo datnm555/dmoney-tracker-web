@@ -80,6 +80,7 @@ const item = (over: Partial<RecurringPaymentResponse>): RecurringPaymentResponse
   bank: null,
   note: null,
   isActive: true,
+  startPeriod: null,
   ...over,
 })
 
@@ -308,6 +309,20 @@ describe('RecurringPage', () => {
     })
   })
 
+  it('manage dialog sends the start month when set', async () => {
+    vi.mocked(createRecurringPayment).mockResolvedValue({ id: 'new' })
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByText('recurring.manage'))
+    await user.click(await screen.findByText('recurring.add'))
+    await user.type(await screen.findByLabelText('recurring.name'), 'Gửi xe')
+    await user.type(screen.getByLabelText('recurring.dayOfMonth'), '5')
+    fireEvent.change(screen.getByLabelText('recurring.startPeriod'), { target: { value: '2026-12' } })
+    await user.click(screen.getByText('summary.submit'))
+    await waitFor(() => expect(createRecurringPayment).toHaveBeenCalled())
+    expect(vi.mocked(createRecurringPayment).mock.calls[0][0].startPeriod).toBe('2026-12')
+  })
+
   it('manage dialog creates an item with the full input', async () => {
     vi.mocked(createRecurringPayment).mockResolvedValue({ id: 'new' })
     const user = userEvent.setup()
@@ -333,6 +348,7 @@ describe('RecurringPage', () => {
       bank: 'Techcombank',
       note: null,
       isActive: true,
+      startPeriod: null,
     })
   })
 })

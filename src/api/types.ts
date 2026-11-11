@@ -321,6 +321,7 @@ export interface RecurringPaymentResponse {
   bank: string | null
   note: string | null
   isActive: boolean
+  startPeriod: string | null // YYYY-MM; hidden from earlier months' schedules
 }
 
 export interface RecurringPaymentRecordResponse {
@@ -350,6 +351,7 @@ export interface RecurringPaymentInput {
   bank: string | null
   note: string | null
   isActive: boolean
+  startPeriod: string | null // YYYY-MM; hidden from earlier months' schedules
 }
 
 export interface TransactionSuggestionResponse {
