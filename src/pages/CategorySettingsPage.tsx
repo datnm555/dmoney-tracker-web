@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -29,6 +30,9 @@ import { CategoryIcon } from '../components/CategoryIcon'
 import { IconPicker } from '../components/IconPicker'
 import { SettingsBadge, SettingsEmpty, SettingsHeader, SettingsList, SettingsRow } from '../components/settings/SettingsKit'
 import { useI18n } from '../i18n/I18nContext'
+
+/** Small uppercase muted label above each field of the create/edit dialog. */
+const DIALOG_LABEL = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground'
 
 export function CategorySettingsPage() {
   const { t } = useI18n()
@@ -173,21 +177,22 @@ export function CategorySettingsPage() {
           <DialogHeader>
             <DialogTitle>{editingId ? t('cat.edit') : t('cat.create')}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="grid gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="cat-name">{t('cat.name')}</Label>
+          <form onSubmit={handleSubmit} className="grid gap-5">
+            <div className="grid gap-2">
+              <Label htmlFor="cat-name" className={DIALOG_LABEL}>{t('cat.name')}</Label>
               <Input
                 id="cat-name"
                 maxLength={50}
+                className="h-11 rounded-xl"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label>{t('cat.icon')}</Label>
+            <div className="grid gap-2">
+              <Label className={DIALOG_LABEL}>{t('cat.icon')}</Label>
               <IconPicker value={icon} onChange={setIcon} />
             </div>
-            <div className="grid gap-1 rounded-2xl border bg-muted/30 p-3">
+            <div className="grid gap-1 rounded-xl border bg-muted/30 p-3">
               <label className="flex items-center gap-2 text-sm font-medium">
                 <Checkbox
                   checked={excludeFromStats}
@@ -198,9 +203,14 @@ export function CategorySettingsPage() {
               </label>
               <p className="pl-6 text-xs text-muted-foreground">{t('cat.excludeFromStatsHint')}</p>
             </div>
-            <Button type="submit" disabled={submitting || !name.trim() || !icon}>
-              {t('summary.submit')}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                {t('summary.cancel')}
+              </Button>
+              <Button type="submit" disabled={submitting || !name.trim() || !icon}>
+                {t('summary.submit')}
+              </Button>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

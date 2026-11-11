@@ -1,14 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { Users } from 'lucide-react'
+import { NameCreateDialog } from '@/components/NameCreateDialog'
 import { getApiErrorMessage } from '../api/client'
 import { createBeneficiary } from '../api/beneficiaryApi'
 import { useI18n } from '../i18n/I18nContext'
@@ -41,27 +34,19 @@ export function CreateBeneficiaryDialog({ open, onClose, onCreated }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('beneficiaries.create')}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-1.5">
-          <span className="text-xs text-muted-foreground">{t('beneficiaries.name')}</span>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && void submit()}
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('summary.cancel')}</Button>
-          <Button disabled={saving || !name.trim()} onClick={() => void submit()}>
-            {t('beneficiaries.create')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <NameCreateDialog
+      open={open}
+      title={t('beneficiaries.create')}
+      icon={<Users />}
+      inputId="create-beneficiary-name"
+      label={t('beneficiaries.name')}
+      value={name}
+      onChange={setName}
+      onSubmit={() => void submit()}
+      onClose={onClose}
+      submitLabel={t('beneficiaries.create')}
+      submitDisabled={saving || !name.trim()}
+      cancelLabel={t('summary.cancel')}
+    />
   )
 }

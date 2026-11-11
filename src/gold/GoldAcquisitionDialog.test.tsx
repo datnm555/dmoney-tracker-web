@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createGoldAcquisition, updateGoldAcquisition } from '../api/goldApi'
 import { GoldAcquisitionDialog } from './GoldAcquisitionDialog'
@@ -51,8 +51,9 @@ describe('GoldAcquisitionDialog', () => {
     const onClose = vi.fn()
     render(<GoldAcquisitionDialog open editing={null} onClose={onClose} onSaved={onSaved} />)
 
-    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
-    await userEvent.click(await screen.findByRole('option', { name: 'Nhẫn trơn' }))
+    await userEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'form.goldType' })).getByRole('radio', { name: 'Nhẫn trơn' }),
+    )
     fireEvent.change(screen.getByLabelText('goldAcq.date'), { target: { value: '2024-05-10' } })
     await userEvent.type(screen.getByLabelText('goldAcq.quantity'), '3')
     await userEvent.type(screen.getByLabelText('goldAcq.unitPrice'), '5500000')
@@ -77,10 +78,12 @@ describe('GoldAcquisitionDialog', () => {
     const onClose = vi.fn()
     render(<GoldAcquisitionDialog open editing={null} onClose={onClose} onSaved={onSaved} />)
 
-    await userEvent.click(screen.getByRole('combobox', { name: 'form.goldType' }))
-    await userEvent.click(await screen.findByRole('option', { name: 'Nhẫn trơn' }))
-    await userEvent.click(screen.getByRole('combobox', { name: 'form.purchasePlace' }))
-    await userEvent.click(await screen.findByRole('option', { name: 'SJC' }))
+    await userEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'form.goldType' })).getByRole('radio', { name: 'Nhẫn trơn' }),
+    )
+    await userEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'form.purchasePlace' })).getByRole('radio', { name: 'SJC' }),
+    )
     fireEvent.change(screen.getByLabelText('goldAcq.date'), { target: { value: '2024-05-10' } })
     await userEvent.type(screen.getByLabelText('goldAcq.quantity'), '3')
 
@@ -106,11 +109,16 @@ describe('GoldAcquisitionDialog', () => {
     const onClose = vi.fn()
     render(<GoldAcquisitionDialog open editing={editingFixture} onClose={onClose} onSaved={onSaved} />)
 
-    expect(await screen.findByRole('combobox', { name: 'form.goldType' })).toHaveTextContent('Nhẫn trơn')
-    expect(screen.getByRole('combobox', { name: 'form.purchasePlace' })).toHaveTextContent('SJC')
+    expect(
+      within(await screen.findByRole('radiogroup', { name: 'form.goldType' })).getByRole('radio', { name: 'Nhẫn trơn' }),
+    ).toBeChecked()
+    expect(
+      within(screen.getByRole('radiogroup', { name: 'form.purchasePlace' })).getByRole('radio', { name: 'SJC' }),
+    ).toBeChecked()
     expect(screen.getByLabelText('goldAcq.date')).toHaveValue('2024-04-01')
     expect(screen.getByLabelText('goldAcq.quantity')).toHaveValue('2')
     expect(screen.getByLabelText('goldAcq.note')).toHaveValue('quà tặng')
+    expect(screen.getByTestId('gold-acq-total')).toHaveTextContent('10.000.000')
 
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
 

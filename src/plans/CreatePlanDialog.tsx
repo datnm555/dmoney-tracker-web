@@ -1,14 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { ClipboardList } from 'lucide-react'
+import { NameCreateDialog } from '@/components/NameCreateDialog'
 import { getApiErrorMessage } from '../api/client'
 import { createPlan } from '../api/planApi'
 import { useI18n } from '../i18n/I18nContext'
@@ -42,27 +35,19 @@ export function CreatePlanDialog({ open, onClose, onCreated }: Props) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t('plans.create')}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-1.5">
-          <span className="text-xs text-muted-foreground">{t('plans.name')}</span>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && void submit()}
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>{t('summary.cancel')}</Button>
-          <Button disabled={saving || !name.trim()} onClick={() => void submit()}>
-            {t('plans.create')}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <NameCreateDialog
+      open={open}
+      title={t('plans.create')}
+      icon={<ClipboardList />}
+      inputId="create-plan-name"
+      label={t('plans.name')}
+      value={name}
+      onChange={setName}
+      onSubmit={() => void submit()}
+      onClose={onClose}
+      submitLabel={t('plans.create')}
+      submitDisabled={saving || !name.trim()}
+      cancelLabel={t('summary.cancel')}
+    />
   )
 }
