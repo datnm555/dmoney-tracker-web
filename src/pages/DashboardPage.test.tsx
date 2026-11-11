@@ -139,6 +139,7 @@ const row = (
     bank: null,
     note: null,
     isActive: true,
+    startPeriod: null,
   },
   dueDate,
   record: o.paid

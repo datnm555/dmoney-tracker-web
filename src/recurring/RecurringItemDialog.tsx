@@ -43,6 +43,7 @@ export function RecurringItemDialog({
   const [bank, setBank] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const [isActive, setIsActive] = useState(true)
+  const [startPeriod, setStartPeriod] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -57,6 +58,7 @@ export function RecurringItemDialog({
     setBank(editing?.bank ?? null)
     setNote(editing?.note ?? '')
     setIsActive(editing?.isActive ?? true)
+    setStartPeriod(editing?.startPeriod ?? '')
   }, [open, editing])
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export function RecurringItemDialog({
       bank,
       note: note.trim() || null,
       isActive,
+      startPeriod: startPeriod || null,
     }
     setSaving(true)
     try {
@@ -209,6 +212,10 @@ export function RecurringItemDialog({
           <div className="grid gap-1.5">
             <Label htmlFor="rec-note">{t('form.note')}</Label>
             <Input id="rec-note" value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="rec-start">{t('recurring.startPeriod')}</Label>
+            <Input id="rec-start" type="month" value={startPeriod} onChange={(e) => setStartPeriod(e.target.value)} />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
