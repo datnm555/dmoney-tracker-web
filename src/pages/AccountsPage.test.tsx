@@ -2,7 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
-import { createAccount, createSnapshot, deleteSnapshot, getAccounts, getSnapshots, updateAccount, updateSnapshot } from '../api/accountApi'
+import {
+  createAccount,
+  createSnapshot,
+  deleteSnapshot,
+  getAccounts,
+  getSnapshots,
+  payStatement,
+  updateAccount,
+  updateSnapshot,
+} from '../api/accountApi'
 import type { AccountResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { AccountsPage } from './AccountsPage'
@@ -23,6 +32,7 @@ vi.mock('../banks/BanksContext', () => ({
 
 vi.mock('../api/accountApi', () => ({
   getAccounts: vi.fn(),
+  payStatement: vi.fn(),
   createAccount: vi.fn(),
   updateAccount: vi.fn(),
   deleteAccount: vi.fn(),
@@ -130,16 +140,14 @@ describe('AccountsPage', () => {
     expect(norm(due.textContent)).toContain('accounts.left 2 accounts.days')
     expect(due).toHaveTextContent('•••5678')
     await user.click(within(due).getByRole('button', { name: 'accounts.markPaid' }))
-    expect(updateSnapshot).toHaveBeenCalledWith('snap-cc', {
-      date: '2026-11-09',
-      balance: 20_000_000,
-      statementAmount: 5_000_000,
-      dueDate: '2026-11-12',
-      installmentRemaining: null,
-      note: 'n',
-      statementPaid: true,
-      statementUntracked: false,
-    })
+    // The dialog defaults to the full statement, today, and no paying account.
+    expect(screen.getByLabelText('recurring.amount')).toHaveValue('5.000.000')
+    const from = screen.getByLabelText('accounts.payFrom')
+    expect(within(from).queryByText('Visa', { exact: false })).toBeNull()
+    await user.selectOptions(from, 'a-od')
+    await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 5_000_000, fromAccountId: 'a-od' })
+    expect(updateSnapshot).not.toHaveBeenCalled()
     expect(getAccounts).toHaveBeenCalledTimes(2)
   })
 

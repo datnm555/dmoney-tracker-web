@@ -10,7 +10,7 @@ import {
   getRecurringPayments,
   getSchedule,
 } from '../api/recurringPaymentApi'
-import { getAccounts, updateSnapshot } from '../api/accountApi'
+import { getAccounts, payStatement } from '../api/accountApi'
 import { createTransaction, deleteTransaction } from '../api/transactionApi'
 import type { AccountResponse, RecurringPaymentResponse, RecurringScheduleItemResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
@@ -41,7 +41,7 @@ vi.mock('../api/recurringPaymentApi', () => ({
   createRecord: vi.fn(),
   deleteRecord: vi.fn(),
 }))
-vi.mock('../api/accountApi', () => ({ getAccounts: vi.fn(), updateSnapshot: vi.fn() }))
+vi.mock('../api/accountApi', () => ({ getAccounts: vi.fn(), payStatement: vi.fn() }))
 vi.mock('../api/transactionApi', () => ({ createTransaction: vi.fn(), deleteTransaction: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
@@ -59,7 +59,7 @@ vi.mock('../components/TransactionFormModal', () => ({
     open ? (
       <div data-testid="tx-form">
         <span data-testid="tx-prefill">{JSON.stringify(prefill)}</span>
-        <button onClick={() => onSubmit({ ...prefill, amount: 2_500_000, planId: null })}>tx-submit</button>
+        <button onClick={() => onSubmit({ ...prefill, amount: 2_500_000, planId: null, payWithAccountId: 'a-od' })}>tx-submit</button>
       </div>
     ) : null,
 }))
@@ -134,7 +134,7 @@ beforeEach(() => {
   vi.mocked(createRecord).mockResolvedValue({ id: 'r-new' })
   vi.mocked(createTransaction).mockResolvedValue({ id: 'tx-new' })
   vi.mocked(deleteTransaction).mockResolvedValue(undefined)
-  vi.mocked(updateSnapshot).mockResolvedValue(undefined)
+  vi.mocked(payStatement).mockResolvedValue(undefined)
   vi.mocked(deleteRecord).mockResolvedValue(undefined)
 })
 
@@ -298,17 +298,9 @@ describe('RecurringPage', () => {
     const user = userEvent.setup()
     renderPage()
     await user.click(within(await screen.findByTestId('card-row-a-cc')).getByText('accounts.markPaid'))
-    await waitFor(() => expect(updateSnapshot).toHaveBeenCalled())
-    expect(updateSnapshot).toHaveBeenCalledWith('snap-1', {
-      date: '2026-11-01',
-      balance: 3_000_000,
-      statementAmount: 3_000_000,
-      dueDate: '2026-11-15',
-      installmentRemaining: null,
-      note: null,
-      statementPaid: true,
-      statementUntracked: false,
-    })
+    await user.click(await screen.findByRole('button', { name: 'summary.submit' }))
+    await waitFor(() => expect(payStatement).toHaveBeenCalled())
+    expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 3_000_000, fromAccountId: null })
   })
 
   it('card row has no Ghi nhận when its statement spending is tracked', async () => {
@@ -330,9 +322,10 @@ describe('RecurringPage', () => {
     expect(prefill).toMatchObject({ content: 'recurring.cardRow Visa', type: 'out', amount: 3_000_000, date: '2026-11-10' })
 
     await user.click(screen.getByText('tx-submit'))
-    await waitFor(() => expect(updateSnapshot).toHaveBeenCalled())
+    await waitFor(() => expect(payStatement).toHaveBeenCalled())
     expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ debitAmount: 2_500_000, planId: 'p-default' }))
-    expect(updateSnapshot).toHaveBeenCalledWith('snap-1', expect.objectContaining({ statementPaid: true, statementUntracked: true }))
+    // The edited amount is what was paid, from the account picked under "Trả bằng".
+    expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 2_500_000, fromAccountId: 'a-od' })
     expect(createRecord).not.toHaveBeenCalled()
   })
 
@@ -340,7 +333,7 @@ describe('RecurringPage', () => {
     vi.mocked(getAccounts).mockResolvedValue([
       { ...card, latestSnapshot: { ...card.latestSnapshot!, statementUntracked: true } },
     ])
-    vi.mocked(updateSnapshot).mockRejectedValue(new Error('boom'))
+    vi.mocked(payStatement).mockRejectedValue(new Error('boom'))
     const user = userEvent.setup()
     renderPage()
     await user.click(within(await screen.findByTestId('card-row-a-cc')).getByText('recurring.record'))

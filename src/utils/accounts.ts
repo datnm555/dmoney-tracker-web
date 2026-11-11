@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import type { AccountResponse, AccountSnapshotResponse, AccountType, SnapshotInput } from '../api/types'
+import type { AccountResponse, AccountType } from '../api/types'
 
 const DEBT_TYPES: AccountType[] = ['overdraft', 'credit_card']
 
@@ -75,18 +75,4 @@ export function groupByBank(accounts: AccountResponse[]): BankGroup[] {
     if (y.bankName === null) return -1
     return y.total - x.total || x.bankName.localeCompare(y.bankName)
   })
-}
-
-/** The PUT body that marks a snapshot's statement as paid, keeping every other field. */
-export function paidSnapshotInput(s: AccountSnapshotResponse): SnapshotInput {
-  return {
-    date: s.date,
-    balance: s.balance.amount,
-    statementAmount: s.statementAmount?.amount ?? null,
-    dueDate: s.dueDate,
-    installmentRemaining: s.installmentRemaining?.amount ?? null,
-    note: s.note,
-    statementPaid: true,
-    statementUntracked: s.statementUntracked,
-  }
 }

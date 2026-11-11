@@ -1,15 +1,13 @@
 import { cn } from '@/lib/utils'
-import { selectedPayWithKey } from '../../utils/payWith'
-import type { PayWithChip, PayWithFields } from '../../utils/payWith'
+import type { PayWithChip } from '../../utils/payWith'
 
 interface Props {
   chips: PayWithChip[]
-  value: PayWithFields
-  onPick: (fields: PayWithFields) => void
+  selectedKey: string | null
+  onPick: (chip: PayWithChip) => void
 }
 
-export function PayWithChips({ chips, value, onPick }: Props) {
-  const selectedKey = selectedPayWithKey(chips, value)
+export function PayWithChips({ chips, selectedKey, onPick }: Props) {
   return (
     <div className="flex flex-wrap gap-2">
       {chips.map((chip) => {
@@ -19,7 +17,7 @@ export function PayWithChips({ chips, value, onPick }: Props) {
             key={chip.key}
             type="button"
             aria-pressed={selected}
-            onClick={() => onPick(chip.fields)}
+            onClick={() => onPick(chip)}
             className={cn(
               'rounded-full border px-3 py-1.5 text-sm text-muted-foreground hover:border-zinc-300',
               selected && 'border-primary bg-primary/5 text-primary ring-1 ring-primary/30',

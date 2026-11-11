@@ -1221,6 +1221,21 @@ describe('TransactionFormModal pay-with chips', () => {
     )
   })
 
+  it('two accounts at one bank: the picked one is selected and reported as payWithAccountId', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      acct({ id: 'a-salary', name: 'VPBank lương', type: 'checking', bankName: 'VPBank' }),
+      acct({ id: 'a-od', name: 'VPBank thấu chi', type: 'overdraft', bankName: 'VPBank' }),
+    ] as never)
+    const onSubmit = await fill(renderModal())
+    await userEvent.click(await screen.findByRole('button', { name: 'VPBank thấu chi' }))
+    expect(screen.getByRole('button', { name: 'VPBank thấu chi' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'VPBank lương' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'transfer', bank: 'VPBank', payWithAccountId: 'a-od' }),
+    )
+  })
+
   it('picking the cash chip sets cash with no bank', async () => {
     vi.mocked(getAccounts).mockResolvedValue(accounts as never)
     const onSubmit = await fill(renderModal())

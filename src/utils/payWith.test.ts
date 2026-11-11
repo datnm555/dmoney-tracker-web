@@ -86,6 +86,18 @@ describe('buildPayWithChips / selectedPayWithKey', () => {
     expect(chips[0].lastDigits).toBe('1234')
   })
 
+  it('keeps the picked chip when another account shares its fields', () => {
+    const chips = buildPayWithChips(
+      [account({ id: 'a1', name: 'One' }), account({ id: 'a2', name: 'Two' })],
+      'Tiền mặt',
+    )
+    const fields = { paymentMethod: 'transfer' as const, cardType: null, bank: 'Techcombank' }
+    expect(selectedPayWithKey(chips, fields, 'a2')).toBe('a2')
+    // Once the fields no longer match the picked chip, fall back to the first match.
+    expect(selectedPayWithKey(chips, { ...fields, bank: 'ACB' }, 'a2')).toBeNull()
+    expect(selectedPayWithKey(chips, fields, 'missing')).toBe('a1')
+  })
+
   it('first match wins', () => {
     const chips = buildPayWithChips(
       [account({ id: 'a1', name: 'One' }), account({ id: 'a2', name: 'Two' })],
