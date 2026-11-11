@@ -2,6 +2,7 @@ import dayjs from 'dayjs'
 import { CalendarCheck, History, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 import type { AccountResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { isDebtType } from '../utils/accounts'
@@ -36,7 +37,18 @@ export function AccountCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="truncate font-medium">{account.name}</div>
-            {account.lastDigits && <div className="text-xs text-muted-foreground">•••{account.lastDigits}</div>}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                data-testid="account-type"
+                className={cn(
+                  'rounded px-1.5 py-0.5 font-medium',
+                  debt ? 'bg-expense/10 text-expense' : 'bg-income/10 text-income',
+                )}
+              >
+                {t(`accounts.type.${account.type}`)}
+              </span>
+              {account.lastDigits && <span>•••{account.lastDigits}</span>}
+            </div>
           </div>
           {snap && (
             <div className={`text-base font-bold tabular-nums ${debt ? 'text-expense' : 'text-income'}`}>

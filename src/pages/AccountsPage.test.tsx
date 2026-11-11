@@ -331,54 +331,51 @@ describe('AccountsPage', () => {
       { ...base, id: 'o1', name: 'Thấu chi', type: 'overdraft', bankName: 'VPBank', latestSnapshot: snap({ id: 'z1', accountId: 'o1', balance: vnd(7_000_000) }) },
     ]
 
-    const sections = (group: string) =>
-      Array.from(document.querySelectorAll(`[data-testid^="bank-section-${group}-"]`)).map((el) => ({
+    const sections = () =>
+      Array.from(document.querySelectorAll('[data-testid^="bank-section-"]')).map((el) => ({
         id: el.getAttribute('data-testid'),
         header: norm(within(el as HTMLElement).getByTestId('bank-header').textContent),
-        names: within(el as HTMLElement).getAllByTestId(/^account-/).map((c) => c.textContent),
+        names: within(el as HTMLElement)
+          .getAllByTestId(/^account-(?!type)/)
+          .map((c) => c.querySelector('.font-medium')?.textContent),
       }))
 
-    it('splits the money group into per-bank sections ordered by subtotal, no-bank last', async () => {
+    it('makes each bank a parent holding all its account types, no-bank last', async () => {
       renderPage(grouped)
       await screen.findByText('Lương')
-      const money = sections('money')
-      expect(money.map((s) => s.id)).toEqual([
-        'bank-section-money-VPBank',
-        'bank-section-money-Techcombank',
-        'bank-section-money-none',
+      const banks = sections()
+      // VPBank 9 + 13 debt = 22, Techcombank 5 + 1 = 6, then the no-bank cash.
+      expect(banks.map((s) => s.id)).toEqual([
+        'bank-section-VPBank',
+        'bank-section-Techcombank',
+        'bank-section-none',
       ])
-      expect(money[0].header).toContain('VPBank')
-      expect(money[0].header).toContain(fmt(9_000_000))
-      expect(money[1].header).toContain(fmt(5_000_000))
-      expect(money[1].names).toHaveLength(2)
-      expect(money[2].header).toContain('accounts.noBank')
-      expect(money[2].header).toContain(fmt(50_000_000))
+      expect(banks[0].names).toEqual(['Chi tiêu', 'Thấu chi', 'Thẻ B', 'Thẻ C'])
+      expect(banks[1].names).toEqual(['Lương', 'Tiết kiệm', 'Thẻ A'])
+      expect(banks[2].header).toContain('accounts.noBank')
     })
 
-    it('splits the credit-card and overdraft groups per bank with debt-styled subtotals', async () => {
+    it('shows the bank money in green and its debt in red', async () => {
       renderPage(grouped)
-      await screen.findByText('Thẻ A')
-      const cards = sections('credit')
-      expect(cards.map((s) => s.id)).toEqual(['bank-section-credit-VPBank', 'bank-section-credit-Techcombank'])
-      expect(cards[0].header).toContain(fmt(6_000_000))
-      expect(cards[1].header).toContain(fmt(1_000_000))
-      expect(within(screen.getByTestId('bank-section-credit-VPBank')).getByTestId('bank-total')).toHaveClass('text-expense')
-      expect(within(screen.getByTestId('bank-section-money-VPBank')).getByTestId('bank-total')).not.toHaveClass('text-expense')
-      expect(sections('overdraft').map((s) => s.id)).toEqual(['bank-section-overdraft-VPBank'])
-      expect(screen.getByText('Thấu chi')).toBeInTheDocument()
+      await screen.findByText('Lương')
+      const vpb = screen.getByTestId('bank-section-VPBank')
+      expect(norm(within(vpb).getByTestId('bank-money').textContent)).toBe(fmt(9_000_000))
+      expect(within(vpb).getByTestId('bank-money')).toHaveClass('text-income')
+      expect(norm(within(vpb).getByTestId('bank-debt').textContent)).toBe(`−${fmt(13_000_000)}`)
+      expect(within(vpb).getByTestId('bank-debt')).toHaveClass('text-expense')
+      expect(within(screen.getByTestId('bank-section-none')).queryByTestId('bank-debt')).toBeNull()
     })
 
-    it('wraps each account type in a parent section with its title and total', async () => {
+    it('labels each account with its type', async () => {
       renderPage(grouped)
-      await screen.findByText('Thẻ A')
-      const credit = screen.getByTestId('group-credit')
-      expect(within(credit).getByRole('heading', { name: 'accounts.groupCredit' })).toBeInTheDocument()
-      expect(within(credit).getByTestId('group-total')).toHaveTextContent(fmt(7_000_000).trim())
-      expect(within(credit).getByTestId('group-total')).toHaveClass('text-expense')
-      expect(within(screen.getByTestId('group-money')).getByTestId('group-total')).toHaveClass('text-income')
-      // Bank sections live inside their type's parent section.
-      expect(within(credit).getByTestId('bank-section-credit-VPBank')).toBeInTheDocument()
-      expect(within(credit).queryByTestId('bank-section-money-VPBank')).toBeNull()
+      await screen.findByText('Lương')
+      const vpb = screen.getByTestId('bank-section-VPBank')
+      expect(within(vpb).getAllByTestId('account-type').map((e) => e.textContent)).toEqual([
+        'accounts.type.checking',
+        'accounts.type.overdraft',
+        'accounts.type.credit_card',
+        'accounts.type.credit_card',
+      ])
     })
 
     it('sends bankName when a bank chip is picked in the account dialog', async () => {

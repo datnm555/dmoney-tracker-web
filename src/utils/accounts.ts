@@ -49,14 +49,20 @@ export function upcomingDues(
 
 export interface BankGroup {
   bankName: string | null
-  total: number
+  /** Latest balances of the bank's money accounts. */
+  money: number
+  /** Latest amounts owed on the bank's overdrafts and credit cards. */
+  debt: number
   accounts: AccountResponse[]
 }
 
+// Inside a bank: payment accounts first, then overdraft, then credit cards.
+const TYPE_ORDER: AccountType[] = ['checking', 'ewallet', 'cash', 'overdraft', 'credit_card']
+
 /**
- * Groups accounts by free-text bank name. total = sum of latest balances (for credit cards that is the amount
- * owed); accounts without a snapshot are listed but count 0. Sorted by total desc, then name; no-bank last.
- * Callers pass only the accounts of one page group (money types, or credit cards).
+ * Groups all accounts by free-text bank name (the bank is the parent; cards, overdrafts and payment
+ * accounts sit inside it). Accounts without a snapshot are listed but count 0. Banks are sorted by
+ * money + debt desc, then name; no-bank last.
  */
 export function groupByBank(accounts: AccountResponse[]): BankGroup[] {
   const map = new Map<string | null, BankGroup>()
@@ -64,16 +70,20 @@ export function groupByBank(accounts: AccountResponse[]): BankGroup[] {
     const key = a.bankName?.trim() || null
     let group = map.get(key)
     if (!group) {
-      group = { bankName: key, total: 0, accounts: [] }
+      group = { bankName: key, money: 0, debt: 0, accounts: [] }
       map.set(key, group)
     }
-    group.total += latestBalance(a)
+    if (isDebtType(a.type)) group.debt += latestBalance(a)
+    else group.money += latestBalance(a)
     group.accounts.push(a)
+  }
+  for (const g of map.values()) {
+    g.accounts.sort((x, y) => TYPE_ORDER.indexOf(x.type) - TYPE_ORDER.indexOf(y.type))
   }
   return [...map.values()].sort((x, y) => {
     if (x.bankName === null) return y.bankName === null ? 0 : 1
     if (y.bankName === null) return -1
-    return y.total - x.total || x.bankName.localeCompare(y.bankName)
+    return y.money + y.debt - (x.money + x.debt) || x.bankName.localeCompare(y.bankName)
   })
 }
 

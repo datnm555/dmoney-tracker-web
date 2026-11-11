@@ -155,23 +155,26 @@ describe('groupByBank', () => {
   const bank = (type: AccountType, balance: number | null, bankName: string | null, name: string) =>
     acc(type, balance, { bankName, name })
 
-  it('groups by bank with the sum of latest balances as subtotal', () => {
+  it('puts every account type under its bank, splitting money and debt', () => {
     const groups = groupByBank([
-      bank('checking', 3_000_000, 'Techcombank', 'A'),
-      bank('ewallet', 2_000_000, 'Techcombank', 'B'),
-      bank('checking', 1_000_000, 'VPBank', 'C'),
+      bank('credit_card', 8_000_000, 'VPBank', 'Diamond'),
+      bank('checking', 1_000_000, 'VPBank', 'Lương'),
+      bank('overdraft', 144_000_000, 'VPBank', 'Thấu chi'),
+      bank('checking', 3_000_000, 'Vietcombank', 'VCB'),
     ])
-    expect(groups.map((g) => [g.bankName, g.total, g.accounts.length])).toEqual([
-      ['Techcombank', 5_000_000, 2],
-      ['VPBank', 1_000_000, 1],
+    expect(groups.map((g) => [g.bankName, g.money, g.debt])).toEqual([
+      ['VPBank', 1_000_000, 152_000_000],
+      ['Vietcombank', 3_000_000, 0],
     ])
+    // Inside a bank: payment accounts, then overdraft, then cards.
+    expect(groups[0].accounts.map((a) => a.name)).toEqual(['Lương', 'Thấu chi', 'Diamond'])
   })
 
-  it('sorts by total desc then name, with the null bank last even when largest', () => {
+  it('sorts banks by money + debt desc then name, with the null bank last even when largest', () => {
     const groups = groupByBank([
       bank('cash', 99_000_000, null, 'Cash'),
       bank('checking', 1_000_000, 'Zeta', 'Z'),
-      bank('checking', 1_000_000, 'Alpha', 'A'),
+      bank('credit_card', 1_000_000, 'Alpha', 'A'),
       bank('checking', 5_000_000, 'Mid', 'M'),
     ])
     expect(groups.map((g) => g.bankName)).toEqual(['Mid', 'Alpha', 'Zeta', null])
@@ -180,23 +183,11 @@ describe('groupByBank', () => {
   it('lists accounts without a snapshot but counts them as 0', () => {
     const groups = groupByBank([bank('checking', null, 'VPBank', 'A'), bank('checking', 7, 'VPBank', 'B')])
     expect(groups).toHaveLength(1)
-    expect(groups[0].total).toBe(7)
+    expect(groups[0].money).toBe(7)
     expect(groups[0].accounts).toHaveLength(2)
   })
 
-  it('works for credit cards (total = owed)', () => {
-    const groups = groupByBank([
-      bank('credit_card', 4_000_000, 'VPBank', 'V1'),
-      bank('credit_card', 6_000_000, 'VPBank', 'V2'),
-      bank('credit_card', 1_000_000, null, 'N'),
-    ])
-    expect(groups.map((g) => [g.bankName, g.total])).toEqual([
-      ['VPBank', 10_000_000],
-      [null, 1_000_000],
-    ])
-  })
-
-  it('returns an empty list for no accounts', () => {
+  it('returns nothing for no accounts', () => {
     expect(groupByBank([])).toEqual([])
   })
 })
