@@ -1,5 +1,5 @@
 // Tremor BarChart [v1.0.0]
-// Source: github.com/tremorlabs/tremor (Apache-2.0). Adapted for dmoney: legend scroll icons from lucide-react instead of @remixicon/react; Recharts 3 typings (tooltip label, timer types).
+// Source: github.com/tremorlabs/tremor (Apache-2.0). Adapted for dmoney: axis tick fill from --muted-foreground (Recharts 3 hardcodes #666, unreadable in dark mode); legend scroll icons from lucide-react instead of @remixicon/react; Recharts 3 typings (tooltip label, timer types).
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 "use client"
@@ -686,6 +686,8 @@ const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
             <XAxis
               hide={!showXAxis}
               tick={{
+                // Recharts 3 sets fill="#666" on each tick, overriding the axis fill-* class.
+                fill: "var(--muted-foreground)",
                 transform:
                   layout !== "vertical" ? "translate(0, 6)" : undefined,
               }}
@@ -745,6 +747,8 @@ const BarChart = React.forwardRef<HTMLDivElement, BarChartProps>(
                 "fill-gray-500 dark:fill-gray-500",
               )}
               tick={{
+                // Recharts 3 sets fill="#666" on each tick, overriding the axis fill-* class.
+                fill: "var(--muted-foreground)",
                 transform:
                   layout !== "vertical"
                     ? "translate(-3, 0)"
