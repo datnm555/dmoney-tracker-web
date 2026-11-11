@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronUp, Pencil, Plus, Star, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Landmark, Pencil, Plus, Star, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   AlertDialog,
@@ -12,13 +12,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { getApiErrorMessage } from '../api/client'
 import { deleteBank, reorderBanks, setDefaultBank, updateBank } from '../api/bankApi'
 import type { BankResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { CreateBankDialog } from '../banks/CreateBankDialog'
+import { bankBrand } from '../banks/bankBrand'
+import { SettingsBadge, SettingsEmpty, SettingsHeader, SettingsList, SettingsRow } from '../components/settings/SettingsKit'
 import { useBanks } from '../banks/BanksContext'
 
 export function BankSettingsPage() {
@@ -76,97 +77,115 @@ export function BankSettingsPage() {
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">{t('banks.title')}</h1>
-        <Button onClick={() => setCreating(true)}>
-          <Plus className="mr-1 h-4 w-4" />
-          {t('banks.create')}
-        </Button>
-      </div>
+      <SettingsHeader
+        icon={Landmark}
+        title={t('banks.title')}
+        description={t('banks.orderHint')}
+        count={banks.length}
+        action={
+          <Button onClick={() => setCreating(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            {t('banks.create')}
+          </Button>
+        }
+      />
 
-      <p className="-mt-2 text-xs text-muted-foreground">{t('banks.orderHint')}</p>
-
-      <Card>
-        <CardContent className="divide-y p-0">
-          {banks.map((bank, index) => (
-            <div key={bank.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="w-5 shrink-0 text-center text-xs font-semibold tabular-nums text-muted-foreground">
-                {index + 1}
-              </span>
-              {editing?.id === bank.id ? (
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && void submitRename()}
-                  autoFocus
-                  className="max-w-xs"
-                />
-              ) : (
-                <span className="min-w-0 flex-1 truncate font-medium">{bank.name}</span>
-              )}
-              {bank.isDefault && (
-                <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10.5px] text-muted-foreground">
-                  {t('banks.default')}
-                </span>
-              )}
-              {!bank.isDefault && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  aria-label={`${t('banks.setDefault')} ${bank.name}`}
-                  onClick={() => void submitSetDefault(bank)}
-                >
-                  <Star className="h-4 w-4" />
-                </Button>
-              )}
-              <div className="flex">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-7 text-muted-foreground hover:text-foreground"
-                  aria-label={`${t('banks.moveUp')} ${bank.name}`}
-                  disabled={index === 0}
-                  onClick={() => void move(index, -1)}
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-7 text-muted-foreground hover:text-foreground"
-                  aria-label={`${t('banks.moveDown')} ${bank.name}`}
-                  disabled={index === banks.length - 1}
-                  onClick={() => void move(index, 1)}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                aria-label={`${t('banks.rename')} ${bank.name}`}
-                onClick={() => {
-                  setEditing(bank)
-                  setEditName(bank.name)
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
-                aria-label={`${t('banks.delete')} ${bank.name}`}
-                onClick={() => setDeleting(bank)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {banks.length === 0 ? (
+        <SettingsEmpty icon={Landmark}>{t('banks.create')}</SettingsEmpty>
+      ) : (
+        <SettingsList>
+          {banks.map((bank, index) => {
+            const brand = bankBrand(bank.name)
+            return (
+              <SettingsRow
+                key={bank.id}
+                leading={
+                  <span
+                    aria-hidden
+                    className="flex size-9 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold text-white shadow-sm"
+                    style={{ backgroundColor: brand.color }}
+                  >
+                    {brand.short}
+                  </span>
+                }
+                title={
+                  editing?.id === bank.id ? (
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && void submitRename()}
+                      autoFocus
+                      className="h-8 max-w-xs"
+                    />
+                  ) : (
+                    <span className="truncate font-medium">{bank.name}</span>
+                  )
+                }
+                meta={<span className="tabular-nums">#{index + 1}</span>}
+                badges={bank.isDefault && <SettingsBadge tone="primary">{t('banks.default')}</SettingsBadge>}
+                actions={
+                  <>
+                    {!bank.isDefault && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-amber-500"
+                        aria-label={`${t('banks.setDefault')} ${bank.name}`}
+                        onClick={() => void submitSetDefault(bank)}
+                      >
+                        <Star className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <div className="flex rounded-lg bg-muted/60">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-7 text-muted-foreground hover:text-foreground"
+                        aria-label={`${t('banks.moveUp')} ${bank.name}`}
+                        disabled={index === 0}
+                        onClick={() => void move(index, -1)}
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-7 text-muted-foreground hover:text-foreground"
+                        aria-label={`${t('banks.moveDown')} ${bank.name}`}
+                        disabled={index === banks.length - 1}
+                        onClick={() => void move(index, 1)}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        aria-label={`${t('banks.rename')} ${bank.name}`}
+                        onClick={() => {
+                          setEditing(bank)
+                          setEditName(bank.name)
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:bg-expense/10 hover:text-expense"
+                        aria-label={`${t('banks.delete')} ${bank.name}`}
+                        onClick={() => setDeleting(bank)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                  </>
+                }
+              />
+            )
+          })}
+        </SettingsList>
+      )}
 
       <CreateBankDialog
         open={creating}
