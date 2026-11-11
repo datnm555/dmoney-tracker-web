@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { AlertTriangle, ArrowDownRight, ArrowUpRight, ChevronDown, TrendingUp, WalletCards } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
 import { getAccounts } from '../api/accountApi'
@@ -29,6 +28,8 @@ import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
+import { BarList } from '../components/finance/BarList'
+import { CashflowHero } from '../dashboard/CashflowHero'
 
 const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })
 
@@ -215,155 +216,115 @@ export function DashboardPage() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('dashboard.totalBalance')}</CardTitle>
-            <WalletCards className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="grid gap-1.5">
-            <div className="text-2xl font-bold underline decoration-zinc-200 underline-offset-4">
-              {summary ? formatMoney(summary.balance) : '—'}
-            </div>
-            {!isWholeYear && balanceDelta !== null && (
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span
-                  className={
-                    balanceDelta >= 0
-                      ? 'flex items-center gap-0.5 rounded-full bg-income/10 px-1.5 py-0.5 font-medium text-income'
-                      : 'flex items-center gap-0.5 rounded-full bg-expense/10 px-1.5 py-0.5 font-medium text-expense'
-                  }
-                >
-                  <TrendingUp className="h-3 w-3" />
-                  {balanceDelta >= 0 ? '+' : ''}
-                  {balanceDelta.toFixed(1)}%
-                </span>
-                {t('dashboard.vsLastMonth')}
+      <CashflowHero
+        balance={summary?.balance ?? null}
+        income={summary?.totalCredit ?? null}
+        expense={summary?.totalDebit ?? null}
+        incomeCount={creditCount}
+        expenseCount={debitCount}
+        delta={isWholeYear ? null : balanceDelta}
+        countLabel={t(isWholeYear ? 'dashboard.txThisYear' : 'dashboard.txThisMonth')}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+        <Card className="rounded-2xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('dashboard.cashflow')}</CardTitle>
+            {bars.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {t('dashboard.cashflowSub')} — {bars[0].month} {t('common.to')} {bars[bars.length - 1].month}{' '}
+                {dayjs().year()}
               </p>
+            )}
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={bars} barGap={6}>
+                  <defs>
+                    <linearGradient id="dash-in" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#34d399" />
+                      <stop offset="100%" stopColor="#059669" />
+                    </linearGradient>
+                    <linearGradient id="dash-out" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#fb7185" />
+                      <stop offset="100%" stopColor="#e11d48" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e4e4e7" strokeOpacity={0.6} />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
+                  <YAxis tickFormatter={vnd} tickLine={false} axisLine={false} fontSize={11} width={86} />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(108, 76, 241, 0.06)', radius: 8 }}
+                    contentStyle={{ borderRadius: 12, border: '1px solid #e4e4e7', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
+                    formatter={(value) => vnd(Number(value))}
+                  />
+                  <Bar dataKey="income" name={t('dashboard.legendIn')} fill="url(#dash-in)" radius={[8, 8, 3, 3]} barSize={16} />
+                  <Bar dataKey="expense" name={t('dashboard.legendOut')} fill="url(#dash-out)" radius={[8, 8, 3, 3]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                {t('dashboard.legendIn')}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-rose-500" />
+                {t('dashboard.legendOut')}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">{t('dashboard.recent')}</CardTitle>
+            <Button asChild variant="ghost" size="sm" className="text-primary">
+              <Link to="/app/transactions">
+                {t('dashboard.viewAll')}
+                <ChevronRight className="ml-0.5 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="px-3 pt-0">
+            {recent.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">{t('summary.empty')}</p>
+            ) : (
+              <ul className="grid gap-1">
+                {recent.map((tx) => {
+                  const isIn = tx.credit.amount > 0
+                  return (
+                    <li
+                      key={tx.id}
+                      data-testid="recent-row"
+                      className="flex items-center gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted/50"
+                    >
+                      <CategoryIcon category={tx.categoryId} className="h-10 w-10 rounded-xl" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{tx.content}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {dayjs(tx.date).format('DD/MM')} · {paymentLabel(tx, t)}
+                        </div>
+                      </div>
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-lg px-2 py-1 text-sm font-semibold tabular-nums',
+                          isIn ? 'bg-income/10 text-income' : 'text-expense',
+                        )}
+                      >
+                        {isIn ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
             )}
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('summary.colCredit')}</CardTitle>
-            <ArrowUpRight className="h-4 w-4 text-income" />
-          </CardHeader>
-          <CardContent className="grid gap-1.5">
-            <div className="text-2xl font-bold text-income underline decoration-income/30 underline-offset-4">
-              +{summary ? formatMoney(summary.totalCredit) : '—'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {creditCount} {t(isWholeYear ? 'dashboard.txThisYear' : 'dashboard.txThisMonth')}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('summary.colDebit')}</CardTitle>
-            <ArrowDownRight className="h-4 w-4 text-expense" />
-          </CardHeader>
-          <CardContent className="grid gap-1.5">
-            <div className="text-2xl font-bold text-expense underline decoration-expense/30 underline-offset-4">
-              −{summary ? formatMoney(summary.totalDebit) : '—'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {debitCount} {t(isWholeYear ? 'dashboard.txThisYear' : 'dashboard.txThisMonth')}
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('dashboard.cashflow')}</CardTitle>
-          {bars.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              {t('dashboard.cashflowSub')} — {bars[0].month} {t('common.to')} {bars[bars.length - 1].month}{' '}
-              {dayjs().year()}
-            </p>
-          )}
-        </CardHeader>
-        <CardContent className="grid gap-2">
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={bars} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} fontSize={12} />
-                <YAxis tickFormatter={vnd} tickLine={false} axisLine={false} fontSize={11} width={86} />
-                <Tooltip formatter={(value) => vnd(Number(value))} />
-                <Bar dataKey="income" name={t('dashboard.legendIn')} fill="#16a34a" radius={[7, 7, 7, 7]} barSize={14} />
-                <Bar dataKey="expense" name={t('dashboard.legendOut')} fill="#dc2626" radius={[7, 7, 7, 7]} barSize={14} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex items-center justify-center gap-5 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-income" />
-              {t('dashboard.legendIn')}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-expense" />
-              {t('dashboard.legendOut')}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="text-base">{t('dashboard.recent')}</CardTitle>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/app/transactions">{t('dashboard.viewAll')}</Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('summary.colContent')}</TableHead>
-                <TableHead>{t('payment.method')}</TableHead>
-                <TableHead className="text-right">{t('form.amount')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recent.map((tx) => (
-                <TableRow key={tx.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2.5">
-                      <CategoryIcon category={tx.categoryId} />
-                      <div>
-                        <div className="font-medium">{tx.content}</div>
-                        <div className="text-xs text-muted-foreground">{dayjs(tx.date).format('DD/MM')}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{paymentLabel(tx, t)}</Badge>
-                  </TableCell>
-                  <TableCell
-                    className={
-                      tx.credit.amount > 0 ? 'text-right font-medium text-income' : 'text-right font-medium text-expense'
-                    }
-                  >
-                    {tx.credit.amount > 0 ? `+${formatMoney(tx.credit)}` : `−${formatMoney(tx.debit)}`}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {recent.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
-                    {t('summary.empty')}
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-      </div>
-
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t('dashboard.byCategory')}</CardTitle>
         </CardHeader>
@@ -371,17 +332,18 @@ export function DashboardPage() {
           {categorySpending.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">{t('summary.empty')}</p>
           ) : (
-            <div className="grid items-center gap-6 md:grid-cols-[260px_1fr]">
-              <div className="h-56">
+            <div className="grid items-center gap-6 md:grid-cols-[240px_1fr]">
+              <div className="relative h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={categorySpending}
                       dataKey="amount"
                       nameKey="category"
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={2}
+                      innerRadius={68}
+                      outerRadius={96}
+                      paddingAngle={3}
+                      cornerRadius={6}
                       strokeWidth={0}
                     >
                       {categorySpending.map((d) => (
@@ -389,6 +351,7 @@ export function DashboardPage() {
                       ))}
                     </Pie>
                     <Tooltip
+                      contentStyle={{ borderRadius: 12, border: '1px solid #e4e4e7' }}
                       formatter={(value, _name, entry) => [
                         vnd(Number(value)),
                         categoryLabel((entry?.payload as { category?: string })?.category ?? 'uncategorized'),
@@ -396,51 +359,41 @@ export function DashboardPage() {
                     />
                   </PieChart>
                 </ResponsiveContainer>
+                {/* Total in the donut hole. */}
+                <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
+                  <span className="text-[11px] text-muted-foreground">{t('summary.colDebit')}</span>
+                  <span data-testid="donut-total" className="text-base font-bold tabular-nums text-expense">
+                    {vnd(spendingTotal)}
+                  </span>
+                </div>
               </div>
-              <div className="grid gap-2">
-                {categorySpending.map((d) => {
+              <BarList
+                valueClass="text-expense"
+                items={categorySpending.map((d) => {
                   const hasSubs = d.subs.some((s) => s.name !== null)
-                  return (
-                    <div key={d.category} className="grid gap-1">
-                      <div className="flex items-center gap-2.5 text-sm">
-                        <CategoryIcon category={d.category} className="h-7 w-7 rounded-lg" />
-                        <span className="w-28 truncate">{categoryLabel(d.category)}</span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${spendingTotal > 0 ? (d.amount / spendingTotal) * 100 : 0}%`,
-                              backgroundColor: categoryDisplayVisual(d.category).hex,
-                            }}
-                          />
-                        </div>
-                        <span className="w-28 text-right font-medium text-expense">−{vnd(d.amount)}</span>
-                        <span className="w-12 text-right text-xs text-muted-foreground">
-                          {spendingTotal > 0 ? ((d.amount / spendingTotal) * 100).toFixed(1) : 0}%
-                        </span>
+                  return {
+                    key: d.category,
+                    label: categoryLabel(d.category),
+                    icon: <CategoryIcon category={d.category} className="h-6 w-6 rounded-md" />,
+                    valueLabel: `−${vnd(d.amount)}`,
+                    share: spendingTotal > 0 ? (d.amount / spendingTotal) * 100 : 0,
+                    color: categoryDisplayVisual(d.category).hex,
+                    children: hasSubs ? (
+                      <div className="mb-1 ml-5 grid gap-1 border-l-2 border-muted pl-5">
+                        {d.subs.map((s) => (
+                          <div key={s.name ?? '__none'} className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="flex-1 truncate">{s.name ?? t('dashboard.noSubCategory')}</span>
+                            <span className="tabular-nums">−{vnd(s.amount)}</span>
+                            <span className="w-12 text-right tabular-nums">
+                              {d.amount > 0 ? ((s.amount / d.amount) * 100).toFixed(1) : 0}%
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                      {hasSubs && (
-                        <div className="mb-1 ml-3.5 grid gap-1 border-l-2 border-zinc-100 pl-6">
-                          {d.subs.map((s) => (
-                            <div
-                              key={s.name ?? '__none'}
-                              className="flex items-center gap-2 text-xs text-muted-foreground"
-                            >
-                              <span className="flex-1 truncate">
-                                {s.name ?? t('dashboard.noSubCategory')}
-                              </span>
-                              <span className="w-28 text-right">−{vnd(s.amount)}</span>
-                              <span className="w-12 text-right">
-                                {d.amount > 0 ? ((s.amount / d.amount) * 100).toFixed(1) : 0}%
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )
+                    ) : undefined,
+                  }
                 })}
-              </div>
+              />
             </div>
           )}
         </CardContent>

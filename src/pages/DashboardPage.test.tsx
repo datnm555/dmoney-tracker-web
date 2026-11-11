@@ -24,7 +24,7 @@ vi.mock('../plans/PlanContext', () => ({
 vi.mock('../categories/useCategoryDisplay', () => ({
   useCategoryDisplay: () => ({
     label: (c: string) => c,
-    visual: () => ({ hex: '#000' }),
+    visual: () => ({ hex: '#000', icon: () => null, chipClass: '', iconClass: '' }),
   }),
 }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
@@ -233,5 +233,57 @@ describe('DashboardPage recurring dues in banner', () => {
     await waitFor(() => expect(getSchedule).toHaveBeenCalled())
     await act(async () => {})
     expect(screen.queryByTestId('due-banner')).not.toBeInTheDocument()
+  })
+})
+
+describe('DashboardPage overview', () => {
+  const tx = (id: string, over: Record<string, unknown>) => ({
+    id,
+    date: '2026-11-05',
+    content: id,
+    credit: money(0),
+    debit: money(0),
+    categoryId: null,
+    subCategoryName: null,
+    paymentMethod: 'cash',
+    cardType: null,
+    bank: null,
+    ...over,
+  })
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-10T08:00:00') })
+    vi.mocked(getAccounts).mockResolvedValue([])
+    vi.mocked(getSchedule).mockResolvedValue([])
+    vi.mocked(getDashboardStats).mockResolvedValue({ monthly: [] } as never)
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [
+        tx('Lương', { credit: money(10_000_000) }),
+        tx('Ăn trưa', { debit: money(3_000_000), categoryId: 'food' }),
+        tx('Grab', { debit: money(1_000_000), categoryId: 'transport' }),
+      ],
+      balance: money(6_000_000),
+      totalCredit: money(10_000_000),
+      totalDebit: money(4_000_000),
+    } as never)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+
+  it('shows balance, income and expense in the hero', async () => {
+    renderPage()
+    expect(norm((await screen.findByTestId('hero-balance')).textContent)).toBe(norm(formatMoney(money(6_000_000))))
+    expect(norm(screen.getByTestId('hero-income').textContent)).toBe(`+${norm(formatMoney(money(10_000_000)))}`)
+    expect(norm(screen.getByTestId('hero-expense').textContent)).toBe(`−${norm(formatMoney(money(4_000_000)))}`)
+  })
+
+  it('lists recent transactions and ranks spending by category with the donut total', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getAllByTestId('recent-row')).toHaveLength(3))
+    const rows = screen.getAllByTestId('bar-list-row')
+    expect(rows.map((r) => r.textContent?.match(/\d+\.\d%/)?.[0])).toEqual(['75.0%', '25.0%'])
+    expect(screen.getByTestId('donut-total')).toBeInTheDocument()
   })
 })
