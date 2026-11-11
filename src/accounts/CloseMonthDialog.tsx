@@ -12,6 +12,8 @@ import { formatMoney } from '../utils/money'
 import { MoneyInput } from './MoneyInput'
 import { digitsToNumber } from './moneyDigits'
 
+const SECTION_LABEL = 'text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+
 export interface CloseMonthResult {
   account: AccountResponse
   date: string
@@ -59,38 +61,43 @@ export function CloseMonthDialog({
             {t('accounts.closeMonth')}: {account?.name}
           </DialogTitle>
         </DialogHeader>
-        <p className="text-xs text-muted-foreground">{t('accounts.closeMonthHint')}</p>
-        <div className="grid gap-3">
-          <div className="flex justify-between text-sm" data-testid="close-opening">
-            <span className="text-muted-foreground">
-              {t('accounts.openingBalance')}
-              {account?.latestSnapshot && ` (${dayjs(account.latestSnapshot.date).format('DD/MM')})`}
-            </span>
-            <span className="font-medium tabular-nums">{vnd(opening)}</span>
-          </div>
-          <MoneyInput id="close-topups" label={t('accounts.topUps')} digits={topUpDigits} onChange={setTopUpDigits} />
+        <p className="-mt-1 text-xs text-muted-foreground">{t('accounts.closeMonthHint')}</p>
+        <div className="grid gap-5">
           <MoneyInput
             id="close-closing"
             label={t('accounts.closingBalance')}
             digits={closingDigits}
             onChange={setClosingDigits}
+            variant="hero"
           />
-          <div className="grid gap-1.5">
-            <Label htmlFor="close-date">{t('accounts.date')}</Label>
-            <Input id="close-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          {net !== null && (
-            <div
-              data-testid="close-net"
-              className={cn(
-                'flex justify-between rounded-md bg-muted px-3 py-2 text-sm font-medium',
-                net >= 0 ? 'text-expense' : 'text-income',
-              )}
-            >
-              <span>{net >= 0 ? t('accounts.spent') : t('accounts.received')}</span>
-              <span className="tabular-nums">{vnd(Math.abs(net))}</span>
+          <div className="grid gap-3 rounded-xl bg-muted/50 p-3">
+            <div className="flex items-baseline justify-between gap-3 text-sm" data-testid="close-opening">
+              <span className="text-muted-foreground">
+                {t('accounts.openingBalance')}
+                {account?.latestSnapshot && ` (${dayjs(account.latestSnapshot.date).format('DD/MM')})`}
+              </span>
+              <span className="font-semibold tabular-nums">{vnd(opening)}</span>
             </div>
-          )}
+            <MoneyInput id="close-topups" label={t('accounts.topUps')} digits={topUpDigits} onChange={setTopUpDigits} />
+            {net !== null && (
+              <div
+                data-testid="close-net"
+                className={cn(
+                  'flex items-baseline justify-between gap-3 border-t pt-3 text-sm font-medium',
+                  net >= 0 ? 'text-expense' : 'text-income',
+                )}
+              >
+                <span>{net >= 0 ? t('accounts.spent') : t('accounts.received')}</span>
+                <span className="text-lg font-bold tabular-nums">{vnd(Math.abs(net))}</span>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-[auto_1fr] items-center gap-3">
+            <Label htmlFor="close-date" className={SECTION_LABEL}>
+              {t('accounts.date')}
+            </Label>
+            <Input id="close-date" type="date" className="rounded-xl" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
