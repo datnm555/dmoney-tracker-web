@@ -85,9 +85,30 @@ export function AppLayout() {
 
   const navLinkClass = (isActive: boolean) =>
     cn(
-      'flex h-9 items-center gap-2.5 rounded-lg px-3 text-sm',
-      isActive ? 'bg-zinc-100 font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
+      'group relative flex h-10 items-center gap-3 rounded-xl px-3 text-sm transition-colors',
+      isActive
+        ? 'bg-primary/10 font-semibold text-primary before:absolute before:inset-y-2 before:-left-3.5 before:w-1 before:rounded-r-full before:bg-primary'
+        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
     )
+
+  const subLinkClass = (isActive: boolean) =>
+    cn(
+      'flex h-8 items-center gap-2.5 rounded-lg px-2.5 text-[13px] transition-colors',
+      isActive
+        ? 'bg-primary/10 font-medium text-primary'
+        : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
+    )
+
+  const mobileLinkClass = (isActive: boolean) =>
+    cn(
+      'flex h-9 shrink-0 items-center gap-2 rounded-xl px-3 text-sm transition-colors',
+      isActive
+        ? 'bg-primary/10 font-semibold text-primary ring-1 ring-primary/20'
+        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+    )
+
+  const iconButtonClass =
+    'grid size-9 place-items-center rounded-xl border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground'
 
   return (
     <CategoriesProvider>
@@ -96,18 +117,19 @@ export function AppLayout() {
     <GoldTypesProvider>
     <PurchasePlacesProvider>
     <BanksProvider>
-    <div className="flex min-h-screen bg-zinc-50">
-      <aside className="sticky top-0 hidden h-screen w-[230px] shrink-0 flex-col gap-6 border-r bg-background px-3.5 py-5 md:flex">
-        <NavLink to="/app/dashboard" className="flex items-center gap-2.5 px-2 font-semibold">
-          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-primary font-extrabold text-primary-foreground">
-            ₫
+    <div className="flex min-h-screen bg-muted/40">
+      <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col gap-7 overflow-y-auto border-r bg-gradient-to-b from-background via-background to-violet-50/60 px-3.5 py-5 md:flex dark:to-violet-950/20">
+        <NavLink to="/app/dashboard" className="flex items-center gap-3 rounded-xl px-2 py-1">
+          <span className="relative flex size-9 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#6C4CF1] via-violet-600 to-indigo-700 text-base font-extrabold text-white shadow-md shadow-violet-900/25">
+            <span aria-hidden className="pointer-events-none absolute -right-2 -top-2 size-5 rounded-full bg-fuchsia-300/50 blur-md" />
+            <span className="relative">₫</span>
           </span>
-          {t('app.title')}
+          <span className="text-[15px] font-bold tracking-tight">{t('app.title')}</span>
         </NavLink>
-        <nav className="flex flex-col gap-0.5">
+        <nav className="flex flex-col gap-1">
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.to} to={item.to} className={({ isActive }) => navLinkClass(isActive)}>
-              <item.icon className="h-[15px] w-[15px]" />
+              <item.icon className="size-[18px] shrink-0" />
               {t(item.key)}
             </NavLink>
           ))}
@@ -117,23 +139,19 @@ export function AppLayout() {
             onClick={() => setSettingsToggled((prev) => !prev)}
             className={cn(navLinkClass(inSettings), 'w-full')}
           >
-            <Settings className="h-[15px] w-[15px]" />
+            <Settings className="size-[18px] shrink-0" />
             <span className="flex-1 text-left">{t('menu.settings')}</span>
             {settingsOpen ? (
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              <ChevronDown className="size-4 opacity-60" />
             ) : (
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+              <ChevronRight className="size-4 opacity-60" />
             )}
           </button>
           {settingsOpen && (
-            <div className="ml-[21px] flex flex-col gap-0.5 border-l border-zinc-200 pl-2">
+            <div className="ml-[22px] flex flex-col gap-0.5 border-l border-primary/15 py-0.5 pl-2.5">
               {SETTINGS_ITEMS.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) => cn(navLinkClass(isActive), 'h-8')}
-                >
-                  <item.icon className="h-[14px] w-[14px]" />
+                <NavLink key={item.to} to={item.to} className={({ isActive }) => subLinkClass(isActive)}>
+                  <item.icon className="size-[15px] shrink-0" />
                   {t(item.key)}
                 </NavLink>
               ))}
@@ -142,9 +160,9 @@ export function AppLayout() {
           {COMING_SOON.map((item) => (
             <span
               key={item.key}
-              className="flex h-9 cursor-not-allowed items-center gap-2.5 rounded-lg px-3 text-sm text-muted-foreground/50"
+              className="flex h-10 cursor-not-allowed items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground/50"
             >
-              <item.icon className="h-[15px] w-[15px]" />
+              <item.icon className="size-[18px] shrink-0" />
               {t(item.key)}
             </span>
           ))}
@@ -152,33 +170,39 @@ export function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b bg-background px-4 md:px-7">
-          <span className="text-[12.5px] text-muted-foreground">
+        <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b bg-background/80 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-7">
+          <span className="flex min-w-0 items-center gap-1.5 truncate text-[13px] text-muted-foreground">
+            <span
+              aria-hidden
+              className="mr-1 flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#6C4CF1] to-indigo-700 text-xs font-extrabold text-white md:hidden"
+            >
+              ₫
+            </span>
             {t('breadcrumb.home')}
             {current && (
               <>
                 {' '}
-                <span className="text-zinc-300">/</span>{' '}
-                <span className="font-medium text-foreground">{t(current.key)}</span>
+                <span className="text-muted-foreground/40">/</span>{' '}
+                <span className="font-semibold text-foreground">{t(current.key)}</span>
               </>
             )}
             {inSettings && (
               <>
                 {' '}
-                <span className="text-zinc-300">/</span> {t('menu.settings')}
+                <span className="text-muted-foreground/40">/</span> {t('menu.settings')}
                 {currentSetting && (
                   <>
                     {' '}
-                    <span className="text-zinc-300">/</span>{' '}
-                    <span className="font-medium text-foreground">{t(currentSetting.key)}</span>
+                    <span className="text-muted-foreground/40">/</span>{' '}
+                    <span className="font-semibold text-foreground">{t(currentSetting.key)}</span>
                   </>
                 )}
               </>
             )}
           </span>
-          <div className="flex items-center gap-3.5">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <PlanSwitcher />
-            <div className="flex rounded-lg bg-zinc-100 p-[3px] text-[11.5px] font-semibold">
+            <div className="flex rounded-xl border bg-muted/60 p-[3px] text-[11.5px] font-semibold">
               {(['vi', 'en'] as const).map((code) => (
                 <button
                   key={code}
@@ -186,50 +210,54 @@ export function AppLayout() {
                   aria-pressed={lang === code}
                   onClick={() => setLang(code)}
                   className={cn(
-                    'flex h-[26px] items-center rounded-md px-2.5 uppercase',
-                    lang === code ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground',
+                    'flex h-7 items-center rounded-lg px-2.5 uppercase transition-colors',
+                    lang === code
+                      ? 'bg-background text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {code}
                 </button>
               ))}
             </div>
-            <button
-              type="button"
-              aria-label="notifications"
-              className="grid h-9 w-9 place-items-center rounded-lg border text-foreground hover:bg-zinc-50"
-            >
-              <Bell className="h-4 w-4" />
+            <button type="button" aria-label="notifications" className={iconButtonClass}>
+              <Bell className="size-4" />
             </button>
-            <div className="h-[22px] w-px bg-border" />
+            <div className="hidden h-6 w-px bg-border sm:block" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-auto gap-2.5 px-1.5 py-1">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                <Button variant="ghost" className="h-auto gap-2.5 rounded-xl px-1.5 py-1 hover:bg-muted">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#6C4CF1] to-indigo-600 text-sm font-semibold text-white shadow-sm shadow-violet-900/20">
                     {(user?.displayName ?? '?').charAt(0).toUpperCase()}
                   </span>
                   <span className="hidden flex-col items-start sm:flex">
-                    <span className="text-[12.5px] font-medium leading-tight">{user?.displayName}</span>
-                    <span className="text-[10.5px] font-normal leading-tight text-muted-foreground">
+                    <span className="text-[13px] font-semibold leading-tight">{user?.displayName}</span>
+                    <span className="text-[11px] font-normal leading-tight text-muted-foreground">
                       {user?.email}
                     </span>
                   </span>
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  <ChevronDown className="hidden size-3.5 text-muted-foreground sm:block" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  <div className="text-sm">{user?.displayName}</div>
-                  <div className="text-xs font-normal text-muted-foreground">{user?.email}</div>
+              <DropdownMenuContent align="end" className="min-w-[220px] rounded-xl p-1.5 shadow-lg">
+                <DropdownMenuLabel className="flex items-center gap-3 px-2 py-2">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#6C4CF1] to-indigo-600 text-sm font-semibold text-white">
+                    {(user?.displayName ?? '?').charAt(0).toUpperCase()}
+                  </span>
+                  <span className="grid min-w-0">
+                    <span className="truncate text-sm">{user?.displayName}</span>
+                    <span className="truncate text-xs font-normal text-muted-foreground">{user?.email}</span>
+                  </span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  className="rounded-lg text-rose-600 focus:bg-rose-50 focus:text-rose-700 dark:focus:bg-rose-950/40"
                   onClick={() => {
                     signOut()
                     navigate('/login')
                   }}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 size-4" />
                   {t('auth.logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -237,10 +265,10 @@ export function AppLayout() {
           </div>
         </header>
 
-        <nav className="flex gap-1 overflow-x-auto border-b bg-background px-4 py-2 md:hidden">
+        <nav className="sticky top-16 z-10 flex gap-1.5 overflow-x-auto border-b bg-background/80 px-4 py-2 backdrop-blur md:hidden">
           {[...NAV_ITEMS, ...SETTINGS_ITEMS].map((item) => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => navLinkClass(isActive)}>
-              <item.icon className="h-[15px] w-[15px]" />
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => mobileLinkClass(isActive)}>
+              <item.icon className="size-4" />
               {t(item.key)}
             </NavLink>
           ))}
