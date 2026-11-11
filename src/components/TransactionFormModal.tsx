@@ -301,6 +301,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
         }
         if (p.date !== undefined) setDate(p.date)
         if (p.note !== undefined) setNote(p.note ?? '')
+        if (p.savingsBank !== undefined) {
+          setSavingsBank(p.savingsBank)
+          setCustomSavingsBank(p.savingsBank !== null && !banksRef.current.some((b) => b.name === p.savingsBank))
+        }
       }
     }
   }, [open, editing, defaultDate])

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { I18nProvider } from '../i18n/I18nContext'
-import { getSavingsSummary } from '../api/savingsApi'
+import { deleteSavingsGoal, getSavingsSummary, setSavingsGoal } from '../api/savingsApi'
 import type { SavingsSummaryResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { SavingsPage } from './SavingsPage'
@@ -13,6 +13,8 @@ vi.mock('../api/resourceApi', () => ({
 
 vi.mock('../api/savingsApi', () => ({
   getSavingsSummary: vi.fn(),
+  setSavingsGoal: vi.fn().mockResolvedValue({ id: 'g-new' }),
+  deleteSavingsGoal: vi.fn().mockResolvedValue(undefined),
 }))
 
 const vnd = (amount: number) => ({ amount, currency: 'VND' })
@@ -31,6 +33,7 @@ const summary: SavingsSummaryResponse = {
       totalDeposited: vnd(20_000_000),
       totalWithdrawn: vnd(5_000_000),
       transactionCount: 2,
+      goal: null,
     },
     {
       savingsBank: 'MoMo',
@@ -38,6 +41,7 @@ const summary: SavingsSummaryResponse = {
       totalDeposited: vnd(1_000_000),
       totalWithdrawn: vnd(4_000_000),
       transactionCount: 2,
+      goal: null,
     },
     {
       savingsBank: null,
@@ -45,6 +49,7 @@ const summary: SavingsSummaryResponse = {
       totalDeposited: vnd(1_000_000),
       totalWithdrawn: vnd(0),
       transactionCount: 1,
+      goal: null,
     },
   ],
   transactions: [
@@ -241,5 +246,59 @@ describe('SavingsPage', () => {
     renderPage({ ...summary, totalBalance: vnd(0), accounts: [], transactions: [] })
 
     expect(await screen.findByText('savings.empty')).toBeInTheDocument()
+  })
+
+  describe('goals', () => {
+    const withGoal: SavingsSummaryResponse = {
+      ...summary,
+      accounts: [
+        {
+          ...summary.accounts[0],
+          savingsBank: 'Sam & Bắp',
+          balance: vnd(4_000_000),
+          goal: { id: 'g1', targetAmount: vnd(60_000_000), startPeriod: '2026-11', months: 15 },
+        },
+        ...summary.accounts.slice(1),
+      ],
+    }
+
+    it('shows progress, period and what is needed per month', async () => {
+      setToday('2026-11-11T09:00:00')
+      renderPage(withGoal)
+      const goal = within(await screen.findByTestId('savings-account-Sam & Bắp')).getByTestId('savings-goal')
+      expect(norm(goal.textContent)).toContain(`savings.goal ${fmt(60_000_000)}`)
+      expect(goal).toHaveTextContent('7%')
+      expect(goal).toHaveTextContent('savings.period 1/15 · 01/2028')
+      expect(goal).toHaveTextContent('accounts.left 14 savings.monthUnit')
+      expect(norm(within(goal).getByTestId('savings-goal-per-month').textContent)).toBe(fmt(4_000_000))
+    })
+
+    it('offers to set a goal on named places only, and saves it', async () => {
+      const user = userEvent.setup()
+      setToday('2026-11-11T09:00:00')
+      renderPage()
+      await screen.findByText('savings.total')
+      expect(within(screen.getByTestId('savings-account-__unassigned__')).queryByText('savings.setGoal')).toBeNull()
+      await user.click(within(screen.getByTestId('savings-account-MoMo')).getByText('savings.setGoal'))
+      expect(screen.getByLabelText('savings.startMonth')).toHaveValue('2026-11')
+      await user.type(screen.getByLabelText('savings.target'), '30000000')
+      await user.type(screen.getByLabelText('savings.months'), '12')
+      await user.click(screen.getByRole('button', { name: 'summary.submit' }))
+      expect(setSavingsGoal).toHaveBeenCalledWith({
+        savingsBank: 'MoMo',
+        targetAmount: 30_000_000,
+        startPeriod: '2026-11',
+        months: 12,
+      })
+    })
+
+    it('deletes an existing goal', async () => {
+      const user = userEvent.setup()
+      renderPage(withGoal)
+      await user.click(await screen.findByRole('button', { name: 'savings.goal Sam & Bắp' }))
+      expect(screen.getByLabelText('savings.target')).toHaveValue('60.000.000')
+      await user.click(screen.getByRole('button', { name: 'savings.deleteGoal' }))
+      expect(deleteSavingsGoal).toHaveBeenCalledWith('g1')
+    })
   })
 })

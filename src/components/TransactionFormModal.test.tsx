@@ -210,6 +210,25 @@ describe('TransactionFormModal', () => {
     )
   })
 
+  it('prefills Nơi gửi for a savings-book deposit and submits it', async () => {
+    const onSubmit = renderModal(vi.fn(), {
+      prefill: {
+        content: 'Tiết kiệm Sam & Bắp',
+        amount: 4_000_000,
+        categoryId: 'cat-savings',
+        subCategoryId: 'sub-book',
+        savingsBank: 'Sam & Bắp',
+        date: '2026-12-01',
+      },
+    })
+    expect(await screen.findByLabelText('form.content')).toHaveValue('Tiết kiệm Sam & Bắp')
+    await new Promise((r) => setTimeout(r, 50))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ subCategoryId: 'sub-book', savingsBank: 'Sam & Bắp' }),
+    )
+  })
+
   it('rounds a fractional prefill amount to an integer', async () => {
     renderModal(vi.fn(), { prefill: { amount: 165556.5 } })
     await waitFor(() => expect(screen.getByLabelText('form.amount')).toHaveValue('165.557'))

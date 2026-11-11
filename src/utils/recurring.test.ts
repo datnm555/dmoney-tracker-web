@@ -22,6 +22,7 @@ function row(
       note: null,
       isActive: true,
       startPeriod: null,
+      savingsBank: null,
     },
     dueDate,
     record:

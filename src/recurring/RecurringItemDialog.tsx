@@ -44,6 +44,7 @@ export function RecurringItemDialog({
   const [note, setNote] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [startPeriod, setStartPeriod] = useState('')
+  const [savingsBank, setSavingsBank] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function RecurringItemDialog({
     setNote(editing?.note ?? '')
     setIsActive(editing?.isActive ?? true)
     setStartPeriod(editing?.startPeriod ?? '')
+    setSavingsBank(editing?.savingsBank ?? '')
   }, [open, editing])
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export function RecurringItemDialog({
       .catch(() => setSubs([]))
   }, [open])
 
+  const isSavings = subs.some((s) => s.id === subCategoryId && s.categoryId === categoryId && s.code === 'savings_book')
   const dayNumber = Number(day)
   const valid = name.trim() !== '' && dayNumber >= 1 && dayNumber <= 31
 
@@ -85,6 +88,7 @@ export function RecurringItemDialog({
       note: note.trim() || null,
       isActive,
       startPeriod: startPeriod || null,
+      savingsBank: isSavings ? savingsBank.trim() || null : null,
     }
     setSaving(true)
     try {
@@ -149,6 +153,12 @@ export function RecurringItemDialog({
                     </option>
                   ))}
               </select>
+            </div>
+          )}
+          {isSavings && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="rec-savings-bank">{t('form.savingsBank')}</Label>
+              <Input id="rec-savings-bank" value={savingsBank} onChange={(e) => setSavingsBank(e.target.value)} />
             </div>
           )}
           <MoneyInput id="rec-amount" label={t('recurring.amount')} digits={digits} onChange={setDigits} />

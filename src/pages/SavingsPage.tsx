@@ -1,19 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
-import { ArrowDownToLine, ArrowUpFromLine, CalendarDays, PiggyBank, Receipt, Wallet } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, CalendarDays, Pencil, PiggyBank, Receipt, Target, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { getApiErrorMessage } from '../api/client'
 import { getSavingsSummary } from '../api/savingsApi'
-import type { MoneyResponse, SavingsSummaryResponse } from '../api/types'
+import type { MoneyResponse, SavingsAccountResponse, SavingsSummaryResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
+import { SavingsGoalDialog } from '../savings/SavingsGoalDialog'
 import { savingsMonthly } from '../utils/chartData'
 import { formatMoney } from '../utils/money'
+import { goalProgress } from '../utils/savings'
 
 // Select values: 'all', the unassigned bucket sentinel, or an account name.
 const ALL = 'all'
@@ -54,10 +57,66 @@ function formatBalance(money: MoneyResponse): string {
   return money.amount < 0 ? `−${formatMoney({ ...money, amount: -money.amount })}` : formatMoney(money)
 }
 
+/** Goal progress for one savings place, or a button to set one. */
+function GoalBlock({ account, onEdit }: { account: SavingsAccountResponse; onEdit: () => void }) {
+  const { t } = useI18n()
+  const goal = account.goal
+  if (!goal) {
+    return (
+      <Button variant="outline" size="sm" className="w-full" onClick={onEdit}>
+        <Target className="mr-1 h-4 w-4" />
+        {t('savings.setGoal')}
+      </Button>
+    )
+  }
+  const p = goalProgress(goal, account.balance.amount, dayjs().format('YYYY-MM'))
+  return (
+    <div data-testid="savings-goal" className="grid gap-2 border-t pt-3 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1 font-medium">
+          <Target className="h-3.5 w-3.5 text-primary" />
+          {t('savings.goal')} {formatMoney(goal.targetAmount)}
+        </span>
+        <button
+          type="button"
+          aria-label={`${t('savings.goal')} ${account.savingsBank}`}
+          onClick={onEdit}
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+        <div className="h-full bg-income" style={{ width: `${p.pct}%` }} />
+      </div>
+      <div className="flex justify-between text-muted-foreground">
+        <span className="font-medium text-income">{p.pct}%</span>
+        <span>
+          {t('savings.period')} {p.elapsed}/{goal.months} · {dayjs(`${p.endPeriod}-01`).format('MM/YYYY')}
+        </span>
+      </div>
+      {p.reached ? (
+        <div className="font-medium text-income">{t('savings.goalReached')}</div>
+      ) : (
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">
+            {t('savings.perMonth')}
+            {p.monthsLeft > 0 && ` (${t('accounts.left')} ${p.monthsLeft} ${t('savings.monthUnit')})`}
+          </span>
+          <span data-testid="savings-goal-per-month" className="font-semibold tabular-nums">
+            {vnd(p.perMonth)}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SavingsPage() {
   const { t } = useI18n()
   const [summary, setSummary] = useState<SavingsSummaryResponse | null>(null)
   const [filter, setFilter] = useState<string>(ALL)
+  const [goalAccount, setGoalAccount] = useState<SavingsAccountResponse | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -211,52 +270,60 @@ export function SavingsPage() {
                   const key = accountKey(account.savingsBank)
                   const selected = filter === key
                   return (
-                    <button
+                    <div
                       key={key}
-                      type="button"
-                      aria-pressed={selected}
-                      onClick={() => setFilter(selected ? ALL : key)}
+                      data-testid={`savings-account-${key}`}
                       className={cn(
-                        'grid gap-3 rounded-lg border bg-card p-4 text-left text-card-foreground shadow-sm transition-colors hover:border-zinc-300',
+                        'grid content-start gap-3 rounded-lg border bg-card p-4 text-card-foreground shadow-sm transition-colors hover:border-zinc-300',
                         selected && 'border-primary ring-1 ring-primary/30 hover:border-primary',
                       )}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span
+                      <button
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => setFilter(selected ? ALL : key)}
+                        className="grid gap-3 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={cn(
+                              'truncate font-semibold',
+                              account.savingsBank === null && 'italic text-muted-foreground',
+                            )}
+                          >
+                            {accountLabel(account.savingsBank)}
+                          </span>
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                            <Wallet className="h-4 w-4 text-primary" />
+                          </span>
+                        </div>
+                        <div
+                          data-testid="savings-balance"
                           className={cn(
-                            'truncate font-semibold',
-                            account.savingsBank === null && 'italic text-muted-foreground',
+                            'text-2xl font-bold tabular-nums',
+                            account.balance.amount < 0 && 'text-expense',
                           )}
                         >
-                          {accountLabel(account.savingsBank)}
-                        </span>
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                          <Wallet className="h-4 w-4 text-primary" />
-                        </span>
-                      </div>
-                      <div
-                        data-testid="savings-balance"
-                        className={cn(
-                          'text-2xl font-bold tabular-nums',
-                          account.balance.amount < 0 && 'text-expense',
-                        )}
-                      >
-                        {formatBalance(account.balance)}
-                      </div>
-                      <dl className="grid gap-1.5 border-t pt-3 text-xs">
-                        <div className="flex items-center justify-between">
-                          <dt className="text-muted-foreground">{t('savings.deposited')}</dt>
-                          <dd className="font-medium text-income">{formatMoney(account.totalDeposited)}</dd>
+                          {formatBalance(account.balance)}
                         </div>
-                        <div className="flex items-center justify-between">
-                          <dt className="text-muted-foreground">{t('savings.withdrawn')}</dt>
-                          <dd className="font-medium text-expense">{formatMoney(account.totalWithdrawn)}</dd>
-                        </div>
-                        <div className="text-muted-foreground">
-                          {account.transactionCount} {t('savings.count')}
-                        </div>
-                      </dl>
-                    </button>
+                        <dl className="grid gap-1.5 border-t pt-3 text-xs">
+                          <div className="flex items-center justify-between">
+                            <dt className="text-muted-foreground">{t('savings.deposited')}</dt>
+                            <dd className="font-medium text-income">{formatMoney(account.totalDeposited)}</dd>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <dt className="text-muted-foreground">{t('savings.withdrawn')}</dt>
+                            <dd className="font-medium text-expense">{formatMoney(account.totalWithdrawn)}</dd>
+                          </div>
+                          <div className="text-muted-foreground">
+                            {account.transactionCount} {t('savings.count')}
+                          </div>
+                        </dl>
+                      </button>
+                      {account.savingsBank !== null && (
+                        <GoalBlock account={account} onEdit={() => setGoalAccount(account)} />
+                      )}
+                    </div>
                   )
                 })}
               </div>
@@ -329,6 +396,7 @@ export function SavingsPage() {
           </Card>
         </>
       )}
+      <SavingsGoalDialog account={goalAccount} onClose={() => setGoalAccount(null)} onSaved={() => void load()} />
     </div>
   )
 }

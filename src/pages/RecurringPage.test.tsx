@@ -11,6 +11,7 @@ import {
   getSchedule,
 } from '../api/recurringPaymentApi'
 import { getAccounts, payStatement } from '../api/accountApi'
+import { getSubCategories } from '../api/subCategoryApi'
 import { createTransaction, deleteTransaction } from '../api/transactionApi'
 import type { AccountResponse, RecurringPaymentResponse, RecurringScheduleItemResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
@@ -81,6 +82,7 @@ const item = (over: Partial<RecurringPaymentResponse>): RecurringPaymentResponse
   note: null,
   isActive: true,
   startPeriod: null,
+  savingsBank: null,
   ...over,
 })
 
@@ -341,6 +343,46 @@ describe('RecurringPage', () => {
     await waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith('tx-new'))
   })
 
+  it('Ghi nhận prefills Nơi gửi for a savings item', async () => {
+    vi.mocked(getSchedule).mockResolvedValue([
+      {
+        item: item({ id: 'i-sav', name: 'Tiết kiệm Sam & Bắp', amount: vnd(4_000_000), savingsBank: 'Sam & Bắp' }),
+        dueDate: '2026-11-15',
+        record: null,
+      },
+    ])
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(within(await screen.findByTestId('row-i-sav')).getByText('recurring.record'))
+    const prefill = JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)
+    expect(prefill).toMatchObject({ amount: 4_000_000, savingsBank: 'Sam & Bắp' })
+  })
+
+  it('manage dialog asks for Nơi gửi only for the savings-book sub-category', async () => {
+    vi.mocked(getSubCategories).mockResolvedValue([
+      { id: 's-book', categoryId: 'c1', name: 'Sổ tiết kiệm', isDefault: false, icon: null, code: 'savings_book', excludeFromStats: false },
+      { id: 's-other', categoryId: 'c1', name: 'Khác', isDefault: false, icon: null, code: null, excludeFromStats: false },
+    ] as never)
+    vi.mocked(createRecurringPayment).mockResolvedValue({ id: 'new' })
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByText('recurring.manage'))
+    await user.click(await screen.findByText('recurring.add'))
+    await user.type(await screen.findByLabelText('recurring.name'), 'Tiết kiệm Sam & Bắp')
+    await user.type(screen.getByLabelText('recurring.dayOfMonth'), '1')
+    await user.selectOptions(screen.getByLabelText('form.category'), 'c1')
+    await user.selectOptions(await screen.findByLabelText('form.subCategory'), 's-other')
+    expect(screen.queryByLabelText('form.savingsBank')).toBeNull()
+    await user.selectOptions(screen.getByLabelText('form.subCategory'), 's-book')
+    await user.type(screen.getByLabelText('form.savingsBank'), 'Sam & Bắp')
+    await user.click(screen.getByText('summary.submit'))
+    await waitFor(() => expect(createRecurringPayment).toHaveBeenCalled())
+    expect(vi.mocked(createRecurringPayment).mock.calls[0][0]).toMatchObject({
+      subCategoryId: 's-book',
+      savingsBank: 'Sam & Bắp',
+    })
+  })
+
   it('manage dialog sends the start month when set', async () => {
     vi.mocked(createRecurringPayment).mockResolvedValue({ id: 'new' })
     const user = userEvent.setup()
@@ -381,6 +423,7 @@ describe('RecurringPage', () => {
       note: null,
       isActive: true,
       startPeriod: null,
+      savingsBank: null,
     })
   })
 })
