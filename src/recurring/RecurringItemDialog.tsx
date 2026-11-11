@@ -206,7 +206,7 @@ export function RecurringItemDialog({
                             'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
                             selected
                               ? 'border-primary bg-primary/10 text-primary'
-                              : 'text-muted-foreground hover:border-zinc-300 hover:text-foreground',
+                              : 'text-muted-foreground hover:border-zinc-300 hover:text-foreground dark:hover:border-zinc-600',
                           )}
                         >
                           {s.name}
@@ -313,7 +313,7 @@ export function RecurringItemDialog({
                     type="button"
                     onClick={() => setBank(b.name)}
                     className={cn(
-                      'rounded-full border bg-background px-3 py-1 text-xs font-medium transition-colors hover:border-zinc-300',
+                      'rounded-full border bg-background px-3 py-1 text-xs font-medium transition-colors hover:border-zinc-300 dark:hover:border-zinc-600',
                       bank === b.name && 'border-primary bg-primary/10 text-primary',
                     )}
                   >

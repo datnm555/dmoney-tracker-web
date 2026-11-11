@@ -68,7 +68,7 @@ export function PayWithChips({ chips, selectedKey, onPick, bankOrder }: Props) {
           type="button"
           aria-expanded={expanded}
           onClick={() => setExpanded((v) => !v)}
-          className="flex items-center justify-center gap-1 rounded-xl border border-dashed py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-zinc-300 hover:text-foreground"
+          className="flex items-center justify-center gap-1 rounded-xl border border-dashed py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-zinc-300 hover:text-foreground dark:hover:border-zinc-600"
         >
           {expanded ? (
             <>
@@ -128,7 +128,7 @@ function PayWithRow({
         aria-hidden
         className={cn(
           'flex size-5 shrink-0 items-center justify-center rounded-full border',
-          selected ? 'border-primary bg-primary text-primary-foreground' : 'border-zinc-300',
+          selected ? 'border-primary bg-primary text-primary-foreground' : 'border-zinc-300 dark:border-zinc-600',
         )}
       >
         {selected && <Check className="size-3" strokeWidth={3} />}

@@ -140,7 +140,7 @@ export function AccountCard({
           <Button
             variant="ghost"
             size="icon"
-            className={cn(iconBtn, account.isDefault && 'text-amber-500 hover:text-amber-600')}
+            className={cn(iconBtn, account.isDefault && 'text-amber-500 hover:text-amber-600 dark:hover:text-amber-400')}
             aria-label={`${t(account.isDefault ? 'accounts.clearDefault' : 'accounts.setDefault')} ${account.name}`}
             aria-pressed={account.isDefault}
             title={t(account.isDefault ? 'accounts.clearDefault' : 'accounts.setDefault')}

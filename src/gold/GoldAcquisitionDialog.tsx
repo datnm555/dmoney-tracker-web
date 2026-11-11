@@ -255,7 +255,7 @@ function GoldPill({ label, selected, onClick }: { label: string; selected: boole
         'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
         selected
           ? 'border-amber-500 bg-amber-500/10 text-amber-800 ring-1 ring-amber-500/30 dark:text-amber-200'
-          : 'bg-background text-muted-foreground hover:border-amber-300 hover:text-foreground',
+          : 'bg-background text-muted-foreground hover:border-amber-300 hover:text-foreground dark:hover:border-amber-700',
       )}
     >
       {selected && <Check className="size-3.5" aria-hidden="true" />}

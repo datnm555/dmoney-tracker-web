@@ -41,6 +41,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth } from '../auth/AuthContext'
 import { useI18n } from '../i18n/I18nContext'
+import { ThemeToggle } from '../theme/ThemeToggle'
 
 interface NavItem {
   to: string
@@ -212,7 +213,7 @@ export function AppLayout() {
                   className={cn(
                     'flex h-7 items-center rounded-lg px-2.5 uppercase transition-colors',
                     lang === code
-                      ? 'bg-background text-primary shadow-sm'
+                      ? 'bg-background text-primary shadow-sm dark:bg-zinc-700 dark:text-violet-300'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -220,7 +221,8 @@ export function AppLayout() {
                 </button>
               ))}
             </div>
-            <button type="button" aria-label="notifications" className={iconButtonClass}>
+            <ThemeToggle />
+            <button type="button" aria-label="notifications" className={cn(iconButtonClass, 'hidden sm:grid')}>
               <Bell className="size-4" />
             </button>
             <div className="hidden h-6 w-px bg-border sm:block" />
@@ -251,7 +253,7 @@ export function AppLayout() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className="rounded-lg text-rose-600 focus:bg-rose-50 focus:text-rose-700 dark:focus:bg-rose-950/40"
+                  className="rounded-lg text-rose-600 focus:bg-rose-50 focus:text-rose-700 dark:text-rose-400 dark:focus:bg-rose-950/40 dark:focus:text-rose-300"
                   onClick={() => {
                     signOut()
                     navigate('/login')
