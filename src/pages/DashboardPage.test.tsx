@@ -61,6 +61,14 @@ const card = (id: string, name: string, dueDate: string, amount = 5_000_000): Ac
 // full-suite run that can exceed findBy's 1 s default, so give banner lookups more room.
 const BANNER_WAIT = { timeout: 5000 }
 
+/** A due row shows the name, a "when" line and the amount in their own slots. */
+function expectDue(testId: string, name: string, when: string, amount: string) {
+  const row = screen.getByTestId(testId)
+  expect(row).toHaveTextContent(name)
+  expect(norm(screen.getByTestId(`${testId}-when`).textContent)).toBe(when)
+  expect(norm(screen.getByTestId(`${testId}-amount`).textContent)).toBe(amount)
+}
+
 function renderPage() {
   render(
     <MemoryRouter>
@@ -98,11 +106,11 @@ describe('DashboardPage due banner', () => {
     renderPage()
 
     const a = await screen.findByTestId('due-banner-a', {}, BANNER_WAIT)
-    expect(norm(a.textContent)).toBe(`Techcombank Visa accounts.dueIn 2 accounts.days: ${norm(formatMoney(money(5_000_000)))}`)
-    const b = screen.getByTestId('due-banner-b')
-    expect(norm(b.textContent)).toBe(`VPBank Mastercard accounts.dueTodayFull: ${norm(formatMoney(money(2_000_000)))}`)
+    expectDue('due-banner-a', 'Techcombank Visa', 'accounts.dueIn 2 accounts.days', norm(formatMoney(money(5_000_000))))
+    expect(screen.getByTestId('due-banner-b')).toBeInTheDocument()
+    expectDue('due-banner-b', 'VPBank Mastercard', 'accounts.dueTodayFull', norm(formatMoney(money(2_000_000))))
     expect(screen.queryByTestId('due-banner-c')).not.toBeInTheDocument()
-    expect(norm(screen.getByTestId('due-banner-d').textContent)).toBe(`Late Card accounts.overdue 2 accounts.days: ${norm(formatMoney(money(1_000_000)))}`)
+    expectDue('due-banner-d', 'Late Card', 'accounts.overdue 2 accounts.days', norm(formatMoney(money(1_000_000))))
     expect(a.closest('a')).toHaveAttribute('href', '/app/accounts')
   })
 
@@ -185,23 +193,15 @@ describe('DashboardPage recurring dues in banner', () => {
 
     const x = await screen.findByTestId('due-banner-recurring-x', {}, BANNER_WAIT)
     expect(getSchedule).toHaveBeenCalledWith('2026-11')
-    expect(norm(x.textContent)).toBe(`Internet accounts.overdue 3 accounts.days: ${norm(formatMoney(money(300_000)))}`)
-    expect(norm(screen.getByTestId('due-banner-recurring-y').textContent)).toBe(
-      `Rent accounts.dueTodayFull: ${norm(formatMoney(money(5_000_000)))}`,
-    )
-    expect(norm(screen.getByTestId('due-banner-recurring-u').textContent)).toBe(
-      'Electric recurring.dueIn 1 accounts.days: recurring.enterAmount',
-    )
-    expect(norm(screen.getByTestId('due-banner-recurring-z').textContent)).toBe(
-      `Netflix recurring.dueIn 2 accounts.days: ${norm(formatMoney(money(100_000)))}`,
-    )
-    expect(norm(screen.getByTestId('due-banner-recurring-t').textContent)).toBe(
-      `Water recurring.dueIn 3 accounts.days: ≈ ${norm(formatMoney(money(150_000)))}`,
-    )
+    expectDue('due-banner-recurring-x', 'Internet', 'accounts.overdue 3 accounts.days', norm(formatMoney(money(300_000))))
+    expectDue('due-banner-recurring-y', 'Rent', 'accounts.dueTodayFull', norm(formatMoney(money(5_000_000))))
+    expectDue('due-banner-recurring-u', 'Electric', 'recurring.dueIn 1 accounts.days', 'recurring.enterAmount')
+    expectDue('due-banner-recurring-z', 'Netflix', 'recurring.dueIn 2 accounts.days', norm(formatMoney(money(100_000))))
+    expectDue('due-banner-recurring-t', 'Water', 'recurring.dueIn 3 accounts.days', `≈ ${norm(formatMoney(money(150_000)))}`)
     expect(screen.queryByTestId('due-banner-recurring-w')).not.toBeInTheDocument()
     expect(screen.queryByTestId('due-banner-recurring-v')).not.toBeInTheDocument()
     expect(x.closest('a')).toHaveAttribute('href', '/app/recurring')
-    const ids = screen.getAllByTestId(/^due-banner-recurring-/).map((e) => e.dataset.testid)
+    const ids = screen.getAllByTestId(/^due-banner-recurring-[^-]+$/).map((e) => e.dataset.testid)
     expect(ids).toEqual(['due-banner-recurring-x', 'due-banner-recurring-y', 'due-banner-recurring-u', 'due-banner-recurring-z', 'due-banner-recurring-t'])
   })
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
-import { AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
+import { CalendarClock, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,7 +28,6 @@ import { paymentLabel } from '../utils/paymentLabel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { CategoryIcon } from '../components/CategoryIcon'
 import { AreaChart } from '../components/tremor/AreaChart'
-import { Callout } from '../components/tremor/Callout'
 import { DonutChart } from '../components/tremor/DonutChart'
 import { ProgressBar } from '../components/tremor/ProgressBar'
 import { getColorClassName, type AvailableChartColorsKeys } from '../components/tremor/utils/chartColors'
@@ -171,63 +170,60 @@ export function DashboardPage() {
       </div>
 
       {(urgentDues.length > 0 || recurringDues.length > 0) && (
-        <Callout
-          data-testid="due-banner"
-          title={t('accounts.upcoming')}
-          // Lucide icons are forwardRef objects, which Callout would render as-is: pass an element.
-          icon={<AlertTriangle className="mr-1.5 h-5 w-5 shrink-0" aria-hidden />}
-          variant={
-            urgentDues.some((d) => d.daysLeft < 0) || recurringDues.some((d) => d.status === 'overdue')
-              ? 'error'
-              : 'warning'
-          }
-          className="rounded-2xl"
-        >
-          <div className="mt-1 grid gap-1">
-          {urgentDues.map((d) => (
-            <Link
-              key={d.account.id}
-              to="/app/accounts"
-              data-testid={`due-banner-${d.account.id}`}
-              className="flex items-center gap-2 rounded-lg px-1 py-0.5 hover:underline"
-            >
-              <span>
-                {d.account.name}{' '}
-                {d.daysLeft < 0
-                  ? `${t('accounts.overdue')} ${-d.daysLeft} ${t('accounts.days')}`
-                  : d.daysLeft === 0
-                    ? t('accounts.dueTodayFull')
-                    : `${t('accounts.dueIn')} ${d.daysLeft} ${t('accounts.days')}`}
-                : {formatMoney({ amount: d.amount, currency: 'VND' })}
-              </span>
-            </Link>
-          ))}
-          {recurringDues.map(({ row, status, daysLeft }) => {
-            const when =
-              status === 'overdue'
-                ? `${t('accounts.overdue')} ${-daysLeft} ${t('accounts.days')}`
-                : daysLeft === 0
-                  ? t('accounts.dueTodayFull')
-                  : `${t('recurring.dueIn')} ${daysLeft} ${t('accounts.days')}`
-            const amount =
-              row.item.isVariable && row.item.amount.amount === 0
-                ? t('recurring.enterAmount')
-                : `${row.item.isVariable ? '≈ ' : ''}${formatMoney(row.item.amount)}`
-            return (
-              <Link
+        <section data-testid="due-banner" className="grid gap-3 rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+              <CalendarClock className="h-4 w-4" aria-hidden />
+            </span>
+            <span className="font-semibold">{t('accounts.upcoming')}</span>
+            <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
+              {urgentDues.length + recurringDues.length}
+            </span>
+          </div>
+          <div className="grid gap-2">
+            {urgentDues.map((d) => (
+              <DueRow
+                key={d.account.id}
+                to="/app/accounts"
+                testId={`due-banner-${d.account.id}`}
+                dueDate={d.dueDate}
+                hot={d.daysLeft <= 1}
+                name={d.account.name}
+                digits={d.account.lastDigits}
+                when={
+                  d.daysLeft < 0
+                    ? `${t('accounts.overdue')} ${-d.daysLeft} ${t('accounts.days')}`
+                    : d.daysLeft === 0
+                      ? t('accounts.dueTodayFull')
+                      : `${t('accounts.dueIn')} ${d.daysLeft} ${t('accounts.days')}`
+                }
+                amount={formatMoney({ amount: d.amount, currency: 'VND' })}
+              />
+            ))}
+            {recurringDues.map(({ row, status, daysLeft }) => (
+              <DueRow
                 key={row.item.id}
                 to="/app/recurring"
-                data-testid={`due-banner-recurring-${row.item.id}`}
-                className="flex items-center gap-2 rounded-lg px-1 py-0.5 hover:underline"
-              >
-                <span>
-                  {row.item.name} {when}: {amount}
-                </span>
-              </Link>
-            )
-          })}
+                testId={`due-banner-recurring-${row.item.id}`}
+                dueDate={row.dueDate}
+                hot={status === 'overdue' || daysLeft <= 1}
+                name={row.item.name}
+                when={
+                  status === 'overdue'
+                    ? `${t('accounts.overdue')} ${-daysLeft} ${t('accounts.days')}`
+                    : daysLeft === 0
+                      ? t('accounts.dueTodayFull')
+                      : `${t('recurring.dueIn')} ${daysLeft} ${t('accounts.days')}`
+                }
+                amount={
+                  row.item.isVariable && row.item.amount.amount === 0
+                    ? t('recurring.enterAmount')
+                    : `${row.item.isVariable ? '≈ ' : ''}${formatMoney(row.item.amount)}`
+                }
+              />
+            ))}
           </div>
-        </Callout>
+        </section>
       )}
 
       <CashflowHero
@@ -427,5 +423,68 @@ function FlowStat({ testId, label, value, dot, tone }: { testId: string; label: 
         {value}
       </span>
     </div>
+  )
+}
+
+/** One due item: date tile, name + days left, amount — rose when overdue / ≤ 1 day, amber otherwise. */
+function DueRow({
+  to,
+  testId,
+  dueDate,
+  hot,
+  name,
+  digits,
+  when,
+  amount,
+}: {
+  to: string
+  testId: string
+  dueDate: string
+  hot: boolean
+  name: string
+  digits?: string | null
+  when: string
+  amount: string
+}) {
+  const date = dayjs(dueDate)
+  return (
+    <Link
+      to={to}
+      data-testid={testId}
+      className={cn(
+        'flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors',
+        hot
+          ? 'border-rose-200 bg-rose-50 hover:bg-rose-100/70 dark:border-rose-500/30 dark:bg-rose-500/10'
+          : 'border-amber-200 bg-amber-50 hover:bg-amber-100/70 dark:border-amber-500/30 dark:bg-amber-500/10',
+      )}
+    >
+      <span
+        className={cn(
+          'flex w-12 shrink-0 flex-col items-center rounded-lg py-1 leading-none',
+          hot ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+        )}
+      >
+        <span className="text-lg font-bold tabular-nums">{date.format('DD')}</span>
+        <span className="mt-0.5 text-[10px] tabular-nums opacity-80">{date.format('MM/YYYY')}</span>
+      </span>
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className="truncate font-medium text-foreground">
+          {name}
+          {digits && <span className="ml-1 text-xs font-normal text-muted-foreground">•••{digits}</span>}
+        </span>
+        <span
+          data-testid={`${testId}-when`}
+          className={cn('text-xs', hot ? 'text-rose-600 dark:text-rose-400' : 'text-amber-700 dark:text-amber-400')}
+        >
+          {when}
+        </span>
+      </span>
+      <span
+        data-testid={`${testId}-amount`}
+        className={cn('shrink-0 font-bold tabular-nums', hot ? 'text-rose-600 dark:text-rose-400' : 'text-amber-700 dark:text-amber-400')}
+      >
+        {amount}
+      </span>
+    </Link>
   )
 }
