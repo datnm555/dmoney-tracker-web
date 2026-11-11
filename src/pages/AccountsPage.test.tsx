@@ -12,6 +12,7 @@ import {
   updateAccount,
   updateSnapshot,
 } from '../api/accountApi'
+import { createTransaction, deleteTransaction } from '../api/transactionApi'
 import type { AccountResponse } from '../api/types'
 import { formatMoney } from '../utils/money'
 import { AccountsPage } from './AccountsPage'
@@ -28,6 +29,30 @@ vi.mock('../banks/BanksContext', () => ({
     ],
     refresh: async () => {},
   }),
+}))
+
+vi.mock('../plans/PlanContext', () => ({
+  usePlans: () => ({ plans: [], selectedPlanId: 'p-default', selectPlan: vi.fn(), refresh: vi.fn() }),
+}))
+vi.mock('../api/transactionApi', () => ({ createTransaction: vi.fn(), deleteTransaction: vi.fn() }))
+
+// Stub the form: expose the prefill and let the test submit it unchanged.
+vi.mock('../components/TransactionFormModal', () => ({
+  TransactionFormModal: ({
+    open,
+    prefill,
+    onSubmit,
+  }: {
+    open: boolean
+    prefill?: Record<string, unknown>
+    onSubmit: (v: Record<string, unknown>) => void
+  }) =>
+    open ? (
+      <div data-testid="tx-form">
+        <span data-testid="tx-prefill">{JSON.stringify(prefill)}</span>
+        <button onClick={() => onSubmit({ ...prefill, planId: null })}>tx-submit</button>
+      </div>
+    ) : null,
 }))
 
 vi.mock('../api/accountApi', () => ({
@@ -372,6 +397,87 @@ describe('AccountsPage', () => {
       await user.type(screen.getByRole('textbox', { name: 'accounts.bank' }), 'ACB')
       await user.click(screen.getByRole('button', { name: 'summary.submit' }))
       expect(createAccount).toHaveBeenCalledWith(expect.objectContaining({ name: 'Mới', bankName: 'ACB' }))
+    })
+  })
+
+  describe('Chốt tháng', () => {
+    async function openClose(user: ReturnType<typeof userEvent.setup>) {
+      renderPage()
+      await user.click(await screen.findByRole('button', { name: 'accounts.closeMonth Techcombank' }))
+    }
+
+    it('is offered on money accounts only', async () => {
+      renderPage()
+      await screen.findByText('Thấu chi VPB')
+      expect(screen.getByRole('button', { name: 'accounts.closeMonth Tiền mặt ví' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'accounts.closeMonth Thấu chi VPB' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'accounts.closeMonth Visa' })).toBeNull()
+    })
+
+    it('records the spending as one expense, then the closing balance', async () => {
+      vi.mocked(createTransaction).mockResolvedValue({ id: 'tx-close' })
+      const user = userEvent.setup()
+      await openClose(user)
+      expect(norm(screen.getByTestId('close-opening').textContent)).toContain(fmt(10_000_000))
+      await user.type(screen.getByLabelText('accounts.topUps'), '2000000')
+      await user.type(screen.getByLabelText('accounts.closingBalance'), '3000000')
+      expect(norm(screen.getByTestId('close-net').textContent)).toContain(`accounts.spent${fmt(9_000_000)}`)
+      await user.click(screen.getByRole('button', { name: 'accounts.continue' }))
+
+      const prefill = JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)
+      expect(prefill).toEqual({
+        content: 'accounts.closeContent Techcombank 11/2026',
+        type: 'out',
+        amount: 9_000_000,
+        date: '2026-11-10',
+        paymentMethod: 'transfer',
+        bank: null,
+      })
+      await user.click(screen.getByText('tx-submit'))
+      expect(createTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({ debitAmount: 9_000_000, creditAmount: 0, planId: 'p-default' }),
+      )
+      expect(createSnapshot).toHaveBeenCalledWith('a-check', {
+        date: '2026-11-10',
+        balance: 3_000_000,
+        statementAmount: null,
+        dueDate: null,
+        installmentRemaining: null,
+        statementPaid: false,
+        note: null,
+        statementUntracked: false,
+      })
+      expect(deleteTransaction).not.toHaveBeenCalled()
+    })
+
+    it('records income when the balance grew', async () => {
+      const user = userEvent.setup()
+      await openClose(user)
+      await user.type(screen.getByLabelText('accounts.closingBalance'), '12000000')
+      expect(norm(screen.getByTestId('close-net').textContent)).toContain(`accounts.received${fmt(2_000_000)}`)
+      await user.click(screen.getByRole('button', { name: 'accounts.continue' }))
+      expect(JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)).toMatchObject({ type: 'in', amount: 2_000_000 })
+    })
+
+    it('only saves the closing balance when nothing changed', async () => {
+      const user = userEvent.setup()
+      await openClose(user)
+      await user.type(screen.getByLabelText('accounts.closingBalance'), '10000000')
+      await user.click(screen.getByRole('button', { name: 'accounts.continue' }))
+      await vi.waitFor(() => expect(createSnapshot).toHaveBeenCalledWith('a-check', expect.objectContaining({ balance: 10_000_000 })))
+      expect(screen.queryByTestId('tx-form')).toBeNull()
+      expect(createTransaction).not.toHaveBeenCalled()
+    })
+
+    it('removes the combined transaction when saving the closing balance fails', async () => {
+      vi.mocked(createTransaction).mockResolvedValue({ id: 'tx-close' })
+      vi.mocked(createSnapshot).mockRejectedValueOnce(new Error('boom'))
+      const user = userEvent.setup()
+      await openClose(user)
+      await user.type(screen.getByLabelText('accounts.closingBalance'), '3000000')
+      await user.click(screen.getByRole('button', { name: 'accounts.continue' }))
+      await user.click(await screen.findByText('tx-submit'))
+      await vi.waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith('tx-close'))
     })
   })
 })

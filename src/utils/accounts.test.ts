@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AccountResponse, AccountType } from '../api/types'
 import {
+  closeMonthNet,
   availableCredit,
   cashTotal,
   debtTotal,
@@ -197,5 +198,17 @@ describe('groupByBank', () => {
 
   it('returns an empty list for no accounts', () => {
     expect(groupByBank([])).toEqual([])
+  })
+})
+
+describe('closeMonthNet', () => {
+  it('is opening + money added − closing', () => {
+    expect(closeMonthNet(474_218, 2_000_000, 300_000)).toBe(2_174_218)
+  })
+  it('is negative when more came in than went out', () => {
+    expect(closeMonthNet(1_000_000, 0, 1_500_000)).toBe(-500_000)
+  })
+  it('is zero when nothing changed', () => {
+    expect(closeMonthNet(1_000_000, 0, 1_000_000)).toBe(0)
   })
 })
