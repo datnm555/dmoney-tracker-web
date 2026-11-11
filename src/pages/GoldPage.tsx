@@ -20,6 +20,7 @@ import { GoldAcquisitionDialog } from '../gold/GoldAcquisitionDialog'
 import { GoldHistoryList, type GoldHistoryRow } from '../gold/GoldHistoryList'
 import { GoldMonthlyChart } from '../gold/GoldMonthlyChart'
 import { GoldOverview } from '../gold/GoldOverview'
+import { GoldPriceTrend } from '../gold/GoldPriceTrend'
 import { GoldTypeCard } from '../gold/GoldTypeCard'
 import { useI18n } from '../i18n/I18nContext'
 
@@ -114,14 +115,16 @@ export function GoldPage() {
         </>
       )}
 
-      <Card>
+      <Card className="rounded-2xl">
         <CardHeader className="flex-row items-center justify-between space-y-0 py-4">
           <CardTitle className="text-base">{t('gold.history')}</CardTitle>
           <Badge variant="secondary">{historyRows.length}</Badge>
         </CardHeader>
         <CardContent className="p-0">
+          <GoldPriceTrend rows={historyRows} avgCostPerChi={avgCost.amount} />
           <GoldHistoryList
             rows={historyRows}
+            avgCostPerChi={avgCost.amount}
             onEdit={(acq) => setDialog({ open: true, editing: acq })}
             onDelete={setDeleting}
           />
