@@ -81,9 +81,18 @@ describe('cardDuesInMonth', () => {
     const b = card('credit_card', { dueDate: '2026-11-05', amount: 300, paid: true })
     const result = cardDuesInMonth([a, b], '2026-11')
     expect(result).toEqual([
-      { account: b, amount: 300, dueDate: '2026-11-05', paid: true },
-      { account: a, amount: 500, dueDate: '2026-11-20', paid: false },
+      { account: b, amount: 300, remaining: 0, dueDate: '2026-11-05', paid: true },
+      { account: a, amount: 500, remaining: 500, dueDate: '2026-11-20', paid: false },
     ])
+  })
+  it('counts transfers into the card since the reading as paid towards the statement', () => {
+    const partly = { ...card('credit_card', { dueDate: '2026-11-20', amount: 500 }), statementPaidAmount: money(200) }
+    const fully = { ...card('credit_card', { dueDate: '2026-11-21', amount: 500 }), statementPaidAmount: money(500) }
+    expect(cardDuesInMonth([partly, fully], '2026-11')).toEqual([
+      { account: partly, amount: 500, remaining: 300, dueDate: '2026-11-20', paid: false },
+      { account: fully, amount: 500, remaining: 0, dueDate: '2026-11-21', paid: true },
+    ])
+    expect(scheduleTotals([], cardDuesInMonth([partly, fully], '2026-11'))).toEqual({ total: 1000, paid: 700, remaining: 300 })
   })
   it('excludes other months, no snapshot, zero amount and non-card', () => {
     const list = [

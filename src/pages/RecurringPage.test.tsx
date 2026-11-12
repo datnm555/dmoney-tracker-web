@@ -11,7 +11,7 @@ import {
   getRecurringPayments,
   getSchedule,
 } from '../api/recurringPaymentApi'
-import { getAccounts, payStatement } from '../api/accountApi'
+import { getAccounts } from '../api/accountApi'
 import { getSubCategories } from '../api/subCategoryApi'
 import { createTransaction, deleteTransaction } from '../api/transactionApi'
 import type { AccountResponse, RecurringPaymentResponse, RecurringScheduleItemResponse } from '../api/types'
@@ -43,7 +43,7 @@ vi.mock('../api/recurringPaymentApi', () => ({
   createRecord: vi.fn(),
   deleteRecord: vi.fn(),
 }))
-vi.mock('../api/accountApi', () => ({ getAccounts: vi.fn(), payStatement: vi.fn() }))
+vi.mock('../api/accountApi', () => ({ getAccounts: vi.fn() }))
 vi.mock('../api/transactionApi', () => ({ createTransaction: vi.fn(), deleteTransaction: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
@@ -108,7 +108,7 @@ const card: AccountResponse = {
   bankName: null,
   isDefault: false,
   currentBalance: vnd(3_000_000),
-  transactionsSinceSnapshot: 0,
+  transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' },
   latestSnapshot: {
     id: 'snap-1',
     accountId: 'a-cc',
@@ -140,7 +140,6 @@ beforeEach(() => {
   vi.mocked(createRecord).mockResolvedValue({ id: 'r-new' })
   vi.mocked(createTransaction).mockResolvedValue({ id: 'tx-new' })
   vi.mocked(deleteTransaction).mockResolvedValue(undefined)
-  vi.mocked(payStatement).mockResolvedValue(undefined)
   vi.mocked(deleteRecord).mockResolvedValue(undefined)
 })
 
@@ -303,29 +302,11 @@ describe('RecurringPage', () => {
     await waitFor(() => expect(deleteRecord).toHaveBeenCalledWith('rec1'))
   })
 
-  it('card row Đã trả updates the latest snapshot as paid', async () => {
-    const user = userEvent.setup()
-    renderPage()
-    await user.click(within(await screen.findByTestId('card-row-a-cc')).getByText('accounts.markPaid'))
-    await user.click(await screen.findByRole('button', { name: 'summary.submit' }))
-    await waitFor(() => expect(payStatement).toHaveBeenCalled())
-    expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 3_000_000, fromAccountId: null })
-  })
-
-  it('card row has no Ghi nhận when its statement spending is tracked', async () => {
-    renderPage()
-    const cardRow = await screen.findByTestId('card-row-a-cc')
-    expect(within(cardRow).queryByText('recurring.record')).toBeNull()
-    expect(within(cardRow).getByText('accounts.markPaid')).toBeInTheDocument()
-  })
-
-  it('card row Ghi nhận on an untracked statement creates the expense then marks it paid', async () => {
-    vi.mocked(getAccounts).mockResolvedValue([
-      { ...card, latestSnapshot: { ...card.latestSnapshot!, statementUntracked: true } },
-    ])
+  it('card row Ghi nhận pays a tracked statement as a transfer into the card, nothing else', async () => {
     const user = userEvent.setup()
     renderPage()
     const cardRow = await screen.findByTestId('card-row-a-cc')
+    expect(within(cardRow).queryByText('accounts.markPaid')).toBeNull()
     await user.click(within(cardRow).getByText('recurring.record'))
     const prefill = JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)
     expect(prefill).toMatchObject({
@@ -334,34 +315,47 @@ describe('RecurringPage', () => {
       amount: 3_000_000,
       date: '2026-11-10',
       transferToAccountId: 'a-cc',
+      // Swipes were recorded one by one: paying the card is not spending.
+      subCategoryCode: 'account_transfer',
     })
 
     await user.click(screen.getByText('tx-submit'))
-    await waitFor(() => expect(payStatement).toHaveBeenCalled())
-    // The expense pays from the "Trả bằng" account into the card, which moves both balances...
+    await waitFor(() => expect(createTransaction).toHaveBeenCalled())
     expect(createTransaction).toHaveBeenCalledWith(
       expect.objectContaining({ debitAmount: 2_500_000, planId: 'p-default', accountId: 'a-od', toAccountId: 'a-cc' }),
     )
-    // ...so the statement is only settled, without lowering the card's debt a second time.
-    expect(payStatement).toHaveBeenCalledWith('a-cc', {
-      date: '2026-11-10',
-      amount: 2_500_000,
-      fromAccountId: null,
-      paidByTransaction: true,
-    })
     expect(createRecord).not.toHaveBeenCalled()
+    expect(deleteTransaction).not.toHaveBeenCalled()
   })
 
-  it('removes the card expense again when marking the statement paid fails', async () => {
+  it('card row Ghi nhận files an untracked statement as card payment spending', async () => {
     vi.mocked(getAccounts).mockResolvedValue([
       { ...card, latestSnapshot: { ...card.latestSnapshot!, statementUntracked: true } },
     ])
-    vi.mocked(payStatement).mockRejectedValue(new Error('boom'))
     const user = userEvent.setup()
     renderPage()
     await user.click(within(await screen.findByTestId('card-row-a-cc')).getByText('recurring.record'))
-    await user.click(await screen.findByText('tx-submit'))
-    await waitFor(() => expect(deleteTransaction).toHaveBeenCalledWith('tx-new'))
+    const prefill = JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)
+    expect(prefill).toMatchObject({ transferToAccountId: 'a-cc', subCategoryCode: 'card_payment' })
+  })
+
+  it('card row shows what is left after partial payments and prefills it', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([{ ...card, statementPaidAmount: vnd(1_000_000) }])
+    const user = userEvent.setup()
+    renderPage()
+    const cardRow = await screen.findByTestId('card-row-a-cc')
+    expect(cardRow).toHaveTextContent('accounts.statementRemaining')
+    await user.click(within(cardRow).getByText('recurring.record'))
+    const prefill = JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)
+    expect(prefill).toMatchObject({ amount: 2_000_000 })
+  })
+
+  it('card row is paid once transfers into the card cover the statement', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([{ ...card, statementPaidAmount: vnd(3_000_000) }])
+    renderPage()
+    const cardRow = await screen.findByTestId('card-row-a-cc')
+    expect(within(cardRow).getByText('recurring.paid')).toBeInTheDocument()
+    expect(within(cardRow).queryByText('recurring.record')).toBeNull()
   })
 
   it('Ghi nhận prefills Nơi gửi for a savings item', async () => {

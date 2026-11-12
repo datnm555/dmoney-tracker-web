@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import type { AccountResponse, RecurringScheduleItemResponse } from '../api/types'
+import { statementRemaining, statementSettled } from './accounts'
 
 export type ScheduleStatus = 'paid' | 'overdue' | 'dueSoon' | 'upcoming'
 
@@ -18,7 +19,16 @@ export function scheduleStatus(
   return dueStatus(!!row.record, row.dueDate, today)
 }
 
-export type CardDue = { account: AccountResponse; amount: number; dueDate: string; paid: boolean; untracked: boolean }
+export type CardDue = {
+  account: AccountResponse
+  /** The statement amount. */
+  amount: number
+  /** Still to pay: the statement minus transfers into the card since its reading. */
+  remaining: number
+  dueDate: string
+  paid: boolean
+  untracked: boolean
+}
 
 /** Credit-card statements (paid or not) whose latest-snapshot due date falls in `month` (YYYY-MM). */
 export function cardDuesInMonth(accounts: AccountResponse[], month: string): CardDue[] {
@@ -29,7 +39,15 @@ export function cardDuesInMonth(accounts: AccountResponse[], month: string): Car
     if (!snap.dueDate.startsWith(month)) continue
     const amount = snap.statementAmount?.amount ?? 0
     if (amount <= 0) continue
-    result.push({ account, amount, dueDate: snap.dueDate, paid: snap.statementPaid, untracked: snap.statementUntracked })
+    const paid = statementSettled(account)
+    result.push({
+      account,
+      amount,
+      remaining: paid ? 0 : statementRemaining(account),
+      dueDate: snap.dueDate,
+      paid,
+      untracked: snap.statementUntracked,
+    })
   }
   return result.sort((a, b) => a.dueDate.localeCompare(b.dueDate))
 }
@@ -50,7 +68,7 @@ export function scheduleTotals(
   }
   for (const c of cards) {
     total += c.amount
-    if (c.paid) paid += c.amount
+    paid += c.amount - c.remaining
   }
   return { total, paid, remaining: total - paid }
 }

@@ -9,7 +9,6 @@ import {
   deleteSnapshot,
   getAccounts,
   getSnapshots,
-  payStatement,
   setDefaultAccount,
   updateAccount,
   updateSnapshot,
@@ -59,7 +58,6 @@ vi.mock('../components/TransactionFormModal', () => ({
 
 vi.mock('../api/accountApi', () => ({
   getAccounts: vi.fn(),
-  payStatement: vi.fn(),
   createAccount: vi.fn(),
   updateAccount: vi.fn(),
   deleteAccount: vi.fn(),
@@ -85,7 +83,7 @@ const base = {
   bankName: null,
   isDefault: false,
   currentBalance: vnd(0),
-  transactionsSinceSnapshot: 0,
+  transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' },
 }
 
 // No linked transactions: the current balance is the latest reading.
@@ -197,22 +195,27 @@ describe('AccountsPage', () => {
     expect(screen.getByText('•••1234')).toBeInTheDocument()
   })
 
-  it('lists the urgent due card and marks it paid', async () => {
+  it('lists the urgent due card and pays it with a transaction into the card', async () => {
     const user = userEvent.setup()
+    vi.mocked(createTransaction).mockResolvedValue({ id: 'tx-pay' })
     renderPage()
     const due = await screen.findByTestId('due-a-cc')
     expect(norm(due.textContent)).toContain('accounts.left 2 accounts.days')
     expect(due).toHaveTextContent('•••5678')
     await user.click(within(due).getByRole('button', { name: 'accounts.markPaid' }))
-    // The dialog defaults to the full statement, today, and no paying account.
-    expect(screen.getByLabelText('recurring.amount')).toHaveValue('5.000.000')
-    const from = screen.getByLabelText('accounts.payFrom')
-    expect(within(from).queryByText('Visa', { exact: false })).toBeNull()
-    expect(within(from).getByRole('radio', { name: 'accounts.payFromNone' })).toHaveAttribute('aria-checked', 'true')
-    // Pay-from is a tile radiogroup (was a <select>); picking the overdraft tile selects a-od.
-    await user.click(within(from).getByRole('radio', { name: /Thấu chi VPB/ }))
-    await user.click(screen.getByRole('button', { name: 'summary.submit' }))
-    expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 5_000_000, fromAccountId: 'a-od' })
+    const prefill = JSON.parse(screen.getByTestId('tx-prefill').textContent!)
+    expect(prefill).toMatchObject({
+      type: 'out',
+      amount: 5_000_000,
+      date: '2026-11-10',
+      transferToAccountId: 'a-cc',
+      subCategoryCode: 'account_transfer',
+    })
+    await user.click(screen.getByText('tx-submit'))
+    await waitFor(() => expect(createTransaction).toHaveBeenCalled())
+    expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ debitAmount: 5_000_000, toAccountId: 'a-cc' }))
+    // No reading is written: the balance and the statement follow the transaction.
+    expect(createSnapshot).not.toHaveBeenCalled()
     expect(updateSnapshot).not.toHaveBeenCalled()
     expect(getAccounts).toHaveBeenCalledTimes(2)
   })
@@ -499,6 +502,7 @@ describe('AccountsPage', () => {
         date: '2026-11-10',
         paymentMethod: 'transfer',
         bank: null,
+        payWithAccountId: 'a-check',
       })
       await user.click(screen.getByText('tx-submit'))
       expect(createTransaction).toHaveBeenCalledWith(

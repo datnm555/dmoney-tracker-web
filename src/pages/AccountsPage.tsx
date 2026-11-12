@@ -21,6 +21,7 @@ import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
 import { usePlans } from '../plans/PlanContext'
 import { payWithFields } from '../utils/payWith'
+import { cardPaymentPrefill } from '../utils/cardPayment'
 import { toTransactionPayload } from '../utils/transactionPayload'
 import { getApiErrorMessage } from '../api/client'
 import type { AccountResponse, AccountSnapshotResponse } from '../api/types'
@@ -30,7 +31,6 @@ import { bankBrand } from '../banks/bankBrand'
 import { AccountDialog } from '../accounts/AccountDialog'
 import { CloseMonthDialog } from '../accounts/CloseMonthDialog'
 import type { CloseMonthResult } from '../accounts/CloseMonthDialog'
-import { PayStatementDialog } from '../accounts/PayStatementDialog'
 import { SnapshotDialog } from '../accounts/SnapshotDialog'
 import { SnapshotHistoryDialog } from '../accounts/SnapshotHistoryDialog'
 import { useI18n } from '../i18n/I18nContext'
@@ -63,7 +63,9 @@ export function AccountsPage() {
   const [snapEditing, setSnapEditing] = useState<AccountSnapshotResponse | null>(null)
   const [historyAccount, setHistoryAccount] = useState<AccountResponse | null>(null)
   const [historyKey, setHistoryKey] = useState(0)
-  const [paying, setPaying] = useState<AccountResponse | null>(null)
+  // Card whose statement is being paid: a transaction into the card (no reading is written).
+  const [paying, setPaying] = useState<{ account: AccountResponse; amount: number } | null>(null)
+  const [payBusy, setPayBusy] = useState(false)
   const [closingAccount, setClosingAccount] = useState<AccountResponse | null>(null)
   const [closeResult, setCloseResult] = useState<CloseMonthResult | null>(null)
   const [closeBusy, setCloseBusy] = useState(false)
@@ -162,8 +164,34 @@ export function AccountsPage() {
         date: closeResult.date,
         paymentMethod: payWithFields(closeResult.account).paymentMethod,
         bank: payWithFields(closeResult.account).bank,
+        // The closed account itself, even when another account at the bank has the same payment fields.
+        payWithAccountId: closeResult.account.id,
       }
     : undefined
+
+  const payPrefill: Partial<TransactionFormValues> | undefined = paying
+    ? cardPaymentPrefill(
+        paying.account,
+        paying.amount,
+        paying.account.latestSnapshot?.statementUntracked ?? false,
+        t('recurring.cardRow'),
+        dayjs().format('YYYY-MM-DD'),
+      )
+    : undefined
+
+  const submitPay = async (values: TransactionFormValues) => {
+    if (!selectedPlanId) return
+    setPayBusy(true)
+    try {
+      await createTransaction(toTransactionPayload(values, selectedPlanId))
+      setPaying(null)
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, t('error.network')))
+    } finally {
+      setPayBusy(false)
+    }
+    await load()
+  }
 
   const submitDelete = async () => {
     if (!deleting) return
@@ -297,7 +325,7 @@ export function AccountsPage() {
                   </div>
                   <div className="grid shrink-0 justify-items-end gap-1.5">
                     <span className="text-base font-bold tabular-nums text-expense">{vnd(d.amount)}</span>
-                    <Button size="sm" variant="outline" className="h-7 rounded-lg px-2.5 text-xs" onClick={() => setPaying(d.account)}>
+                    <Button size="sm" variant="outline" className="h-7 rounded-lg px-2.5 text-xs" disabled={!selectedPlanId} onClick={() => setPaying({ account: d.account, amount: d.amount })}>
                       <Check className="size-3.5" />
                       {t('accounts.markPaid')}
                     </Button>
@@ -367,15 +395,13 @@ export function AccountsPage() {
         onSubmit={(values) => void submitClose(values)}
         onCancel={() => setCloseResult(null)}
       />
-      <PayStatementDialog
-        card={paying}
-        accounts={accounts}
-        today={dayjs().format('YYYY-MM-DD')}
-        onClose={() => setPaying(null)}
-        onSaved={() => {
-          setHistoryKey((k) => k + 1)
-          void load()
-        }}
+      <TransactionFormModal
+        open={paying !== null}
+        editing={null}
+        submitting={payBusy}
+        prefill={payPrefill}
+        onSubmit={(values) => void submitPay(values)}
+        onCancel={() => setPaying(null)}
       />
       <SnapshotDialog
         account={snapAccount}

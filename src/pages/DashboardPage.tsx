@@ -128,10 +128,12 @@ export function DashboardPage() {
     current && previous && previous.balance.amount !== 0
       ? ((current.balance.amount - previous.balance.amount) / Math.abs(previous.balance.amount)) * 100
       : null
-  const creditCount = summary?.items.filter((i) => i.credit.amount > 0).length ?? 0
-  const debitCount = summary?.items.filter((i) => i.debit.amount > 0).length ?? 0
+  // Counts and the category chart follow the same rule as the totals: excluded rows don't count.
+  const countedItems = summary?.items.filter((i) => !i.excludedFromStats) ?? []
+  const creditCount = countedItems.filter((i) => i.credit.amount > 0).length
+  const debitCount = countedItems.filter((i) => i.debit.amount > 0).length
   const recent = summary?.items.slice(0, 4) ?? []
-  const categorySpending = toCategorySpending(summary?.items ?? [])
+  const categorySpending = toCategorySpending(countedItems)
   const spendingTotal = categorySpending.reduce((s, d) => s + d.amount, 0)
 
   return (

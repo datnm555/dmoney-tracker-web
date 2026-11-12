@@ -23,6 +23,7 @@ import { ContentSuggestions } from './transactionForm/ContentSuggestions'
 import { useContentSuggestions } from './transactionForm/useContentSuggestions'
 import { PayWithChips } from './transactionForm/PayWithChips'
 import { usePayWithAccounts } from './transactionForm/usePayWithAccounts'
+import { ACCOUNT_TRANSFER_CODE } from '../utils/cardPayment'
 import { buildPayWithChips, selectedPayWithKey } from '../utils/payWith'
 import type { PayWithChip, PayWithFields } from '../utils/payWith'
 import { parseAmountShorthand } from '../utils/amountShorthand'
@@ -82,6 +83,8 @@ export interface TransactionFormValues {
   payWithAccountId?: string | null
   /** Own account the money went into (paying a card, an overdraft, topping up a wallet); money out only. */
   transferToAccountId?: string | null
+  /** Prefill only: pick the sub-category with this system code (and its category) once loaded. */
+  subCategoryCode?: string
 }
 
 export interface SubmitOptions {
@@ -174,6 +177,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const payWithChips = useMemo(() => buildPayWithChips(accounts, t('form.cashChip')), [accounts, t])
   // A new transaction without a prefilled payment takes the default account once the accounts load.
   const applyDefaultPayRef = useRef(false)
+  // System sub-category a prefill asks for, resolved once the sub-categories load.
+  const prefillSubCodeRef = useRef<string | null>(null)
+  // Account chip a prefill asks for (e.g. the account being closed); wins over the default account.
+  const prefillPayKeyRef = useRef<string | null>(null)
   const [category, setCategory] = useState<string | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodCode>('transfer')
   const [cardType, setCardType] = useState<CardTypeCode | null>(null)
@@ -272,6 +279,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           editing.prepaidTransactionId !== null,
       )
       applyDefaultPayRef.current = false
+      prefillPayKeyRef.current = null
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
@@ -307,7 +315,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       setSavingsBank(null)
       setCustomSavingsBank(false)
       const p = prefillRef.current
-      applyDefaultPayRef.current = p?.paymentMethod === undefined && p?.bank === undefined
+      prefillPayKeyRef.current = p?.payWithAccountId ?? null
+      prefillSubCodeRef.current = p?.subCategoryCode ?? null
+      applyDefaultPayRef.current =
+        p?.paymentMethod === undefined && p?.bank === undefined && prefillPayKeyRef.current === null
       if (p) {
         if (p.content !== undefined) setContent(p.content)
         if (p.amount !== undefined) setAmountText(String(Math.round(p.amount)))
@@ -349,8 +360,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     if (accountsStatus === 'error') {
       setPayOtherOpen(true)
     } else if (accountsStatus === 'ready') {
-      const defaultId = applyDefaultPayRef.current ? accounts.find((a) => a.isDefault)?.id : undefined
+      const defaultId =
+        prefillPayKeyRef.current ?? (applyDefaultPayRef.current ? accounts.find((a) => a.isDefault)?.id : undefined)
       applyDefaultPayRef.current = false
+      prefillPayKeyRef.current = null
       const defaultChip = payWithChips.find((c) => c.key === defaultId)
       if (defaultChip) pickPayWith(defaultChip)
       else setPayOtherOpen(selectedPayWithKey(payWithChips, payWithRef.current) === null)
@@ -400,6 +413,17 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
         toast.error(getApiErrorMessage(error, t('error.network')))
       })
   }, [open, refreshCategories])
+
+  // A prefilled system sub-category (e.g. card payment) picks its category too, once known.
+  useEffect(() => {
+    if (!open || editing || prefillSubCodeRef.current === null || subCategories.length === 0) return
+    const sub = subCategories.find((s) => s.code === prefillSubCodeRef.current)
+    prefillSubCodeRef.current = null
+    if (sub) {
+      setCategory(sub.categoryId)
+      setSubCategoryId(sub.id)
+    }
+  }, [open, editing, subCategories])
 
   // When creating and a category is already chosen with nothing picked yet,
   // pick its default sub-category as soon as the list is available.
@@ -1004,7 +1028,16 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   <PayWithChips
                     chips={transferChips}
                     selectedKey={transferToKey}
-                    onPick={(chip) => setTransferTo(chip.key)}
+                    onPick={(chip) => {
+                      setTransferTo(chip.key)
+                      // Moving money between own accounts is not spending: with no category picked yet,
+                      // file it under "Chuyển giữa tài khoản" (left out of stats). A picked one stays.
+                      const transferSub = subCategories.find((s) => s.code === ACCOUNT_TRANSFER_CODE)
+                      if (category === null && transferSub) {
+                        setCategory(transferSub.categoryId)
+                        selectSubCategory(transferSub.id)
+                      }
+                    }}
                     bankOrder={bankOrder}
                   />
                 </>

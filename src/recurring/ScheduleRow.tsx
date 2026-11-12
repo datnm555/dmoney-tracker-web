@@ -193,13 +193,11 @@ export function ScheduleCardRow({
   today,
   canRecord,
   onRecord,
-  onPaid,
 }: {
   due: CardDue
   today: string
   canRecord: boolean
   onRecord: () => void
-  onPaid: () => void
 }) {
   const { t } = useI18n()
   const { status, daysLeft } = dueStatus(due.paid, due.dueDate, today)
@@ -223,6 +221,11 @@ export function ScheduleCardRow({
         <>
           <StatusChip status={status} text={due.paid ? t('recurring.paid') : dueText(t, daysLeft)} />
           <span>{t('recurring.cardRow')}</span>
+          {!due.paid && due.remaining < due.amount && (
+            <span className="tabular-nums">
+              {t('accounts.statementRemaining')} {formatMoney({ amount: due.remaining, currency: 'VND' })}
+            </span>
+          )}
         </>
       }
       amount={
@@ -231,19 +234,11 @@ export function ScheduleCardRow({
         </span>
       }
       actions={
+        // Paying is always a transaction into the card; only an untracked statement counts as spending.
         !due.paid && (
-          <>
-            {/* Only statements whose spending was never recorded become an expense when paid. */}
-            {due.untracked && (
-              <Button size="sm" className="rounded-full" disabled={!canRecord} onClick={onRecord}>
-                {t('recurring.record')}
-              </Button>
-            )}
-            <Button size="sm" variant="ghost" className="rounded-full" onClick={onPaid}>
-              <CircleCheck className="mr-1 size-3.5" aria-hidden />
-              {t('accounts.markPaid')}
-            </Button>
-          </>
+          <Button size="sm" className="rounded-full" disabled={!canRecord} onClick={onRecord}>
+            {t('recurring.record')}
+          </Button>
         )
       }
     />

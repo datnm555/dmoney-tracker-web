@@ -17,6 +17,22 @@ export function currentBalance(a: AccountResponse): number {
   return a.currentBalance.amount
 }
 
+/**
+ * What is still owed on the latest statement: the statement amount minus what was paid into the card
+ * since that reading (transactions with "Chuyển vào" = the card). Deleting a payment reopens it.
+ */
+export function statementRemaining(a: AccountResponse): number {
+  const statement = a.latestSnapshot?.statementAmount?.amount ?? 0
+  return Math.max(0, statement - (a.statementPaidAmount?.amount ?? 0))
+}
+
+/** Statement settled: marked paid on the reading, or fully paid by transactions since. */
+export function statementSettled(a: AccountResponse): boolean {
+  const snap = a.latestSnapshot
+  if (!snap) return false
+  return snap.statementPaid || ((snap.statementAmount?.amount ?? 0) > 0 && statementRemaining(a) === 0)
+}
+
 export function cashTotal(accounts: AccountResponse[]): number {
   return accounts.filter((a) => !isDebtType(a.type)).reduce((s, a) => s + currentBalance(a), 0)
 }
@@ -44,8 +60,8 @@ export function upcomingDues(
   const result: { account: AccountResponse; amount: number; dueDate: string; daysLeft: number; urgent: boolean }[] = []
   for (const account of accounts) {
     const snap = account.latestSnapshot
-    if (account.type !== 'credit_card' || !snap || !snap.dueDate || snap.statementPaid) continue
-    const amount = snap.statementAmount?.amount ?? 0
+    if (account.type !== 'credit_card' || !snap || !snap.dueDate || statementSettled(account)) continue
+    const amount = statementRemaining(account)
     if (amount <= 0) continue
     const daysLeft = dayjs(snap.dueDate).diff(dayjs(today), 'day')
     result.push({ account, amount, dueDate: snap.dueDate, daysLeft, urgent: daysLeft <= 3 })

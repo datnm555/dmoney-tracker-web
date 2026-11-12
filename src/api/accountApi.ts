@@ -44,11 +44,3 @@ export async function updateSnapshot(id: string, input: SnapshotInput): Promise<
 export async function deleteSnapshot(id: string): Promise<void> {
   await apiClient.delete(`/accounts/snapshots/${id}`)
 }
-
-/** Pays (part of) a card statement; with fromAccountId the paying account's balance moves too. */
-export async function payStatement(
-  accountId: string,
-  input: { date: string; amount: number; fromAccountId: string | null; paidByTransaction?: boolean },
-): Promise<void> {
-  await apiClient.post(`/accounts/${accountId}/pay-statement`, input)
-}
