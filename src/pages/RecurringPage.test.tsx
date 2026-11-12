@@ -107,6 +107,8 @@ const card: AccountResponse = {
   interestRatePercent: null,
   bankName: null,
   isDefault: false,
+  currentBalance: vnd(3_000_000),
+  transactionsSinceSnapshot: 0,
   latestSnapshot: {
     id: 'snap-1',
     accountId: 'a-cc',
@@ -330,9 +332,12 @@ describe('RecurringPage', () => {
 
     await user.click(screen.getByText('tx-submit'))
     await waitFor(() => expect(payStatement).toHaveBeenCalled())
-    expect(createTransaction).toHaveBeenCalledWith(expect.objectContaining({ debitAmount: 2_500_000, planId: 'p-default' }))
-    // The edited amount is what was paid, from the account picked under "Trả bằng".
-    expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 2_500_000, fromAccountId: 'a-od' })
+    // The expense is linked to the account picked under "Trả bằng", which moves that account's balance...
+    expect(createTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({ debitAmount: 2_500_000, planId: 'p-default', accountId: 'a-od' }),
+    )
+    // ...so the payment only lowers the card's debt (by the edited amount).
+    expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 2_500_000, fromAccountId: null })
     expect(createRecord).not.toHaveBeenCalled()
   })
 

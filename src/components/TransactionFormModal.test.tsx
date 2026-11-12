@@ -144,6 +144,7 @@ const baseEditingFixture = {
   purchasePlaceName: null,
   savingsBank: null,
   excludedFromStats: false,
+  accountId: null,
 }
 
 async function pickCategory() {
@@ -550,6 +551,7 @@ describe('TransactionFormModal', () => {
             purchasePlaceName: null,
             savingsBank: null,
             excludedFromStats: false,
+            accountId: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}
@@ -1400,6 +1402,29 @@ describe('TransactionFormModal pay-with chips', () => {
     )
     expect(await screen.findByRole('button', { name: /Visa VPBank/ })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.queryByRole('radio', { name: 'payment.card' })).not.toBeInTheDocument()
+  })
+
+  it('edit mode: reselects the saved account when two share a bank, and submits it again', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      acct({ id: 'a-salary', name: 'VPBank lương', type: 'checking', bankName: 'VPBank' }),
+      acct({ id: 'a-od', name: 'VPBank thấu chi', type: 'overdraft', bankName: 'VPBank' }),
+    ] as never)
+    const onSubmit = vi.fn()
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, paymentMethod: 'transfer', bank: 'VPBank', accountId: 'a-od' }}
+          submitting={false}
+          onSubmit={onSubmit}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await screen.findByRole('button', { name: 'VPBank thấu chi' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'VPBank lương' })).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ payWithAccountId: 'a-od' }))
   })
 
   it('edit mode: opens Khác when no chip matches', async () => {

@@ -15,6 +15,8 @@ function account(over: Partial<AccountResponse>): AccountResponse {
     latestSnapshot: null,
     bankName: 'Techcombank',
     isDefault: false,
+    currentBalance: { amount: 0, currency: 'VND' },
+    transactionsSinceSnapshot: 0,
     ...over,
   }
 }

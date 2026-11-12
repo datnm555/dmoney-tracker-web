@@ -17,7 +17,7 @@ import { getApiErrorMessage } from '../api/client'
 import type { AccountResponse, AccountType } from '../api/types'
 import { cn } from '@/lib/utils'
 import { useI18n } from '../i18n/I18nContext'
-import { isDebtType } from '../utils/accounts'
+import { hasBalance, isDebtType } from '../utils/accounts'
 import { formatMoney } from '../utils/money'
 import { MoneyInput } from './MoneyInput'
 import { digitsToNumber, toDigits } from './moneyDigits'
@@ -102,7 +102,7 @@ export function PayStatementDialog({
               </SourceTile>
               {sources.map((a) => {
                 const Icon = TYPE_ICON[a.type] ?? Landmark
-                const balance = a.latestSnapshot?.balance
+                const balance = hasBalance(a) ? a.currentBalance : null
                 return (
                   <SourceTile key={a.id} selected={fromId === a.id} onSelect={() => setFromId(a.id)}>
                     <span className="flex min-w-0 items-center gap-1.5">

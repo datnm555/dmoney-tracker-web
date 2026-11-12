@@ -28,5 +28,6 @@ export function toTransactionPayload(values: TransactionFormValues, planId: stri
     goldQuantity: values.goldQuantity,
     purchasePlaceId: values.purchasePlaceId,
     savingsBank: values.savingsBank,
+    accountId: values.payWithAccountId ?? null,
   }
 }

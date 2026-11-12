@@ -78,7 +78,7 @@ export interface TransactionFormValues {
   purchasePlaceId: string | null
   /** Where savings are held ("Nơi gửi"); only set for the savings-book sub-category. */
   savingsBank: string | null
-  /** The account whose "Trả bằng" chip is selected (not saved on the transaction). */
+  /** The account whose "Trả bằng" chip is selected; saved as the transaction's accountId. */
   payWithAccountId?: string | null
 }
 
@@ -206,7 +206,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     setErrors({})
     setCustomBank(false)
     setPayOtherOpen(false)
-    setPickedPayKey(null)
+    // Editing reselects the saved account, so two accounts at one bank keep the right chip.
+    setPickedPayKey(editing?.accountId ?? null)
     if (editing) {
       const isIncome = editing.credit.amount > 0
       setType(isIncome ? 'in' : 'out')

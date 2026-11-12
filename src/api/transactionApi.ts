@@ -25,6 +25,7 @@ export interface TransactionPayload {
   goldQuantity: number | null
   purchasePlaceId: string | null
   savingsBank: string | null
+  accountId: string | null
 }
 
 /**

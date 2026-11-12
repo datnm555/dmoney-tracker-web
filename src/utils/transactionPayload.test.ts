@@ -54,6 +54,7 @@ describe('toTransactionPayload', () => {
       goldQuantity: 1.5,
       purchasePlaceId: 'pp',
       savingsBank: 'sb',
+      accountId: null,
     })
   })
   it('maps in to creditAmount and prefers the form plan', () => {
@@ -61,5 +62,8 @@ describe('toTransactionPayload', () => {
     expect(p.creditAmount).toBe(260000)
     expect(p.debitAmount).toBe(0)
     expect(p.planId).toBe('form-plan')
+  })
+  it('saves the picked "Trả bằng" account as accountId', () => {
+    expect(toTransactionPayload({ ...values, payWithAccountId: 'a-od' }, 'plan-1').accountId).toBe('a-od')
   })
 })

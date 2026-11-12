@@ -84,7 +84,12 @@ const base = {
   latestSnapshot: null,
   bankName: null,
   isDefault: false,
+  currentBalance: vnd(0),
+  transactionsSinceSnapshot: 0,
 }
+
+// No linked transactions: the current balance is the latest reading.
+const synced = (a: AccountResponse): AccountResponse => ({ ...a, currentBalance: a.latestSnapshot?.balance ?? vnd(0) })
 
 const snap = (over: Partial<NonNullable<AccountResponse['latestSnapshot']>>) => ({
   id: 'snap-1',
@@ -131,7 +136,7 @@ const accounts: AccountResponse[] = [
 ]
 
 function renderPage(data: AccountResponse[] = accounts) {
-  vi.mocked(getAccounts).mockResolvedValue(data)
+  vi.mocked(getAccounts).mockResolvedValue(data.map(synced))
   render(
     <I18nProvider>
       <AccountsPage />
@@ -155,6 +160,22 @@ describe('AccountsPage', () => {
     await waitFor(() => expect(norm(screen.getByTestId('tile-cash').textContent)).toContain(fmt(10_000_000)))
     expect(norm(screen.getByTestId('tile-debt').textContent)).toContain(fmt(120_000_000))
     expect(norm(screen.getByTestId('tile-available').textContent)).toContain(fmt(180_000_000))
+  })
+
+  it('shows the current balance with transactions recorded since the latest reading', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      { ...accounts[2], currentBalance: vnd(100_700_000), transactionsSinceSnapshot: 1 },
+    ])
+    render(
+      <I18nProvider>
+        <AccountsPage />
+      </I18nProvider>,
+    )
+    const card = await screen.findByTestId('account-a-od')
+    await waitFor(() => expect(norm(within(card).getByTestId('current-balance').textContent)).toBe(fmt(100_700_000)))
+    expect(norm(within(card).getByTestId('since-snapshot').textContent)).toBe('+ 1 accounts.sinceSnapshot')
+    expect(norm(within(card).getByTestId('credit-split').textContent)).toContain(fmt(149_300_000))
+    expect(norm(screen.getByTestId('tile-debt').textContent)).toContain(fmt(100_700_000))
   })
 
   it('the star sets an account as the pay-with default, and clears it when already default', async () => {

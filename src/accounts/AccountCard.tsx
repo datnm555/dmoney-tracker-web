@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 import type { AccountResponse, AccountType } from '../api/types'
 import { CategoryBar } from '../components/tremor/CategoryBar'
 import { useI18n } from '../i18n/I18nContext'
-import { isDebtType } from '../utils/accounts'
+import { hasBalance, isDebtType } from '../utils/accounts'
 import { formatMoney } from '../utils/money'
 
 const TYPE_STYLE: Record<AccountType, { icon: LucideIcon; tint: string }> = {
@@ -54,7 +54,9 @@ export function AccountCard({
   const snap = account.latestSnapshot
   const debt = isDebtType(account.type)
   const limit = account.creditLimit?.amount ?? 0
-  const owed = snap?.balance.amount ?? 0
+  const known = hasBalance(account)
+  const since = account.transactionsSinceSnapshot
+  const owed = account.currentBalance.amount
   const pct = limit > 0 ? Math.min(100, Math.round((owed / limit) * 100)) : 0
   const { icon: TypeIcon, tint } = TYPE_STYLE[account.type] ?? TYPE_STYLE.checking
 
@@ -90,19 +92,27 @@ export function AccountCard({
           </div>
         </div>
         <div className="grid shrink-0 justify-items-end gap-0.5 text-right">
-          {snap && (
-            <div className={cn('text-base font-bold tabular-nums sm:text-lg', debt ? 'text-expense' : 'text-income')}>
-              {formatMoney(snap.balance)}
+          {known && (
+            <div
+              data-testid="current-balance"
+              className={cn('text-base font-bold tabular-nums sm:text-lg', debt ? 'text-expense' : 'text-income')}
+            >
+              {formatMoney(account.currentBalance)}
             </div>
           )}
           <div className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
             <Clock className="size-3" aria-hidden />
             {snap ? `${t('accounts.lastUpdated')} ${dayjs(snap.date).format('DD/MM/YYYY')}` : t('accounts.noSnapshot')}
           </div>
+          {since > 0 && (
+            <div data-testid="since-snapshot" className="text-[11px] text-muted-foreground">
+              + {since} {t('accounts.sinceSnapshot')}
+            </div>
+          )}
         </div>
       </div>
 
-      {debt && snap && limit > 0 && (
+      {debt && known && limit > 0 && (
         <div className="grid gap-1.5 rounded-lg bg-muted/50 p-2.5">
           <div data-testid="credit-split" className="flex items-baseline justify-between gap-2 text-xs">
             <span className="text-expense">

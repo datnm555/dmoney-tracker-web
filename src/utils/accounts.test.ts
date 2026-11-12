@@ -45,6 +45,8 @@ function acc(
             note: null,
             statementUntracked: false,
           },
+    currentBalance: money(balance ?? 0),
+    transactionsSinceSnapshot: 0,
     ...extra,
   }
 }
