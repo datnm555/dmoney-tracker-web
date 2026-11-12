@@ -7,28 +7,34 @@ export function isDebtType(type: AccountType): boolean {
   return DEBT_TYPES.includes(type)
 }
 
-function latestBalance(a: AccountResponse): number {
-  return a.latestSnapshot?.balance.amount ?? 0
+/** Whether anything is known about the balance: a reading, or transactions paid with the account. */
+export function hasBalance(a: AccountResponse): boolean {
+  return a.latestSnapshot !== null || a.transactionsSinceSnapshot > 0
+}
+
+/** Latest reading plus the linked transactions recorded after it. */
+export function currentBalance(a: AccountResponse): number {
+  return a.currentBalance.amount
 }
 
 export function cashTotal(accounts: AccountResponse[]): number {
-  return accounts.filter((a) => !isDebtType(a.type)).reduce((s, a) => s + latestBalance(a), 0)
+  return accounts.filter((a) => !isDebtType(a.type)).reduce((s, a) => s + currentBalance(a), 0)
 }
 
 export function debtTotal(accounts: AccountResponse[]): number {
-  return accounts.filter((a) => isDebtType(a.type)).reduce((s, a) => s + latestBalance(a), 0)
+  return accounts.filter((a) => isDebtType(a.type)).reduce((s, a) => s + currentBalance(a), 0)
 }
 
 export function availableCredit(accounts: AccountResponse[]): number {
   return accounts.reduce((s, a) => {
-    if (!isDebtType(a.type) || !a.creditLimit || !a.latestSnapshot) return s
-    return s + Math.max(0, a.creditLimit.amount - a.latestSnapshot.balance.amount)
+    if (!isDebtType(a.type) || !a.creditLimit || !hasBalance(a)) return s
+    return s + Math.max(0, a.creditLimit.amount - currentBalance(a))
   }, 0)
 }
 
 export function monthlyInterest(account: AccountResponse): number {
-  if (account.type !== 'overdraft' || account.interestRatePercent == null || !account.latestSnapshot) return 0
-  return Math.round((latestBalance(account) * account.interestRatePercent) / 100 / 12)
+  if (account.type !== 'overdraft' || account.interestRatePercent == null || !hasBalance(account)) return 0
+  return Math.round((currentBalance(account) * account.interestRatePercent) / 100 / 12)
 }
 
 export function upcomingDues(
@@ -49,9 +55,9 @@ export function upcomingDues(
 
 export interface BankGroup {
   bankName: string | null
-  /** Latest balances of the bank's money accounts. */
+  /** Current balances of the bank's money accounts. */
   money: number
-  /** Latest amounts owed on the bank's overdrafts and credit cards. */
+  /** Current amounts owed on the bank's overdrafts and credit cards. */
   debt: number
   accounts: AccountResponse[]
 }
@@ -73,8 +79,8 @@ export function groupByBank(accounts: AccountResponse[]): BankGroup[] {
       group = { bankName: key, money: 0, debt: 0, accounts: [] }
       map.set(key, group)
     }
-    if (isDebtType(a.type)) group.debt += latestBalance(a)
-    else group.money += latestBalance(a)
+    if (isDebtType(a.type)) group.debt += currentBalance(a)
+    else group.money += currentBalance(a)
     group.accounts.push(a)
   }
   for (const g of map.values()) {

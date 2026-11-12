@@ -35,6 +35,7 @@ const tx = (paymentMethod: string, cardType: string | null = null, bank: string 
   purchasePlaceName: null,
   savingsBank: null,
   excludedFromStats: false,
+  accountId: null,
 })
 
 describe('paymentLabel', () => {

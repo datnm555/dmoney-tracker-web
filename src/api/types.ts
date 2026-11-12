@@ -35,6 +35,8 @@ export interface TransactionResponse {
   savingsBank: string | null
   /** True when the row's category or sub-category is flagged excludeFromStats. */
   excludedFromStats: boolean
+  /** The account paid with ("Trả bằng"); moves its current balance after the latest reading. */
+  accountId: string | null
 }
 
 export interface LinkedTransactionResponse {
@@ -301,6 +303,9 @@ export interface AccountResponse {
   latestSnapshot: AccountSnapshotResponse | null
   bankName: string | null
   isDefault: boolean // preselected in the transaction form's "Trả bằng"; at most one
+  /** Latest reading + linked transactions recorded after it (debt types: amount owed). */
+  currentBalance: MoneyResponse
+  transactionsSinceSnapshot: number
 }
 
 // Request body for POST/PUT /accounts (money fields are plain numbers).

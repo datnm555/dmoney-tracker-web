@@ -48,7 +48,8 @@ export function CloseMonthDialog({
     setTopUpDigits('')
   }, [account, today])
 
-  const opening = account?.latestSnapshot?.balance.amount ?? 0
+  // Opening = the current balance, so transactions already paid with the account aren't counted twice.
+  const opening = account?.currentBalance.amount ?? 0
   const closing = digitsToNumber(closingDigits)
   const net = closing === null ? null : closeMonthNet(opening, digitsToNumber(topUpDigits) ?? 0, closing)
   const vnd = (amount: number) => formatMoney({ amount, currency: 'VND' })

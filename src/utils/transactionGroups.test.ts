@@ -33,6 +33,7 @@ const tx = (id: string, date: string, credit: number, debit: number): Transactio
   purchasePlaceName: null,
   savingsBank: null,
   excludedFromStats: false,
+  accountId: null,
 })
 
 describe('groupTransactionsByDay', () => {
