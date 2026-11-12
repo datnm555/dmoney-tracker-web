@@ -55,6 +55,7 @@ describe('toTransactionPayload', () => {
       purchasePlaceId: 'pp',
       savingsBank: 'sb',
       accountId: null,
+      toAccountId: null,
     })
   })
   it('maps in to creditAmount and prefers the form plan', () => {
@@ -65,5 +66,9 @@ describe('toTransactionPayload', () => {
   })
   it('saves the picked "Trả bằng" account as accountId', () => {
     expect(toTransactionPayload({ ...values, payWithAccountId: 'a-od' }, 'plan-1').accountId).toBe('a-od')
+  })
+
+  it('saves the "Chuyển vào / Trả cho" account as toAccountId', () => {
+    expect(toTransactionPayload({ ...values, transferToAccountId: 'a-card' }, 'plan-1').toAccountId).toBe('a-card')
   })
 })

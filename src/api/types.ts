@@ -37,6 +37,8 @@ export interface TransactionResponse {
   excludedFromStats: boolean
   /** The account paid with ("Trả bằng"); moves its current balance after the latest reading. */
   accountId: string | null
+  /** The own account the money went into ("Chuyển vào / Trả cho"); moves that account the opposite way. */
+  toAccountId: string | null
 }
 
 export interface LinkedTransactionResponse {

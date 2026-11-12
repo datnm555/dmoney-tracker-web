@@ -328,16 +328,27 @@ describe('RecurringPage', () => {
     const cardRow = await screen.findByTestId('card-row-a-cc')
     await user.click(within(cardRow).getByText('recurring.record'))
     const prefill = JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)
-    expect(prefill).toMatchObject({ content: 'recurring.cardRow Visa', type: 'out', amount: 3_000_000, date: '2026-11-10' })
+    expect(prefill).toMatchObject({
+      content: 'recurring.cardRow Visa',
+      type: 'out',
+      amount: 3_000_000,
+      date: '2026-11-10',
+      transferToAccountId: 'a-cc',
+    })
 
     await user.click(screen.getByText('tx-submit'))
     await waitFor(() => expect(payStatement).toHaveBeenCalled())
-    // The expense is linked to the account picked under "Trả bằng", which moves that account's balance...
+    // The expense pays from the "Trả bằng" account into the card, which moves both balances...
     expect(createTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({ debitAmount: 2_500_000, planId: 'p-default', accountId: 'a-od' }),
+      expect.objectContaining({ debitAmount: 2_500_000, planId: 'p-default', accountId: 'a-od', toAccountId: 'a-cc' }),
     )
-    // ...so the payment only lowers the card's debt (by the edited amount).
-    expect(payStatement).toHaveBeenCalledWith('a-cc', { date: '2026-11-10', amount: 2_500_000, fromAccountId: null })
+    // ...so the statement is only settled, without lowering the card's debt a second time.
+    expect(payStatement).toHaveBeenCalledWith('a-cc', {
+      date: '2026-11-10',
+      amount: 2_500_000,
+      fromAccountId: null,
+      paidByTransaction: true,
+    })
     expect(createRecord).not.toHaveBeenCalled()
   })
 

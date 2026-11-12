@@ -29,5 +29,6 @@ export function toTransactionPayload(values: TransactionFormValues, planId: stri
     purchasePlaceId: values.purchasePlaceId,
     savingsBank: values.savingsBank,
     accountId: values.payWithAccountId ?? null,
+    toAccountId: values.transferToAccountId ?? null,
   }
 }

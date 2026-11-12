@@ -26,6 +26,7 @@ export interface TransactionPayload {
   purchasePlaceId: string | null
   savingsBank: string | null
   accountId: string | null
+  toAccountId: string | null
 }
 
 /**

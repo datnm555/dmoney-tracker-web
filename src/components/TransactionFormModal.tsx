@@ -80,6 +80,8 @@ export interface TransactionFormValues {
   savingsBank: string | null
   /** The account whose "Trả bằng" chip is selected; saved as the transaction's accountId. */
   payWithAccountId?: string | null
+  /** Own account the money went into (paying a card, an overdraft, topping up a wallet); money out only. */
+  transferToAccountId?: string | null
 }
 
 export interface SubmitOptions {
@@ -166,6 +168,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const [moreOpen, setMoreOpen] = useState(false)
   const [payOtherOpen, setPayOtherOpen] = useState(false)
   const [pickedPayKey, setPickedPayKey] = useState<string | null>(null)
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [transferTo, setTransferTo] = useState<string | null>(null)
   const { status: accountsStatus, accounts } = usePayWithAccounts(open)
   const payWithChips = useMemo(() => buildPayWithChips(accounts, t('form.cashChip')), [accounts, t])
   // A new transaction without a prefilled payment takes the default account once the accounts load.
@@ -200,6 +204,10 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const [errors, setErrors] = useState<Record<string, string>>({})
   const payWithKey =
     accountsStatus === 'ready' ? selectedPayWithKey(payWithChips, { paymentMethod, cardType, bank }, pickedPayKey) : null
+  // Destination candidates: the owner's real accounts other than the one paying.
+  const transferChips = payWithChips.filter((c) => c.key !== payWithKey && accounts.some((a) => a.id === c.key))
+  const transferToKey =
+    type === 'out' && transferOpen && transferChips.some((c) => c.key === transferTo) ? transferTo : null
 
   useEffect(() => {
     if (!open) return
@@ -208,6 +216,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     setPayOtherOpen(false)
     // Editing reselects the saved account, so two accounts at one bank keep the right chip.
     setPickedPayKey(editing?.accountId ?? null)
+    const initialTransferTo = editing ? editing.toAccountId : (prefillRef.current?.transferToAccountId ?? null)
+    setTransferTo(initialTransferTo)
+    setTransferOpen(initialTransferTo !== null)
     if (editing) {
       const isIncome = editing.credit.amount > 0
       setType(isIncome ? 'in' : 'out')
@@ -521,6 +532,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       purchasePlaceId: isGold ? purchasePlaceId : null,
       savingsBank: isSavings ? (savingsBank?.trim() || null) : null,
       payWithAccountId: accounts.some((a) => a.id === payWithKey) ? payWithKey : null,
+      transferToAccountId: transferToKey,
     }
   }
 
@@ -982,6 +994,34 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
               </div>
             )}
           </div>
+
+          {type === 'out' && accountsStatus === 'ready' && transferChips.length > 0 && (
+            <div role="group" aria-label={t('form.transferTo')} className="grid gap-2">
+              {transferOpen && (
+                <>
+                  <Label className={SECTION_LABEL}>{t('form.transferTo')}</Label>
+                  <p className="px-1 text-xs text-muted-foreground">{t('form.transferToHint')}</p>
+                  <PayWithChips
+                    chips={transferChips}
+                    selectedKey={transferToKey}
+                    onPick={(chip) => setTransferTo(chip.key)}
+                    bankOrder={bankOrder}
+                  />
+                </>
+              )}
+              <button
+                type="button"
+                aria-expanded={transferOpen}
+                onClick={() => {
+                  setTransferOpen((v) => !v)
+                  setTransferTo(null)
+                }}
+                className="w-fit px-1 text-xs font-medium text-primary hover:underline"
+              >
+                {transferOpen ? t('form.transferToRemove') : t('form.transferToAdd')}
+              </button>
+            </div>
+          )}
 
           <div className="grid gap-1">
             <div className="grid grid-cols-[auto_1fr] items-center gap-2">

@@ -44,6 +44,7 @@ const tx: TransactionResponse = {
   savingsBank: 'Vietinbank',
   excludedFromStats: false,
   accountId: null,
+  toAccountId: null,
 }
 
 describe('exportTransactionsToExcel', () => {
