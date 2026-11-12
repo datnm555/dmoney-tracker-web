@@ -64,8 +64,13 @@ export interface ImportRowPayload {
   note: string | null
 }
 
-export async function importTransactions(rows: ImportRowPayload[], planId: string): Promise<{ imported: number }> {
-  const { data } = await apiClient.post<{ imported: number }>('/transactions/import', { rows, planId })
+/** With accountId (the account the statement belongs to) every row is paid with that account. */
+export async function importTransactions(
+  rows: ImportRowPayload[],
+  planId: string,
+  accountId: string | null = null,
+): Promise<{ imported: number }> {
+  const { data } = await apiClient.post<{ imported: number }>('/transactions/import', { rows, planId, accountId })
   return data
 }
 

@@ -8,6 +8,7 @@ import {
   createSnapshot,
   deleteSnapshot,
   getAccounts,
+  getAccountTransactions,
   getSnapshots,
   setDefaultAccount,
   updateAccount,
@@ -64,6 +65,7 @@ vi.mock('../api/accountApi', () => ({
   setDefaultAccount: vi.fn().mockResolvedValue(undefined),
   clearDefaultAccount: vi.fn().mockResolvedValue(undefined),
   getSnapshots: vi.fn().mockResolvedValue([]),
+  getAccountTransactions: vi.fn().mockResolvedValue([]),
   createSnapshot: vi.fn().mockResolvedValue({ id: 's-new' }),
   updateSnapshot: vi.fn().mockResolvedValue(undefined),
   deleteSnapshot: vi.fn(),
@@ -174,6 +176,43 @@ describe('AccountsPage', () => {
     expect(norm(within(card).getByTestId('since-snapshot').textContent)).toBe('+ 1 accounts.sinceSnapshot')
     expect(norm(within(card).getByTestId('credit-split').textContent)).toContain(fmt(149_300_000))
     expect(norm(screen.getByTestId('tile-debt').textContent)).toContain(fmt(100_700_000))
+  })
+
+  it('opens the transactions that moved the balance from "+ N giao dịch ghi sau đó"', async () => {
+    vi.mocked(getAccountTransactions).mockResolvedValue([
+      { id: 't-new', date: '2026-11-09', content: 'Ăn trưa', credit: vnd(0), debit: vnd(700_000), planId: 'p', incoming: false, effect: vnd(700_000), afterSnapshot: true },
+      { id: 't-old', date: '2026-10-30', content: 'Xăng', credit: vnd(0), debit: vnd(100_000), planId: 'p', incoming: false, effect: vnd(100_000), afterSnapshot: false },
+    ])
+    const user = userEvent.setup()
+    vi.mocked(getAccounts).mockResolvedValue([
+      { ...accounts[2], currentBalance: vnd(100_700_000), transactionsSinceSnapshot: 1 },
+    ])
+    render(
+      <I18nProvider>
+        <AccountsPage />
+      </I18nProvider>,
+    )
+    const card = await screen.findByTestId('account-a-od')
+    await user.click(await within(card).findByTestId('since-snapshot'))
+    expect(getAccountTransactions).toHaveBeenCalledWith('a-od')
+    expect(await screen.findByTestId('linked-t-new')).toHaveAttribute('data-after', 'true')
+    expect(screen.getByTestId('linked-t-old')).toHaveAttribute('data-after', 'false')
+    expect(screen.getByTestId('linked-t-new')).toHaveTextContent('Ăn trưa')
+  })
+
+  it('an account with transactions but no reading is flagged and left out of the totals', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      synced(accounts[0]),
+      { ...accounts[1], currentBalance: vnd(-300_000), transactionsSinceSnapshot: 2 },
+    ])
+    render(
+      <I18nProvider>
+        <AccountsPage />
+      </I18nProvider>,
+    )
+    const card = await screen.findByTestId('account-a-empty')
+    expect(within(card).getByTestId('not-in-totals')).toHaveTextContent('accounts.notInTotals')
+    await waitFor(() => expect(norm(screen.getByTestId('tile-cash').textContent)).toContain(fmt(10_000_000)))
   })
 
   it('the star sets an account as the pay-with default, and clears it when already default', async () => {

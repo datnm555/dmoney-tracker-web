@@ -6,6 +6,7 @@ import {
   CreditCard,
   History,
   Landmark,
+  ListOrdered,
   Pencil,
   RefreshCw,
   Smartphone,
@@ -35,6 +36,7 @@ export function AccountCard({
   account,
   onUpdate,
   onHistory,
+  onTransactions,
   onEdit,
   onDelete,
   onCloseMonth,
@@ -45,6 +47,8 @@ export function AccountCard({
   /** Money accounts only: record the month's small spending as one transaction. */
   onCloseMonth?: () => void
   onHistory: () => void
+  /** Opens the transactions linked to the account (what moved its balance). */
+  onTransactions: () => void
   onEdit: () => void
   onDelete: () => void
   /** Makes this the transaction form's preselected pay-with account, or clears it. */
@@ -105,8 +109,18 @@ export function AccountCard({
             {snap ? `${t('accounts.lastUpdated')} ${dayjs(snap.date).format('DD/MM/YYYY')}` : t('accounts.noSnapshot')}
           </div>
           {since > 0 && (
-            <div data-testid="since-snapshot" className="text-[11px] text-muted-foreground">
+            <button
+              type="button"
+              data-testid="since-snapshot"
+              onClick={onTransactions}
+              className="text-[11px] text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
+            >
               + {since} {t('accounts.sinceSnapshot')}
+            </button>
+          )}
+          {!snap && since > 0 && (
+            <div data-testid="not-in-totals" className="text-[11px] text-amber-600 dark:text-amber-400">
+              {t('accounts.notInTotals')}
             </div>
           )}
         </div>
@@ -170,6 +184,16 @@ export function AccountCard({
               <CalendarCheck className="size-4" />
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className={iconBtn}
+            aria-label={`${t('accounts.viewTransactions')} ${account.name}`}
+            title={t('accounts.viewTransactions')}
+            onClick={onTransactions}
+          >
+            <ListOrdered className="size-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"

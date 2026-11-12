@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import dayjs from 'dayjs'
 import {
+  ArrowRight,
   Banknote,
   Coins,
   CornerDownRight,
@@ -14,6 +15,7 @@ import {
   Tags,
   Trash2,
   UserRound,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -31,6 +33,8 @@ interface Props {
   tx: TransactionResponse
   onEdit: (tx: TransactionResponse) => void
   onDelete: (tx: TransactionResponse) => void
+  /** Account id → name: the row shows the account it moved instead of the bare bank. */
+  accountNames?: Record<string, string>
 }
 
 const PAYMENT_STYLE: Record<string, { icon: LucideIcon; tint: string }> = {
@@ -43,12 +47,14 @@ const PAYMENT_STYLE: Record<string, { icon: LucideIcon; tint: string }> = {
  * One transaction in a day card: category-tinted icon tile and accent, a
  * coloured amount pill, iconed meta chips, the note and any linked rows.
  */
-export function TransactionRow({ tx, onEdit, onDelete }: Props) {
+export function TransactionRow({ tx, onEdit, onDelete, accountNames }: Props) {
   const { t } = useI18n()
   const { label: categoryLabel, visual: categoryVisual } = useCategoryDisplay()
   const isIncome = tx.credit.amount > 0
   const v = categoryVisual(tx.categoryId)
   const payment = PAYMENT_STYLE[tx.paymentMethod] ?? PAYMENT_STYLE.transfer
+  const accountName = tx.accountId ? accountNames?.[tx.accountId] : undefined
+  const toAccountName = tx.toAccountId ? accountNames?.[tx.toAccountId] : undefined
   // Category colour drives the accent bar, hover wash and icon tile.
   const catStyle = {
     '--cat': v.hex,
@@ -118,7 +124,20 @@ export function TransactionRow({ tx, onEdit, onDelete }: Props) {
                 {tx.goldTypeName ? ` · ${tx.goldTypeName}` : ''}
               </Chip>
             )}
-            {tx.bank && <BankChip bank={tx.bank} />}
+            {tx.bank ? (
+              <BankChip bank={tx.bank} label={accountName ?? tx.bank} />
+            ) : (
+              accountName && (
+                <Chip icon={Wallet} className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                  {accountName}
+                </Chip>
+              )
+            )}
+            {toAccountName && (
+              <Chip icon={ArrowRight} className="bg-primary/10 text-primary">
+                {toAccountName}
+              </Chip>
+            )}
             <Chip icon={payment.icon} className={payment.tint}>
               {paymentMethodChipLabel(tx, t)}
             </Chip>
@@ -217,8 +236,8 @@ function Chip({ icon: Icon, className, children }: { icon: LucideIcon; className
   )
 }
 
-/** Source bank chip with the bank's brand mark. */
-function BankChip({ bank }: { bank: string }) {
+/** Source bank chip with the bank's brand mark, labelled with the account when it is linked. */
+function BankChip({ bank, label }: { bank: string; label: string }) {
   const brand = bankBrand(bank)
   return (
     <span
@@ -232,7 +251,7 @@ function BankChip({ bank }: { bank: string }) {
       >
         {brand.short}
       </span>
-      <span className="text-foreground/80">{bank}</span>
+      <span className="text-foreground/80">{label}</span>
     </span>
   )
 }

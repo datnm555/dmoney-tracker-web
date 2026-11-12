@@ -18,6 +18,17 @@ const tx = (overrides: Partial<TransactionResponse>) =>
   }) as TransactionResponse
 
 describe('transactionFilters', () => {
+  it('account filter keeps rows paid with the account or into it', () => {
+    const items = [
+      tx({ id: 'paid', accountId: 'a1', toAccountId: null }),
+      tx({ id: 'into', accountId: 'a2', toAccountId: 'a1' }),
+      tx({ id: 'other', accountId: 'a2', toAccountId: null }),
+    ]
+    const f = { ...defaultTransactionFilters(), account: 'a1' }
+    expect(applyTransactionFilters(items, f).map((t) => t.id)).toEqual(['paid', 'into'])
+    expect(countActiveFilters(f)).toBe(1)
+  })
+
   it('defaults to the current month with nothing narrowing', () => {
     const f = defaultTransactionFilters()
     expect(countActiveFilters(f)).toBe(0)

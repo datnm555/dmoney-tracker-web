@@ -18,6 +18,8 @@ export interface TransactionFilterState {
   subCategory: string
   /** 'all', 'none' (no beneficiary) or a beneficiary id. */
   beneficiary: string
+  /** 'all' or an account id: rows paid with it or into it. */
+  account: string
 }
 
 export function defaultTransactionFilters(): TransactionFilterState {
@@ -31,6 +33,7 @@ export function defaultTransactionFilters(): TransactionFilterState {
     category: 'all',
     subCategory: 'all',
     beneficiary: 'all',
+    account: 'all',
   }
 }
 
@@ -45,6 +48,7 @@ export function countActiveFilters(f: TransactionFilterState): number {
     f.category !== 'all',
     f.subCategory !== 'all',
     f.beneficiary !== 'all',
+    f.account !== 'all',
   ].filter(Boolean).length
 }
 
@@ -67,6 +71,7 @@ export function applyTransactionFilters(
     if (f.category !== 'all' && f.subCategory !== 'all' && tx.subCategoryId !== f.subCategory) return false
     if (f.beneficiary === 'none' && tx.beneficiaryId !== null) return false
     if (f.beneficiary !== 'all' && f.beneficiary !== 'none' && tx.beneficiaryId !== f.beneficiary) return false
+    if (f.account !== 'all' && tx.accountId !== f.account && tx.toAccountId !== f.account) return false
     return matchesSearch(tx, criteria)
   })
 }

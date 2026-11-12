@@ -9,19 +9,25 @@ import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getApiErrorMessage } from '../api/client'
 import { getAccounts } from '../api/accountApi'
+import { getGoldSummary } from '../api/goldApi'
+import { getSavingsSummary } from '../api/savingsApi'
 import { getSchedule } from '../api/recurringPaymentApi'
 import { getDashboardStats, getMonthlySummary } from '../api/transactionApi'
 import type {
   AccountResponse,
   DashboardStatsResponse,
+  GoldSummaryResponse,
   MonthlySummaryResponse,
   RecurringScheduleItemResponse,
+  SavingsSummaryResponse,
 } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { toCategorySpending } from '../utils/chartData'
 import { toIncomeExpenseBars } from '../utils/chartData'
 import { upcomingDues } from '../utils/accounts'
+import { netWorth } from '../utils/netWorth'
+import { NetWorthCard } from '../dashboard/NetWorthCard'
 import { scheduleStatus } from '../utils/recurring'
 import { formatMoney } from '../utils/money'
 import { paymentLabel } from '../utils/paymentLabel'
@@ -66,21 +72,31 @@ export function DashboardPage() {
     void load()
   }, [load])
 
-  // Independent of the dashboard loads: a failure just means no banner (no toast).
+  // Independent of the dashboard loads: a failure just means no banner / net worth part (no toast).
+  // Assets span every plan, so they don't reload with the plan or month.
   const [accounts, setAccounts] = useState<AccountResponse[]>([])
+  const [savings, setSavings] = useState<SavingsSummaryResponse | null>(null)
+  const [gold, setGold] = useState<GoldSummaryResponse | null>(null)
+  const [assetsLoaded, setAssetsLoaded] = useState(false)
   useEffect(() => {
     let cancelled = false
-    getAccounts()
-      .then((a) => {
-        if (!cancelled) setAccounts(a)
-      })
-      .catch(() => {
-        if (!cancelled) setAccounts([])
-      })
+    void Promise.all([
+      getAccounts().catch(() => [] as AccountResponse[]),
+      getSavingsSummary().catch(() => null),
+      getGoldSummary().catch(() => null),
+    ]).then(([a, s, g]) => {
+      if (cancelled) return
+      setAccounts(a)
+      setSavings(s)
+      setGold(g)
+      setAssetsLoaded(true)
+    })
     return () => {
       cancelled = true
     }
   }, [])
+  const worth = useMemo(() => netWorth(accounts, savings, gold), [accounts, savings, gold])
+  const hasAssets = accounts.length > 0 || (savings?.accounts.length ?? 0) > 0 || (gold?.types.length ?? 0) > 0
   const todayStr = dayjs().format('YYYY-MM-DD')
   const urgentDues = useMemo(
     () => upcomingDues(accounts, todayStr).filter((d) => d.urgent),
@@ -237,6 +253,8 @@ export function DashboardPage() {
         delta={isWholeYear ? null : balanceDelta}
         countLabel={t(isWholeYear ? 'dashboard.txThisYear' : 'dashboard.txThisMonth')}
       />
+
+      {assetsLoaded && hasAssets && <NetWorthCard value={worth} />}
 
       <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
         <Card className="rounded-2xl">

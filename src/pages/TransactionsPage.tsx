@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dayjs from 'dayjs'
 import { ArrowDownRight, ArrowUpRight, Download, Plus, Upload, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
@@ -22,7 +22,8 @@ import {
   getMonthlySummary,
   updateTransaction,
 } from '../api/transactionApi'
-import type { MonthlySummaryResponse, TransactionResponse } from '../api/types'
+import { getAccounts } from '../api/accountApi'
+import type { AccountResponse, MonthlySummaryResponse, TransactionResponse } from '../api/types'
 import { CategoryBar } from '../components/tremor/CategoryBar'
 import { DailySpendChart } from '../transactions/DailySpendChart'
 import { ImportTransactionsDialog } from '../components/ImportTransactionsDialog'
@@ -53,6 +54,23 @@ export function TransactionsPage() {
   const [editing, setEditing] = useState<TransactionResponse | null>(null)
   const [deleting, setDeleting] = useState<TransactionResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  // Accounts name the "Trả bằng" / "Chuyển vào" chips, the account filter and the export columns.
+  // A failed load only hides those (no toast).
+  const [accounts, setAccounts] = useState<AccountResponse[]>([])
+  useEffect(() => {
+    let cancelled = false
+    getAccounts()
+      .then((a) => {
+        if (!cancelled) setAccounts(a)
+      })
+      .catch(() => {
+        if (!cancelled) setAccounts([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  const accountNames = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a.name])), [accounts])
 
   const load = useCallback(async () => {
     if (!selectedPlanId) return
@@ -142,7 +160,7 @@ export function TransactionsPage() {
             variant="ghost"
             className="h-8 rounded-lg"
             disabled={!summary || summary.items.length === 0}
-            onClick={() => summary && exportTransactionsToExcel(summary.items, t, rangeLabel(filters.range), categoryLabel)}
+            onClick={() => summary && exportTransactionsToExcel(summary.items, t, rangeLabel(filters.range), categoryLabel, accountNames)}
           >
             <Download className="mr-1 h-4 w-4" />
             {t('export.button')}
@@ -164,7 +182,7 @@ export function TransactionsPage() {
         </div>
       </div>
 
-      <TransactionFilters value={filters} onChange={setFilters} />
+      <TransactionFilters value={filters} onChange={setFilters} accounts={accounts} />
 
       <Card className="rounded-2xl">
         <CardContent className="grid gap-3 p-4 md:p-5">
@@ -213,6 +231,7 @@ export function TransactionsPage() {
 
       <TransactionDayList
         groups={groups}
+        accountNames={accountNames}
         dayTitle={dayTitle}
         onEdit={(tx) => {
           setEditing(tx)
@@ -237,6 +256,7 @@ export function TransactionsPage() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImported={() => void load()}
+        accounts={accounts}
       />
 
       <AlertDialog open={deleting !== null} onOpenChange={(next) => !next && setDeleting(null)}>

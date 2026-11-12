@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TransactionResponse } from '../api/types'
-import { groupTransactionsByDay } from './transactionGroups'
+import { countedAmounts, groupTransactionsByDay } from './transactionGroups'
 
 const tx = (id: string, date: string, credit: number, debit: number): TransactionResponse => ({
   id,
@@ -66,5 +66,22 @@ describe('groupTransactionsByDay', () => {
 
   it('returns empty for no items', () => {
     expect(groupTransactionsByDay([])).toEqual([])
+  })
+})
+
+describe('countedAmounts', () => {
+  it('uses the server counted amounts: a reimbursement counts only what exceeds the advances', () => {
+    const reimbursed = {
+      ...tx('r', '2026-11-09', 500_000, 0),
+      countedCredit: { amount: 200_000, currency: 'VND' },
+      countedDebit: { amount: 0, currency: 'VND' },
+    }
+    expect(countedAmounts(reimbursed)).toEqual({ credit: 200_000, debit: 0 })
+    expect(groupTransactionsByDay([reimbursed])[0].credit).toBe(200_000)
+  })
+
+  it('counts nothing for excluded rows and falls back to the raw amounts without counted ones', () => {
+    expect(countedAmounts({ ...tx('x', '2026-11-09', 0, 300_000), excludedFromStats: true })).toEqual({ credit: 0, debit: 0 })
+    expect(countedAmounts(tx('y', '2026-11-09', 0, 300_000))).toEqual({ credit: 0, debit: 300_000 })
   })
 })

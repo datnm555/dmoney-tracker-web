@@ -84,6 +84,7 @@ const item = (over: Partial<RecurringPaymentResponse>): RecurringPaymentResponse
   isActive: true,
   startPeriod: null,
   savingsBank: null,
+  accountId: null,
   ...over,
 })
 
@@ -358,6 +359,17 @@ describe('RecurringPage', () => {
     expect(within(cardRow).queryByText('recurring.record')).toBeNull()
   })
 
+  it('Ghi nhận pays with the item\'s account', async () => {
+    vi.mocked(getSchedule).mockResolvedValue([
+      { item: item({ id: 'i-rent', name: 'Tiền nhà', amount: vnd(5_000_000), accountId: 'a-od' }), dueDate: '2026-11-15', record: null },
+    ])
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(within(await screen.findByTestId('row-i-rent')).getByText('recurring.record'))
+    const prefill = JSON.parse((await screen.findByTestId('tx-prefill')).textContent!)
+    expect(prefill).toMatchObject({ amount: 5_000_000, payWithAccountId: 'a-od' })
+  })
+
   it('Ghi nhận prefills Nơi gửi for a savings item', async () => {
     vi.mocked(getSchedule).mockResolvedValue([
       {
@@ -439,6 +451,7 @@ describe('RecurringPage', () => {
       isActive: true,
       startPeriod: null,
       savingsBank: null,
+      accountId: null,
     })
   })
 

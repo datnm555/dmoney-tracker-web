@@ -19,6 +19,10 @@ import { createRecurringPayment, updateRecurringPayment } from '../api/recurring
 import { getSubCategories } from '../api/subCategoryApi'
 import type { RecurringPaymentInput, RecurringPaymentResponse, SubCategoryResponse } from '../api/types'
 import { useBanks } from '../banks/BanksContext'
+import { PayWithChips } from '../components/transactionForm/PayWithChips'
+import { usePayWithAccounts } from '../components/transactionForm/usePayWithAccounts'
+import { buildPayWithChips } from '../utils/payWith'
+import type { PayWithChip } from '../utils/payWith'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { useI18n } from '../i18n/I18nContext'
 import { PAYMENT_METHOD_CODES, type PaymentMethodCode } from '../utils/paymentMethods'
@@ -60,7 +64,11 @@ export function RecurringItemDialog({
   const [isActive, setIsActive] = useState(true)
   const [startPeriod, setStartPeriod] = useState('')
   const [savingsBank, setSavingsBank] = useState('')
+  const [accountId, setAccountId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const { accounts } = usePayWithAccounts(open)
+  // Real accounts only: recording the item pays with this one, so its balance moves.
+  const accountChips = buildPayWithChips(accounts, '').filter((c) => accounts.some((a) => a.id === c.key))
 
   useEffect(() => {
     if (!open) return
@@ -76,7 +84,19 @@ export function RecurringItemDialog({
     setIsActive(editing?.isActive ?? true)
     setStartPeriod(editing?.startPeriod ?? '')
     setSavingsBank(editing?.savingsBank ?? '')
+    setAccountId(editing?.accountId ?? null)
   }, [open, editing])
+
+  // Picking the account also sets the method and bank it stands for; picking it again clears it.
+  const pickAccount = (chip: PayWithChip) => {
+    if (accountId === chip.key) {
+      setAccountId(null)
+      return
+    }
+    setAccountId(chip.key)
+    setPaymentMethod(chip.fields.paymentMethod)
+    setBank(chip.fields.bank)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -104,6 +124,7 @@ export function RecurringItemDialog({
       isActive,
       startPeriod: startPeriod || null,
       savingsBank: isSavings ? savingsBank.trim() || null : null,
+      accountId: accountChips.some((c) => c.key === accountId) ? accountId : null,
     }
     setSaving(true)
     try {
@@ -264,6 +285,13 @@ export function RecurringItemDialog({
               />
             </div>
           </div>
+
+          {accountChips.length > 0 && (
+            <div role="group" aria-label={t('form.payWith')} className="grid gap-2">
+              <DialogSectionLabel>{t('form.payWith')}</DialogSectionLabel>
+              <PayWithChips chips={accountChips} selectedKey={accountId} onPick={pickAccount} />
+            </div>
+          )}
 
           <div className="grid gap-2">
             <DialogSectionLabel id="rec-pm-label">{t('payment.method')}</DialogSectionLabel>
