@@ -34,6 +34,7 @@ const tx = (content: string, debit: number, note: string | null = null): Transac
   savingsBank: null,
   excludedFromStats: false,
   accountId: null,
+  toAccountId: null,
 })
 
 const none = { content: '', amountFrom: null, amountTo: null, note: '' }

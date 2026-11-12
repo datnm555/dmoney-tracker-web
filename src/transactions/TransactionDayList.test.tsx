@@ -55,6 +55,7 @@ const tx = (overrides: Partial<TransactionResponse>): TransactionResponse => ({
   savingsBank: null,
   excludedFromStats: false,
   accountId: null,
+  toAccountId: null,
   ...overrides,
 })
 

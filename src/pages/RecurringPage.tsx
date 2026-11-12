@@ -117,9 +117,14 @@ export function RecurringPage() {
       if (item) {
         await createRecord(item.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
       } else if (card) {
-        // The transaction is linked to the paying account and already moves its balance,
-        // so the statement payment only lowers the card's debt.
-        await payStatement(card.account.id, { date: values.date, amount: values.amount, fromAccountId: null })
+        // The transaction moves the paying account. Paid into the card ("Trả cho"), it lowers the
+        // card's debt too, so the statement is only settled; otherwise the payment lowers the debt.
+        await payStatement(card.account.id, {
+          date: values.date,
+          amount: values.amount,
+          fromAccountId: null,
+          paidByTransaction: values.transferToAccountId === card.account.id,
+        })
       }
     } catch (error) {
       // Compensate: remove the orphan transaction, then surface the record error (e.g. already paid).
@@ -163,6 +168,7 @@ export function RecurringPage() {
           type: 'out',
           amount: recordingCard.amount,
           date: today,
+          transferToAccountId: recordingCard.account.id,
         }
       : undefined
 

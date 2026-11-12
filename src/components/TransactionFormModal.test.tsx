@@ -145,6 +145,7 @@ const baseEditingFixture = {
   savingsBank: null,
   excludedFromStats: false,
   accountId: null,
+  toAccountId: null,
 }
 
 async function pickCategory() {
@@ -552,6 +553,7 @@ describe('TransactionFormModal', () => {
             savingsBank: null,
             excludedFromStats: false,
             accountId: null,
+            toAccountId: null,
           }}
           submitting={false}
           onSubmit={vi.fn()}
@@ -1442,6 +1444,83 @@ describe('TransactionFormModal pay-with chips', () => {
     )
     await screen.findByRole('button', { name: /Visa VPBank/ })
     expect(await screen.findByRole('radio', { name: 'payment.card' })).toBeInTheDocument()
+  })
+})
+
+describe('TransactionFormModal transfer to an own account', () => {
+  const accounts = [
+    acct({ id: 'a-od', name: 'VPBank thấu chi', type: 'overdraft', bankName: 'VPBank' }),
+    acct({ id: 'a-card', name: 'Diamond', type: 'credit_card', bankName: 'VPBank' }),
+  ]
+  const transferGroup = () => screen.getByRole('group', { name: 'form.transferTo' })
+
+  async function fill() {
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Sao kê thẻ')
+    await userEvent.type(screen.getByLabelText('form.amount'), '16135984')
+    await pickCategory()
+  }
+
+  it('pays from one account into another and submits both ids', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = renderModal()
+    await fill()
+    await userEvent.click(await screen.findByRole('button', { name: 'VPBank thấu chi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'form.transferToAdd' }))
+    // The paying account is not offered as its own destination.
+    expect(within(transferGroup()).queryByRole('button', { name: 'VPBank thấu chi' })).not.toBeInTheDocument()
+    await userEvent.click(within(transferGroup()).getByRole('button', { name: 'Diamond' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ payWithAccountId: 'a-od', transferToAccountId: 'a-card' }),
+    )
+  })
+
+  it('removing the destination submits none', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = renderModal()
+    await fill()
+    await userEvent.click(await screen.findByRole('button', { name: 'VPBank thấu chi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'form.transferToAdd' }))
+    await userEvent.click(within(transferGroup()).getByRole('button', { name: 'Diamond' }))
+    await userEvent.click(screen.getByRole('button', { name: 'form.transferToRemove' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ transferToAccountId: null }))
+  })
+
+  it('is not offered for money in', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    renderModal(vi.fn(), { prefill: { type: 'in' } })
+    await screen.findByRole('button', { name: 'VPBank thấu chi' })
+    expect(screen.queryByRole('button', { name: 'form.transferToAdd' })).not.toBeInTheDocument()
+  })
+
+  it('prefill opens it with the destination selected', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    renderModal(vi.fn(), { prefill: { type: 'out', transferToAccountId: 'a-card' } })
+    expect(await within(await screen.findByRole('group', { name: 'form.transferTo' })).findByRole('button', { name: 'Diamond' }))
+      .toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('edit mode: reselects the saved destination and submits it again', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = vi.fn()
+    render(
+      <Wrapper>
+        <TransactionFormModal
+          open
+          editing={{ ...baseEditingFixture, paymentMethod: 'transfer', bank: 'VPBank', accountId: 'a-od', toAccountId: 'a-card' }}
+          submitting={false}
+          onSubmit={onSubmit}
+          onCancel={() => {}}
+        />
+      </Wrapper>,
+    )
+    expect(await within(await screen.findByRole('group', { name: 'form.transferTo' })).findByRole('button', { name: 'Diamond' }))
+      .toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ payWithAccountId: 'a-od', transferToAccountId: 'a-card' }),
+    )
   })
 })
 

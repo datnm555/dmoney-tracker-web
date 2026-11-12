@@ -178,6 +178,7 @@ describe('TransactionsPage date range filter', () => {
                 savingsBank: null,
                 excludedFromStats: false,
                 accountId: null,
+                toAccountId: null,
               },
             ],
       totalCredit: { amount: 0, currency: 'VND' },
