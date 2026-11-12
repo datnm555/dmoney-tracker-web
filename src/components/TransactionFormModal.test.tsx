@@ -79,6 +79,7 @@ vi.mock('../api/subCategoryApi', () => ({
     { id: 'sub-1', categoryId: 'cat-bills', name: 'Xăng', isDefault: true, icon: null, code: null },
     { id: 'sub-book', categoryId: 'cat-savings', name: 'Sổ tiết kiệm', isDefault: false, icon: null, code: 'savings_book' },
     { id: 'sub-gold', categoryId: 'cat-savings', name: 'Vàng', isDefault: false, icon: null, code: null },
+    { id: 'sub-xfer', categoryId: 'cat-savings', name: 'Chuyển giữa tài khoản', isDefault: false, icon: null, code: 'account_transfer' },
   ]),
 }))
 
@@ -1499,6 +1500,47 @@ describe('TransactionFormModal transfer to an own account', () => {
     renderModal(vi.fn(), { prefill: { type: 'out', transferToAccountId: 'a-card' } })
     expect(await within(await screen.findByRole('group', { name: 'form.transferTo' })).findByRole('button', { name: 'Diamond' }))
       .toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('picking a destination with no category yet files it under Chuyển giữa tài khoản', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = renderModal()
+    await userEvent.type(await screen.findByLabelText('form.content'), 'Trả thẻ')
+    await userEvent.type(screen.getByLabelText('form.amount'), '500000')
+    await userEvent.click(await screen.findByRole('button', { name: 'VPBank thấu chi' }))
+    await userEvent.click(screen.getByRole('button', { name: 'form.transferToAdd' }))
+    await userEvent.click(within(transferGroup()).getByRole('button', { name: 'Diamond' }))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ categoryId: 'cat-savings', subCategoryId: 'sub-xfer', transferToAccountId: 'a-card' }),
+    )
+  })
+
+  it('a prefilled system sub-category code picks that sub-category and its category', async () => {
+    vi.mocked(getAccounts).mockResolvedValue(accounts as never)
+    const onSubmit = renderModal(vi.fn(), {
+      prefill: { type: 'out', content: 'Sao kê', amount: 300000, transferToAccountId: 'a-card', subCategoryCode: 'account_transfer' },
+    })
+    await screen.findByRole('group', { name: 'form.transferTo' })
+    await new Promise((r) => setTimeout(r, 50))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 'cat-savings', subCategoryId: 'sub-xfer' }))
+  })
+
+  it('a prefilled pay-with account wins over another account with the same payment fields', async () => {
+    vi.mocked(getAccounts).mockResolvedValue([
+      acct({ id: 'a-main', name: 'VPBank lương', type: 'checking', bankName: 'VPBank', isDefault: true }),
+      acct({ id: 'a-od', name: 'VPBank thấu chi', type: 'overdraft', bankName: 'VPBank' }),
+    ] as never)
+    const onSubmit = renderModal(vi.fn(), {
+      prefill: {
+        type: 'out', content: 'Chốt tháng', amount: 100000, categoryId: 'cat-bills',
+        paymentMethod: 'transfer', bank: 'VPBank', payWithAccountId: 'a-od',
+      },
+    })
+    expect(await screen.findByRole('button', { name: 'VPBank thấu chi' })).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ payWithAccountId: 'a-od' }))
   })
 
   it('edit mode: reselects the saved destination and submits it again', async () => {

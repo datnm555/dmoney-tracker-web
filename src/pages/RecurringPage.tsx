@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import { CalendarCheck2, Settings2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { getAccounts, payStatement } from '../api/accountApi'
+import { getAccounts } from '../api/accountApi'
 import { getApiErrorMessage } from '../api/client'
 import { createRecord, deleteRecord, getSchedule } from '../api/recurringPaymentApi'
 import { createTransaction, deleteTransaction } from '../api/transactionApi'
@@ -12,7 +12,6 @@ import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
-import { PayStatementDialog } from '../accounts/PayStatementDialog'
 import { MarkPaidDialog } from '../recurring/MarkPaidDialog'
 import { RecordHistoryDialog } from '../recurring/RecordHistoryDialog'
 import { RecurringHero } from '../recurring/RecurringHero'
@@ -21,6 +20,7 @@ import { ScheduleCardRow, ScheduleItemRow } from '../recurring/ScheduleRow'
 import { formatMoney } from '../utils/money'
 import { cardDuesInMonth, scheduleStatus, scheduleTotals } from '../utils/recurring'
 import type { CardDue } from '../utils/recurring'
+import { cardPaymentPrefill } from '../utils/cardPayment'
 import { toTransactionPayload } from '../utils/transactionPayload'
 
 export function RecurringPage() {
@@ -33,7 +33,6 @@ export function RecurringPage() {
   const [manageOpen, setManageOpen] = useState(false)
   const [recording, setRecording] = useState<RecurringPaymentResponse | null>(null)
   const [recordingCard, setRecordingCard] = useState<CardDue | null>(null)
-  const [payingCard, setPayingCard] = useState<AccountResponse | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [undoingId, setUndoingId] = useState<string | null>(null)
   const [markPaidItem, setMarkPaidItem] = useState<RecurringPaymentResponse | null>(null)
@@ -113,19 +112,15 @@ export function RecurringPage() {
     // The transaction exists now: close the form either way so a retry cannot duplicate it.
     setRecording(null)
     setRecordingCard(null)
+    // A card payment is just the transaction into the card: it lowers the debt and settles the
+    // statement by itself (statementPaidAmount), and deleting it reopens both.
+    if (!item) {
+      setSubmitting(false)
+      await load()
+      return
+    }
     try {
-      if (item) {
-        await createRecord(item.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
-      } else if (card) {
-        // The transaction moves the paying account. Paid into the card ("Trả cho"), it lowers the
-        // card's debt too, so the statement is only settled; otherwise the payment lowers the debt.
-        await payStatement(card.account.id, {
-          date: values.date,
-          amount: values.amount,
-          fromAccountId: null,
-          paidByTransaction: values.transferToAccountId === card.account.id,
-        })
-      }
+      await createRecord(item.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
     } catch (error) {
       // Compensate: remove the orphan transaction, then surface the record error (e.g. already paid).
       try {
@@ -163,13 +158,7 @@ export function RecurringPage() {
         date: today,
       }
     : recordingCard
-      ? {
-          content: `${t('recurring.cardRow')} ${recordingCard.account.name}`,
-          type: 'out',
-          amount: recordingCard.amount,
-          date: today,
-          transferToAccountId: recordingCard.account.id,
-        }
+      ? cardPaymentPrefill(recordingCard.account, recordingCard.remaining, recordingCard.untracked, t('recurring.cardRow'), today)
       : undefined
 
   return (
@@ -225,7 +214,6 @@ export function RecurringPage() {
                 today={today}
                 canRecord={selectedPlanId !== null}
                 onRecord={() => setRecordingCard(entry.card)}
-                onPaid={() => setPayingCard(entry.card!.account)}
               />
             ),
           )}
@@ -242,13 +230,6 @@ export function RecurringPage() {
           setRecording(null)
           setRecordingCard(null)
         }}
-      />
-      <PayStatementDialog
-        card={payingCard}
-        accounts={accounts}
-        today={today}
-        onClose={() => setPayingCard(null)}
-        onSaved={() => void load()}
       />
       <MarkPaidDialog
         item={markPaidItem}

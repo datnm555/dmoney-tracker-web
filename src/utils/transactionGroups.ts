@@ -1,5 +1,14 @@
 import type { TransactionResponse } from '../api/types'
 
+/** What a row adds to income / expense totals (excluded rows and repaid advances add nothing). */
+export function countedAmounts(tx: TransactionResponse): { credit: number; debit: number } {
+  if (tx.excludedFromStats) return { credit: 0, debit: 0 }
+  return {
+    credit: tx.countedCredit?.amount ?? tx.credit.amount,
+    debit: tx.countedDebit?.amount ?? tx.debit.amount,
+  }
+}
+
 export interface DayGroup {
   date: string
   credit: number
@@ -19,9 +28,8 @@ export function groupTransactionsByDay(items: TransactionResponse[]): DayGroup[]
     .sort(([a], [b]) => (a < b ? 1 : -1))
     .map(([date, dayItems]) => {
       // Excluded-from-stats rows stay listed but don't count, same as the month card.
-      const counted = dayItems.filter((i) => !i.excludedFromStats)
-      const credit = counted.reduce((sum, i) => sum + i.credit.amount, 0)
-      const debit = counted.reduce((sum, i) => sum + i.debit.amount, 0)
+      const credit = dayItems.reduce((sum, i) => sum + countedAmounts(i).credit, 0)
+      const debit = dayItems.reduce((sum, i) => sum + countedAmounts(i).debit, 0)
       return { date, credit, debit, net: credit - debit, items: dayItems }
     })
 }

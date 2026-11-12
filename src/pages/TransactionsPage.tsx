@@ -32,7 +32,7 @@ import type { SubmitOptions, TransactionFormValues } from '../components/Transac
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { formatMoney } from '../utils/money'
-import { groupTransactionsByDay } from '../utils/transactionGroups'
+import { countedAmounts, groupTransactionsByDay } from '../utils/transactionGroups'
 import { applyTransactionFilters, defaultTransactionFilters, type TransactionFilterState } from '../utils/transactionFilters'
 import { defaultDateForRange, rangeDisplayEnd, rangeLabel, rangeToPeriod } from '../utils/dateRange'
 import { exportTransactionsToExcel } from '../utils/exportExcel'
@@ -172,11 +172,10 @@ export function TransactionsPage() {
             // Totals over the filtered rows, not the raw month — the card must
             // agree with the list it sits above.
             const currency = summary?.totalCredit.currency ?? 'VND'
-            // Rows flagged excludedFromStats (internal transfers, loan principal)
+            // Rows flagged excludedFromStats (internal transfers, savings, gold, advances)
             // still list below but are not real income/spending.
-            const counted = items.filter((tx) => !tx.excludedFromStats)
-            const credit = counted.reduce((sum, tx) => sum + tx.credit.amount, 0)
-            const debit = counted.reduce((sum, tx) => sum + tx.debit.amount, 0)
+            const credit = items.reduce((sum, tx) => sum + countedAmounts(tx).credit, 0)
+            const debit = items.reduce((sum, tx) => sum + countedAmounts(tx).debit, 0)
             const total = credit + debit
             const balance = credit - debit
             return (

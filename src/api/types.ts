@@ -39,6 +39,12 @@ export interface TransactionResponse {
   accountId: string | null
   /** The own account the money went into ("Chuyển vào / Trả cho"); moves that account the opposite way. */
   toAccountId: string | null
+  /**
+   * What the row adds to income / expense totals (month list only): 0 when excluded; a credit that
+   * reimbursed advances counts only what exceeds them.
+   */
+  countedCredit?: MoneyResponse | null
+  countedDebit?: MoneyResponse | null
 }
 
 export interface LinkedTransactionResponse {
@@ -308,6 +314,8 @@ export interface AccountResponse {
   /** Latest reading + linked transactions recorded after it (debt types: amount owed). */
   currentBalance: MoneyResponse
   transactionsSinceSnapshot: number
+  /** Paid into the account since the latest reading; for a card, paid towards that reading's statement. */
+  statementPaidAmount: MoneyResponse
 }
 
 // Request body for POST/PUT /accounts (money fields are plain numbers).
