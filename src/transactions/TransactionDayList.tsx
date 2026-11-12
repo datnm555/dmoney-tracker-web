@@ -15,10 +15,12 @@ interface Props {
   dayTitle: (date: string) => string
   onEdit: (tx: TransactionResponse) => void
   onDelete: (tx: TransactionResponse) => void
+  /** Account id → name, for the "Trả bằng" / "Chuyển vào" chips. */
+  accountNames?: Record<string, string>
 }
 
 /** Transactions grouped into day cards, newest day first; an empty state when nothing matches. */
-export function TransactionDayList({ groups, dayTitle, onEdit, onDelete }: Props) {
+export function TransactionDayList({ groups, dayTitle, onEdit, onDelete, accountNames }: Props) {
   const { t } = useI18n()
 
   if (groups.length === 0) {
@@ -43,6 +45,7 @@ export function TransactionDayList({ groups, dayTitle, onEdit, onDelete }: Props
           title={dayTitle(group.date)}
           onEdit={onEdit}
           onDelete={onDelete}
+          accountNames={accountNames}
         />
       ))}
     </>
@@ -54,11 +57,13 @@ function TransactionDayGroup({
   title,
   onEdit,
   onDelete,
+  accountNames,
 }: {
   group: DayGroup
   title: string
   onEdit: (tx: TransactionResponse) => void
   onDelete: (tx: TransactionResponse) => void
+  accountNames?: Record<string, string>
 }) {
   const { t } = useI18n()
   const date = dayjs(group.date)
@@ -126,7 +131,7 @@ function TransactionDayGroup({
       <Card className="overflow-hidden rounded-2xl py-0 transition-shadow duration-300 hover:shadow-md">
         <CardContent className="divide-y p-0">
           {group.items.map((tx) => (
-            <TransactionRow key={tx.id} tx={tx} onEdit={onEdit} onDelete={onDelete} />
+            <TransactionRow key={tx.id} tx={tx} onEdit={onEdit} onDelete={onDelete} accountNames={accountNames} />
           ))}
         </CardContent>
       </Card>

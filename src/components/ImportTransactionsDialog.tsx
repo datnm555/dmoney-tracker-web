@@ -11,10 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import { getApiErrorMessage } from '../api/client'
 import { importTransactions } from '../api/transactionApi'
+import type { AccountResponse } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { usePlans } from '../plans/PlanContext'
 import { formatMoney } from '../utils/money'
@@ -25,9 +27,11 @@ interface Props {
   open: boolean
   onClose: () => void
   onImported: () => void
+  /** The owner's accounts: a statement can be imported into one so its rows move that balance. */
+  accounts?: AccountResponse[]
 }
 
-export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
+export function ImportTransactionsDialog({ open, onClose, onImported, accounts = [] }: Props) {
   const { t } = useI18n()
   const { plans, selectedPlanId } = usePlans()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -35,10 +39,12 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
   const [parsed, setParsed] = useState<ParsedImport | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [accountId, setAccountId] = useState('none')
 
   const reset = () => {
     setFileName(null)
     setParsed(null)
+    setAccountId('none')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -54,7 +60,11 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
     if (!parsed || parsed.valid.length === 0 || !selectedPlanId) return
     setSubmitting(true)
     try {
-      const { imported } = await importTransactions(parsed.valid, selectedPlanId)
+      const { imported } = await importTransactions(
+        parsed.valid,
+        selectedPlanId,
+        accounts.some((a) => a.id === accountId) ? accountId : null,
+      )
       toast.success(
         `${t('import.success')} ${imported} ${t('transactions.count')}` +
           (parsed.invalid.length > 0 ? ` · ${t('import.skipped')} ${parsed.invalid.length}` : ''),
@@ -112,6 +122,28 @@ export function ImportTransactionsDialog({ open, onClose, onImported }: Props) {
               </strong>
             </span>
           </div>
+
+          {accounts.length > 0 && (
+            <div className="grid grid-cols-[auto_1fr] items-center gap-3">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('import.account')}
+              </span>
+              <Select value={accountId} onValueChange={setAccountId}>
+                <SelectTrigger aria-label={t('import.account')} className="w-full rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t('import.accountNone')}</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                      {a.lastDigits ? ` •••${a.lastDigits}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex items-start gap-2">
             <StepBadge n={1} done={parsed !== null} className="mt-3" />

@@ -1,5 +1,11 @@
 import { apiClient } from './client'
-import type { AccountInput, AccountResponse, AccountSnapshotResponse, SnapshotInput } from './types'
+import type {
+  AccountInput,
+  AccountResponse,
+  AccountSnapshotResponse,
+  AccountTransactionResponse,
+  SnapshotInput,
+} from './types'
 
 export async function getAccounts(): Promise<AccountResponse[]> {
   const { data } = await apiClient.get<AccountResponse[]>('/accounts')
@@ -43,4 +49,10 @@ export async function updateSnapshot(id: string, input: SnapshotInput): Promise<
 
 export async function deleteSnapshot(id: string): Promise<void> {
   await apiClient.delete(`/accounts/snapshots/${id}`)
+}
+
+/** Newest transactions linked to the account, across every plan, with their effect on its balance. */
+export async function getAccountTransactions(accountId: string): Promise<AccountTransactionResponse[]> {
+  const { data } = await apiClient.get<AccountTransactionResponse[]>(`/accounts/${accountId}/transactions`)
+  return data
 }

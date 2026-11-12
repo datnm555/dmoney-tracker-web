@@ -23,6 +23,7 @@ function row(
       isActive: true,
       startPeriod: null,
       savingsBank: null,
+      accountId: null,
     },
     dueDate,
     record:

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils'
 import { getApiErrorMessage } from '../api/client'
 import { getSubCategories } from '../api/subCategoryApi'
-import type { SubCategoryResponse } from '../api/types'
+import type { AccountResponse, SubCategoryResponse } from '../api/types'
 import { useBeneficiaries } from '../beneficiaries/BeneficiariesContext'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
 import { useI18n } from '../i18n/I18nContext'
@@ -31,10 +31,12 @@ const toDay = (date: Date) => dayjs(date).format('YYYY-MM-DD')
 interface TransactionFiltersProps {
   value: TransactionFilterState
   onChange: (next: TransactionFilterState) => void
+  /** The owner's accounts, for the account filter (hidden when there are none). */
+  accounts?: AccountResponse[]
 }
 
 /** Collapsible "Bộ lọc" card of the Transactions page: date range (API) + client-side narrowing filters. */
-export function TransactionFilters({ value, onChange }: TransactionFiltersProps) {
+export function TransactionFilters({ value, onChange, accounts = [] }: TransactionFiltersProps) {
   const { t, lang } = useI18n()
   const { options: categoryOptions } = useCategoryDisplay()
   const { beneficiaries } = useBeneficiaries()
@@ -243,6 +245,26 @@ export function TransactionFilters({ value, onChange }: TransactionFiltersProps)
                   </SelectContent>
                 </Select>
               </div>
+
+              {accounts.length > 0 && (
+                <div className="grid gap-1.5">
+                  <span className={FILTER_LABEL}>{t('transactions.filterAccount')}</span>
+                  <Select value={value.account} onValueChange={(next) => set('account', next)}>
+                    <SelectTrigger aria-label={t('transactions.filterAccount')} className="w-full rounded-xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('transactions.allAccounts')}</SelectItem>
+                      {accounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name}
+                          {a.lastDigits ? ` •••${a.lastDigits}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {value.category !== 'all' && (
                 <div className="grid gap-1.5">

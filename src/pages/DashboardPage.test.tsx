@@ -13,6 +13,8 @@ vi.mock('../api/resourceApi', () => ({
   getResources: vi.fn().mockResolvedValue({}),
 }))
 vi.mock('../api/accountApi', () => ({ getAccounts: vi.fn() }))
+vi.mock('../api/savingsApi', () => ({ getSavingsSummary: vi.fn().mockRejectedValue(new Error('none')) }))
+vi.mock('../api/goldApi', () => ({ getGoldSummary: vi.fn().mockRejectedValue(new Error('none')) }))
 vi.mock('../api/recurringPaymentApi', () => ({ getSchedule: vi.fn() }))
 vi.mock('../api/transactionApi', () => ({
   getDashboardStats: vi.fn(),
@@ -157,6 +159,7 @@ const row = (
     isActive: true,
     startPeriod: null,
     savingsBank: null,
+    accountId: null,
   },
   dueDate,
   record: o.paid
@@ -308,5 +311,54 @@ describe('DashboardPage overview', () => {
     )
     expect(norm(screen.getByTestId('cashflow-out').textContent)).toBe(`−${norm(formatMoney(money(9_000_000)))}`)
     expect(norm(screen.getByTestId('cashflow-net').textContent)).toBe(`+${norm(formatMoney(money(9_000_000)))}`)
+  })
+})
+
+describe('DashboardPage net worth', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-10T08:00:00') })
+    vi.mocked(getSchedule).mockResolvedValue([])
+    vi.mocked(getDashboardStats).mockResolvedValue({ monthly: [] } as never)
+    vi.mocked(getMonthlySummary).mockResolvedValue({
+      items: [],
+      balance: money(0),
+      totalCredit: money(0),
+      totalDebit: money(0),
+    } as never)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.clearAllMocks()
+  })
+
+  it('adds money, savings and gold at cost, minus debt, across all plans', async () => {
+    const { getSavingsSummary } = await import('../api/savingsApi')
+    const { getGoldSummary } = await import('../api/goldApi')
+    const checking: AccountResponse = { ...card('k', 'Lương', '2026-12-20', 20_000_000), type: 'checking' }
+    vi.mocked(getAccounts).mockResolvedValue([checking, card('c', 'Visa', '2026-12-20', 5_000_000)])
+    vi.mocked(getSavingsSummary).mockResolvedValue({ totalBalance: money(30_000_000), accounts: [], transactions: [] } as never)
+    vi.mocked(getGoldSummary).mockResolvedValue({
+      types: [{ goldTypeId: 'g', name: 'SJC', heldQuantity: 1, averageCostPerChi: money(8_000_000) }],
+      transactions: [],
+      acquisitions: [],
+    } as never)
+    renderPage()
+
+    const total = await screen.findByTestId('net-worth-total', {}, BANNER_WAIT)
+    expect(norm(total.textContent)).toBe(norm(formatMoney(money(53_000_000))))
+    expect(norm(screen.getByTestId('net-worth-debt').textContent)).toContain(`−${norm(formatMoney(money(5_000_000)))}`)
+    expect(screen.getByTestId('net-worth-savings')).toHaveAttribute('href', '/app/savings')
+  })
+
+  it('is hidden when there is nothing to add up', async () => {
+    const { getSavingsSummary } = await import('../api/savingsApi')
+    const { getGoldSummary } = await import('../api/goldApi')
+    vi.mocked(getSavingsSummary).mockRejectedValue(new Error('none'))
+    vi.mocked(getGoldSummary).mockRejectedValue(new Error('none'))
+    vi.mocked(getAccounts).mockResolvedValue([])
+    renderPage()
+    await waitFor(() => expect(getAccounts).toHaveBeenCalled())
+    expect(await screen.findByText('dashboard.title')).toBeInTheDocument()
+    expect(screen.queryByTestId('net-worth')).not.toBeInTheDocument()
   })
 })

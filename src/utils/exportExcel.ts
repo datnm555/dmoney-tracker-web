@@ -1,5 +1,6 @@
 import { utils, writeFile } from 'xlsx'
 import type { TransactionResponse } from '../api/types'
+import { countedAmounts } from './transactionGroups'
 
 /** Builds and downloads an Excel report for the given period's transactions. */
 export function exportTransactionsToExcel(
@@ -7,7 +8,10 @@ export function exportTransactionsToExcel(
   t: (key: string) => string,
   periodLabel: string,
   categoryLabel?: (code: string | null) => string,
+  /** Account id → name, for the "Tài khoản" / "Chuyển vào" columns. */
+  accountNames: Record<string, string> = {},
 ): void {
+  const accountName = (id: string | null) => (id ? (accountNames[id] ?? '') : '')
   const labelFor = categoryLabel ?? ((code: string | null) => (code ? t(`category.${code}`) : ''))
   const rows = items.map((tx) => ({
     [t('form.date')]: tx.date,
@@ -15,6 +19,8 @@ export function exportTransactionsToExcel(
     [t('form.category')]: labelFor(tx.categoryId),
     [t('form.subCategory')]: tx.subCategoryName ?? '',
     [t('payment.method')]: t(`payment.${tx.paymentMethod}`),
+    [t('export.colAccount')]: accountName(tx.accountId),
+    [t('export.colToAccount')]: accountName(tx.toAccountId),
     [t('summary.colCredit')]: tx.credit.amount || '',
     [t('summary.colDebit')]: tx.debit.amount || '',
     [t('export.colBeneficiary')]: tx.beneficiaryName ?? '',
@@ -25,14 +31,17 @@ export function exportTransactionsToExcel(
     [t('form.note')]: tx.note ?? '',
   }))
 
-  const totalCredit = items.reduce((s, tx) => s + tx.credit.amount, 0)
-  const totalDebit = items.reduce((s, tx) => s + tx.debit.amount, 0)
+  // Same totals as the month card: excluded rows (transfers, savings, gold, advances) don't count.
+  const totalCredit = items.reduce((s, tx) => s + countedAmounts(tx).credit, 0)
+  const totalDebit = items.reduce((s, tx) => s + countedAmounts(tx).debit, 0)
   rows.push({
     [t('form.date')]: '',
     [t('form.content')]: `${t('summary.colCredit')} / ${t('summary.colDebit')} / ${t('transactions.net')}`,
     [t('form.category')]: '',
     [t('form.subCategory')]: '',
     [t('payment.method')]: '',
+    [t('export.colAccount')]: '',
+    [t('export.colToAccount')]: '',
     [t('summary.colCredit')]: totalCredit,
     [t('summary.colDebit')]: totalDebit,
     [t('export.colBeneficiary')]: '',
@@ -49,6 +58,8 @@ export function exportTransactionsToExcel(
     { wch: 45 },
     { wch: 14 },
     { wch: 14 },
+    { wch: 18 },
+    { wch: 18 },
     { wch: 18 },
     { wch: 14 },
     { wch: 14 },

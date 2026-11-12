@@ -318,6 +318,22 @@ export interface AccountResponse {
   statementPaidAmount: MoneyResponse
 }
 
+/** GET /accounts/{id}/transactions: a linked transaction as it touches that account (any plan). */
+export interface AccountTransactionResponse {
+  id: string
+  date: string // YYYY-MM-DD
+  content: string
+  credit: MoneyResponse
+  debit: MoneyResponse
+  planId: string
+  /** Paid into this account ("Chuyển vào"), rather than paid with it. */
+  incoming: boolean
+  /** Signed change to the account's balance (debt types: + owes more). */
+  effect: MoneyResponse
+  /** Recorded after the latest reading, so part of the current balance. */
+  afterSnapshot: boolean
+}
+
 // Request body for POST/PUT /accounts (money fields are plain numbers).
 export interface AccountInput {
   name: string
@@ -357,6 +373,7 @@ export interface RecurringPaymentResponse {
   isActive: boolean
   startPeriod: string | null // YYYY-MM; hidden from earlier months' schedules
   savingsBank: string | null // "Nơi gửi" prefilled for savings deposits
+  accountId: string | null // "Trả bằng" preselected when recording; null = the form's default account
 }
 
 export interface RecurringPaymentRecordResponse {
@@ -388,6 +405,7 @@ export interface RecurringPaymentInput {
   isActive: boolean
   startPeriod: string | null // YYYY-MM; hidden from earlier months' schedules
   savingsBank: string | null // "Nơi gửi" prefilled for savings deposits
+  accountId: string | null
 }
 
 export interface TransactionSuggestionResponse {

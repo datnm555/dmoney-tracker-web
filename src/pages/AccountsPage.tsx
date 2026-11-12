@@ -31,6 +31,7 @@ import { bankBrand } from '../banks/bankBrand'
 import { AccountDialog } from '../accounts/AccountDialog'
 import { CloseMonthDialog } from '../accounts/CloseMonthDialog'
 import type { CloseMonthResult } from '../accounts/CloseMonthDialog'
+import { AccountTransactionsDialog } from '../accounts/AccountTransactionsDialog'
 import { SnapshotDialog } from '../accounts/SnapshotDialog'
 import { SnapshotHistoryDialog } from '../accounts/SnapshotHistoryDialog'
 import { useI18n } from '../i18n/I18nContext'
@@ -62,6 +63,7 @@ export function AccountsPage() {
   const [snapAccount, setSnapAccount] = useState<AccountResponse | null>(null)
   const [snapEditing, setSnapEditing] = useState<AccountSnapshotResponse | null>(null)
   const [historyAccount, setHistoryAccount] = useState<AccountResponse | null>(null)
+  const [linkedAccount, setLinkedAccount] = useState<AccountResponse | null>(null)
   const [historyKey, setHistoryKey] = useState(0)
   // Card whose statement is being paid: a transaction into the card (no reading is written).
   const [paying, setPaying] = useState<{ account: AccountResponse; amount: number } | null>(null)
@@ -224,6 +226,7 @@ export function AccountsPage() {
         setSnapAccount(a)
       }}
       onHistory={() => setHistoryAccount(a)}
+      onTransactions={() => setLinkedAccount(a)}
       onEdit={() => {
         setEditing(a)
         setFormOpen(true)
@@ -403,6 +406,7 @@ export function AccountsPage() {
         onSubmit={(values) => void submitPay(values)}
         onCancel={() => setPaying(null)}
       />
+      <AccountTransactionsDialog account={linkedAccount} onClose={() => setLinkedAccount(null)} />
       <SnapshotDialog
         account={snapAccount}
         editing={snapEditing}
