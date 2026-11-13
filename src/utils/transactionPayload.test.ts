@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
-import { toTransactionPayload } from './transactionPayload'
+import { toTransactionPayloads, toTransactionPayload } from './transactionPayload'
 
 const values: TransactionFormValues = {
   date: '2026-11-10',
@@ -70,5 +70,25 @@ describe('toTransactionPayload', () => {
 
   it('saves the "Chuyển vào / Trả cho" account as toAccountId', () => {
     expect(toTransactionPayload({ ...values, transferToAccountId: 'a-card' }, 'plan-1').toAccountId).toBe('a-card')
+  })
+})
+
+describe('toTransactionPayloads', () => {
+  it('saves one row without an old-debt part', () => {
+    expect(toTransactionPayloads(values, 'plan-1')).toEqual([toTransactionPayload(values, 'plan-1')])
+  })
+
+  it('saves the old-debt part first, as its own counted row into the same card', () => {
+    const split = {
+      ...values,
+      amount: 132000,
+      transferToAccountId: 'card',
+      oldDebtPart: { amount: 8_489_419, content: 'Netflix (nợ cũ)', categoryId: 'no', subCategoryId: 'tra-the' },
+    }
+    const [part, rest] = toTransactionPayloads(split, 'plan-1')
+    expect(part).toMatchObject({
+      content: 'Netflix (nợ cũ)', debitAmount: 8_489_419, categoryId: 'no', subCategoryId: 'tra-the', toAccountId: 'card',
+    })
+    expect(rest).toMatchObject({ content: 'Netflix', debitAmount: 132000, categoryId: 'cat', subCategoryId: 'sub', toAccountId: 'card' })
   })
 })

@@ -33,6 +33,8 @@ function account(type: AccountResponse['type'], balance: number, withReading = t
     currentBalance: money(balance),
     transactionsSinceSnapshot: withReading ? 0 : 2,
     statementPaidAmount: money(0),
+    untrackedDebt: null,
+    untrackedDebtRemaining: null,
   }
 }
 

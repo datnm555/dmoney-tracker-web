@@ -316,6 +316,10 @@ export interface AccountResponse {
   transactionsSinceSnapshot: number
   /** Paid into the account since the latest reading; for a card, paid towards that reading's statement. */
   statementPaidAmount: MoneyResponse
+  /** Cards only: debt from before the book started, never recorded as spending ("Nợ cũ chưa ghi sổ"). */
+  untrackedDebt: MoneyResponse | null
+  /** What payments entered since it was set have not paid off yet; null when there is none. */
+  untrackedDebtRemaining: MoneyResponse | null
 }
 
 /** GET /accounts/{id}/transactions: a linked transaction as it touches that account (any plan). */
@@ -344,6 +348,7 @@ export interface AccountInput {
   dueDay: number | null
   interestRatePercent: number | null
   bankName: string | null
+  untrackedDebt: number | null // credit cards only; the be clears it for other types
 }
 
 // Request body for POST/PUT account snapshots (money fields are plain numbers).

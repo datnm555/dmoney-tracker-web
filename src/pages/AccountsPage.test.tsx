@@ -85,7 +85,7 @@ const base = {
   bankName: null,
   isDefault: false,
   currentBalance: vnd(0),
-  transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' },
+  transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' }, untrackedDebt: null, untrackedDebtRemaining: null,
 }
 
 // No linked transactions: the current balance is the latest reading.

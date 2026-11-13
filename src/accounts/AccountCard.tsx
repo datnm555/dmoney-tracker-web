@@ -118,6 +118,12 @@ export function AccountCard({
               + {since} {t('accounts.sinceSnapshot')}
             </button>
           )}
+          {account.untrackedDebtRemaining && account.untrackedDebtRemaining.amount > 0 && (
+            <div data-testid="untracked-debt" className="text-[11px] text-muted-foreground">
+              {t('accounts.untrackedDebtRemaining')}{' '}
+              <span className="font-semibold tabular-nums text-expense">{formatMoney(account.untrackedDebtRemaining)}</span>
+            </div>
+          )}
           {!snap && since > 0 && (
             <div data-testid="not-in-totals" className="text-[11px] text-amber-600 dark:text-amber-400">
               {t('accounts.notInTotals')}

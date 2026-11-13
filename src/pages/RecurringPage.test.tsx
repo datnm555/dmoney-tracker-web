@@ -109,7 +109,7 @@ const card: AccountResponse = {
   bankName: null,
   isDefault: false,
   currentBalance: vnd(3_000_000),
-  transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' },
+  transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' }, untrackedDebt: null, untrackedDebtRemaining: null,
   latestSnapshot: {
     id: 'snap-1',
     accountId: 'a-cc',

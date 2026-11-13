@@ -80,6 +80,7 @@ export function AccountDialog({
   const [statementDay, setStatementDay] = useState('')
   const [dueDay, setDueDay] = useState('')
   const [rate, setRate] = useState('')
+  const [untrackedDebt, setUntrackedDebt] = useState('')
   const [bankName, setBankName] = useState<string | null>(null)
   const [customBank, setCustomBank] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -96,6 +97,7 @@ export function AccountDialog({
     setStatementDay(editing?.statementDay?.toString() ?? '')
     setDueDay(editing?.dueDay?.toString() ?? '')
     setRate(editing?.interestRatePercent?.toString() ?? '')
+    setUntrackedDebt(toDigits(editing?.untrackedDebt?.amount))
     setBankName(editing?.bankName ?? null)
     // Ref-read so a late catalog load does not reset the user's pick mid-edit.
     setCustomBank(!!editing?.bankName && !banksRef.current.some((b) => b.name === editing.bankName))
@@ -114,6 +116,7 @@ export function AccountDialog({
       dueDay: debt && dueDay ? Number(dueDay) : null,
       bankName: bankName?.trim() || null,
       interestRatePercent: debt && Number.isFinite(parseFloat(rate)) ? parseFloat(rate) : null,
+      untrackedDebt: type === 'credit_card' ? digitsToNumber(untrackedDebt) : null,
     }
     setSaving(true)
     try {
@@ -254,6 +257,15 @@ export function AccountDialog({
                   </div>
                 </div>
               </div>
+              {type === 'credit_card' && (
+                <MoneyInput
+                  id="acc-untracked"
+                  label={t('accounts.untrackedDebt')}
+                  digits={untrackedDebt}
+                  onChange={setUntrackedDebt}
+                  hint={t('accounts.untrackedDebtHint')}
+                />
+              )}
             </div>
           )}
 

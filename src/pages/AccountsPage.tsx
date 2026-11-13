@@ -22,7 +22,7 @@ import type { TransactionFormValues } from '../components/TransactionFormModal'
 import { usePlans } from '../plans/PlanContext'
 import { payWithFields } from '../utils/payWith'
 import { cardPaymentPrefill } from '../utils/cardPayment'
-import { toTransactionPayload } from '../utils/transactionPayload'
+import { createTransactions, toTransactionPayload } from '../utils/transactionPayload'
 import { getApiErrorMessage } from '../api/client'
 import type { AccountResponse, AccountSnapshotResponse } from '../api/types'
 import { AccountCard } from '../accounts/AccountCard'
@@ -185,7 +185,7 @@ export function AccountsPage() {
     if (!selectedPlanId) return
     setPayBusy(true)
     try {
-      await createTransaction(toTransactionPayload(values, selectedPlanId))
+      await createTransactions(values, selectedPlanId)
       setPaying(null)
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))

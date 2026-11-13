@@ -46,7 +46,7 @@ const card = (id: string, name: string, dueDate: string, amount = 5_000_000): Ac
   dueDay: null,
   interestRatePercent: null,
   currentBalance: money(amount),
-  transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' },
+  transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' }, untrackedDebt: null, untrackedDebtRemaining: null,
   latestSnapshot: {
     id: `s-${id}`,
     accountId: id,
