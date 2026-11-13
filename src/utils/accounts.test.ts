@@ -46,7 +46,7 @@ function acc(
             statementUntracked: false,
           },
     currentBalance: money(balance ?? 0),
-    transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' },
+    transactionsSinceSnapshot: 0, statementPaidAmount: { amount: 0, currency: 'VND' }, untrackedDebt: null, untrackedDebtRemaining: null,
     ...extra,
   }
 }

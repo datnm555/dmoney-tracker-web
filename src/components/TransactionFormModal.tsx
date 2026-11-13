@@ -23,7 +23,7 @@ import { ContentSuggestions } from './transactionForm/ContentSuggestions'
 import { useContentSuggestions } from './transactionForm/useContentSuggestions'
 import { PayWithChips } from './transactionForm/PayWithChips'
 import { usePayWithAccounts } from './transactionForm/usePayWithAccounts'
-import { ACCOUNT_TRANSFER_CODE } from '../utils/cardPayment'
+import { ACCOUNT_TRANSFER_CODE, splitOldDebt, untrackedDebtLeft } from '../utils/cardPayment'
 import { buildPayWithChips, selectedPayWithKey } from '../utils/payWith'
 import type { PayWithChip, PayWithFields } from '../utils/payWith'
 import { parseAmountShorthand } from '../utils/amountShorthand'
@@ -85,6 +85,18 @@ export interface TransactionFormValues {
   transferToAccountId?: string | null
   /** Prefill only: pick the sub-category with this system code (and its category) once loaded. */
   subCategoryCode?: string
+  /**
+   * New card payments only: the part paying off the card's untracked old debt, saved as its own
+   * "Trả thẻ tín dụng" row (counted as spending) next to this one (see splitOldDebt).
+   */
+  oldDebtPart?: OldDebtPart | null
+}
+
+export interface OldDebtPart {
+  amount: number
+  content: string
+  categoryId: string
+  subCategoryId: string
 }
 
 export interface SubmitOptions {
@@ -215,6 +227,9 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const transferChips = payWithChips.filter((c) => c.key !== payWithKey && accounts.some((a) => a.id === c.key))
   const transferToKey =
     type === 'out' && transferOpen && transferChips.some((c) => c.key === transferTo) ? transferTo : null
+  // Paying a card that still carries old debt: a new payment pays that off first (splitOldDebt).
+  const transferCard = accounts.find((a) => a.id === transferToKey)
+  const oldDebtLeft = editing ? 0 : untrackedDebtLeft(transferCard)
 
   useEffect(() => {
     if (!open) return
@@ -528,7 +543,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     }
     if (amount === null) return null
 
-    return {
+    const values: TransactionFormValues = {
       date,
       content: content.trim(),
       type,
@@ -558,6 +573,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       payWithAccountId: accounts.some((a) => a.id === payWithKey) ? payWithKey : null,
       transferToAccountId: transferToKey,
     }
+    return editing ? values : splitOldDebt(values, transferCard, subCategories, t('form.oldDebtPart'))
   }
 
   const submit = () => {
@@ -1040,6 +1056,15 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                     }}
                     bankOrder={bankOrder}
                   />
+                  {oldDebtLeft > 0 && (
+                    <p data-testid="old-debt-hint" className="rounded-lg bg-muted/50 px-2.5 py-2 text-xs text-muted-foreground">
+                      {t('form.oldDebtLeft')}{' '}
+                      <span className="font-semibold tabular-nums text-expense">
+                        {formatMoney({ amount: oldDebtLeft, currency: 'VND' })}
+                      </span>
+                      . {t('form.oldDebtSplitHint')}
+                    </p>
+                  )}
                 </>
               )}
               <button

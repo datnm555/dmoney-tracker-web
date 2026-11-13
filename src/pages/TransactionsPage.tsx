@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils'
 import { Card, CardContent } from '@/components/ui/card'
 import { getApiErrorMessage } from '../api/client'
 import {
-  createTransaction,
   deleteTransaction,
   getMonthlySummary,
   updateTransaction,
@@ -38,7 +37,7 @@ import { applyTransactionFilters, defaultTransactionFilters, type TransactionFil
 import { defaultDateForRange, rangeDisplayEnd, rangeLabel, rangeToPeriod } from '../utils/dateRange'
 import { exportTransactionsToExcel } from '../utils/exportExcel'
 import { useCategoryDisplay } from '../categories/useCategoryDisplay'
-import { toTransactionPayload } from '../utils/transactionPayload'
+import { createTransactions, toTransactionPayload } from '../utils/transactionPayload'
 import { TransactionDayList } from '../transactions/TransactionDayList'
 
 export function TransactionsPage() {
@@ -92,7 +91,7 @@ export function TransactionsPage() {
       if (editing) {
         await updateTransaction(editing.id, payload)
       } else {
-        await createTransaction(payload)
+        await createTransactions(values, selectedPlanId!)
       }
       if (options?.keepOpen) {
         // Save & Continue: keep the dialog and its values so the user can save a tweaked clone.

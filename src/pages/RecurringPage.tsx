@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { getAccounts } from '../api/accountApi'
 import { getApiErrorMessage } from '../api/client'
 import { createRecord, deleteRecord, getSchedule } from '../api/recurringPaymentApi'
-import { createTransaction, deleteTransaction } from '../api/transactionApi'
+import { deleteTransaction } from '../api/transactionApi'
 import type { AccountResponse, RecurringPaymentResponse, RecurringScheduleItemResponse } from '../api/types'
 import { TransactionFormModal } from '../components/TransactionFormModal'
 import type { TransactionFormValues } from '../components/TransactionFormModal'
@@ -21,7 +21,7 @@ import { formatMoney } from '../utils/money'
 import { cardDuesInMonth, scheduleStatus, scheduleTotals } from '../utils/recurring'
 import type { CardDue } from '../utils/recurring'
 import { cardPaymentPrefill } from '../utils/cardPayment'
-import { toTransactionPayload } from '../utils/transactionPayload'
+import { createTransactions } from '../utils/transactionPayload'
 
 export function RecurringPage() {
   const { t } = useI18n()
@@ -101,9 +101,9 @@ export function RecurringPage() {
     const card = recordingCard
     if ((!item && !card) || !selectedPlanId) return
     setSubmitting(true)
-    let transactionId: string
+    let transactionIds: string[]
     try {
-      transactionId = (await createTransaction(toTransactionPayload(values, selectedPlanId))).id
+      transactionIds = await createTransactions(values, selectedPlanId)
     } catch (error) {
       toast.error(getApiErrorMessage(error, t('error.network')))
       setSubmitting(false)
@@ -120,14 +120,13 @@ export function RecurringPage() {
       return
     }
     try {
-      await createRecord(item.id, { period: month, amount: values.amount, paidDate: values.date, transactionId })
+      // The record keeps the whole amount; with an old-debt part, it points at the remaining row.
+      const amount = values.amount + (values.oldDebtPart?.amount ?? 0)
+      const transactionId = transactionIds[transactionIds.length - 1]
+      await createRecord(item.id, { period: month, amount, paidDate: values.date, transactionId })
     } catch (error) {
-      // Compensate: remove the orphan transaction, then surface the record error (e.g. already paid).
-      try {
-        await deleteTransaction(transactionId)
-      } catch {
-        // Nothing more to do; the reload below shows the real state.
-      }
+      // Compensate: remove the orphan transactions, then surface the record error (e.g. already paid).
+      await Promise.allSettled(transactionIds.map((id) => deleteTransaction(id)))
       toast.error(getApiErrorMessage(error, t('error.network')))
     } finally {
       setSubmitting(false)
