@@ -53,6 +53,7 @@ import {
   PAYMENT_METHOD_CODES,
 } from '../utils/paymentMethods'
 import type { CardTypeCode, PaymentMethodCode } from '../utils/paymentMethods'
+import { maskTimeInput, normalizeTime } from '../utils/timeOfDay'
 
 export interface TransactionFormValues {
   date: string // YYYY-MM-DD
@@ -526,6 +527,8 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
     if (!date) nextErrors.date = t('form.dateRequired')
+    const normalizedTime = normalizeTime(time)
+    if (normalizedTime === null) nextErrors.time = t('form.timeInvalid')
     if (!content.trim()) nextErrors.content = t('form.contentRequired')
     if (category === null) nextErrors.category = t('form.categoryRequired')
     const amountOptional = type === 'out' && alreadyPrepaid
@@ -577,7 +580,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       savingsBank: isSavings ? (savingsBank?.trim() || null) : null,
       payWithAccountId: accounts.some((a) => a.id === payWithKey) ? payWithKey : null,
       transferToAccountId: transferToKey,
-      time: time || null,
+      time: normalizedTime || null,
     }
     return editing ? values : splitOldDebt(values, transferCard, subCategories, t('form.oldDebtPart'))
   }
@@ -1088,26 +1091,37 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
           )}
 
           <div className="grid gap-1">
-            <div className="grid grid-cols-[auto_1fr] items-center gap-2">
+            <div className="grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-1.5">
               <Label htmlFor="tx-date" className={SECTION_LABEL}>{t('form.date')}</Label>
               <div className="flex items-center gap-1.5">
                 <Input
                   id="tx-date"
                   type="date"
                   required
-                  className="rounded-xl"
+                  className="min-w-0 flex-1 rounded-xl"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                 />
                 <Input
                   id="tx-time"
-                  type="time"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  placeholder="HH:mm"
+                  maxLength={5}
                   aria-label={t('form.time')}
                   title={t('form.time')}
-                  className="w-28 shrink-0 rounded-xl"
+                  aria-invalid={errors.time ? true : undefined}
+                  className="w-20 shrink-0 rounded-xl text-center tabular-nums"
                   value={time}
-                  onChange={(e) => setTime(e.target.value)}
+                  onChange={(e) => setTime(maskTimeInput(e.target.value))}
+                  onBlur={() => {
+                    const normalized = normalizeTime(time)
+                    if (normalized !== null) setTime(normalized)
+                  }}
                 />
+              </div>
+              <div className="col-start-2 flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setDate(dayjs().format('YYYY-MM-DD'))}
@@ -1125,6 +1139,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
               </div>
             </div>
             {errors.date && <p className="text-xs text-expense">{errors.date}</p>}
+            {errors.time && <p className="text-xs text-expense">{errors.time}</p>}
           </div>
 
           {editing && (
