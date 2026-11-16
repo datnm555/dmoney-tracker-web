@@ -303,7 +303,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
-      setTime(`${dayjs().format('HH')}:00`)
+      setTime('08:00')
       setContent('')
       setAmountText('')
       setMoreOpen(false)

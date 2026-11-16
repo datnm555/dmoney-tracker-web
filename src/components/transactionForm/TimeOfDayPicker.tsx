@@ -1,4 +1,6 @@
-import { HOURS, MINUTES, splitTime, withHour, withMinute } from '../../utils/timeOfDay'
+import { useEffect, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent } from 'react'
+import { Input } from '@/components/ui/input'
+import { composeTime, splitTime, twoDigits } from '../../utils/timeOfDay'
 
 interface Props {
   /** "HH:mm" or "" for no time. */
@@ -8,47 +10,97 @@ interface Props {
   minuteLabel: string
 }
 
-const SELECT =
-  'h-9 rounded-xl border border-input bg-transparent px-2 text-center text-sm tabular-nums shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30'
+type Part = 'hour' | 'minute'
 
-/** 24-hour hour + minute pickers; changing the hour keeps the minute (00 by default). */
+const FIELD = 'w-12 shrink-0 rounded-xl px-1 text-center tabular-nums'
+
+/**
+ * 24-hour time typed as hour + minute (two digits each). The first digit typed after entering (or
+ * clicking) a field replaces what was there, so the hour is changed whole; the minute defaults to 00 and an
+ * empty hour means no time.
+ */
 export function TimeOfDayPicker({ value, onChange, hourLabel, minuteLabel }: Props) {
-  const { hour, minute } = splitTime(value)
+  const [hour, setHour] = useState(() => splitTime(value).hour)
+  const [minute, setMinute] = useState(() => splitTime(value).minute)
+  const fresh = useRef<Part | null>(null)
+
+  // Follow outside changes (reset, edit another row) without fighting what is being typed.
+  useEffect(() => {
+    if (composeTime(hour, minute) === value) return
+    const next = splitTime(value)
+    setHour(next.hour)
+    setMinute(next.minute)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
+  const update = (nextHour: string, nextMinute: string) => {
+    setHour(nextHour)
+    setMinute(nextMinute)
+    onChange(composeTime(nextHour, nextMinute))
+  }
+
+  const enter = (part: Part) => (e: FocusEvent<HTMLInputElement> | MouseEvent<HTMLInputElement>) => {
+    fresh.current = part
+    // Also select it (after the click lands) so touch keyboards overwrite too.
+    const input = e.currentTarget
+    setTimeout(() => {
+      if (document.activeElement === input) input.select()
+    })
+  }
+
+  const firstKey = (part: Part) => (e: KeyboardEvent<HTMLInputElement>) => {
+    if (fresh.current !== part) return
+    fresh.current = null
+    if (!/^\d$/.test(e.key) || e.ctrlKey || e.metaKey || e.altKey) return
+    e.preventDefault()
+    if (part === 'hour') update(e.key, minute)
+    else update(hour, e.key)
+  }
+
+  // On leaving a field show the stored form: "8" → "08", "" minute → "00".
+  const tidy = () => {
+    fresh.current = null
+    const next = splitTime(composeTime(hour, minute))
+    setHour(next.hour)
+    setMinute(next.minute)
+  }
+
   return (
     <div className="flex shrink-0 items-center gap-1">
-      <select
+      <Input
         id="tx-time"
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="HH"
+        maxLength={2}
         aria-label={hourLabel}
         title={hourLabel}
-        className={SELECT}
+        className={FIELD}
         value={hour}
-        onChange={(e) => onChange(withHour(value, e.target.value))}
-      >
-        <option value="">--</option>
-        {HOURS.map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-      </select>
+        onFocus={enter('hour')}
+        onClick={enter('hour')}
+        onKeyDown={firstKey('hour')}
+        onChange={(e) => update(twoDigits(e.target.value), minute)}
+        onBlur={tidy}
+      />
       <span aria-hidden className="text-sm font-semibold text-muted-foreground">
         :
       </span>
-      <select
+      <Input
+        inputMode="numeric"
+        autoComplete="off"
+        placeholder="mm"
+        maxLength={2}
         aria-label={minuteLabel}
         title={minuteLabel}
-        className={SELECT}
+        className={FIELD}
         value={minute}
-        disabled={!hour}
-        onChange={(e) => onChange(withMinute(value, e.target.value))}
-      >
-        {!hour && <option value="">--</option>}
-        {MINUTES.map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </select>
+        onFocus={enter('minute')}
+        onClick={enter('minute')}
+        onKeyDown={firstKey('minute')}
+        onChange={(e) => update(hour, twoDigits(e.target.value))}
+        onBlur={tidy}
+      />
     </div>
   )
 }
