@@ -232,35 +232,42 @@ describe('TransactionFormModal', () => {
     )
   })
 
-  it('defaults to the current hour at :00 and keeps the minute when the hour changes', async () => {
+  it('defaults to 08:00 and replaces the whole hour when typed, keeping the minute', async () => {
     const onSubmit = renderModal(vi.fn(), {
       prefill: { content: 'Đăng kiểm', amount: 1_306_000, categoryId: 'cat-savings', date: '2026-11-14' },
     })
     expect(await screen.findByLabelText('form.content')).toHaveValue('Đăng kiểm')
     const hour = screen.getByLabelText('form.time')
     const minute = screen.getByLabelText('form.minute')
-    expect(hour).toHaveValue(dayjs().format('HH'))
+    expect(hour).toHaveValue('08')
     expect(minute).toHaveValue('00')
 
-    await userEvent.selectOptions(minute, '45')
-    await userEvent.selectOptions(hour, '08')
-    expect(minute).toHaveValue('45')
-    await userEvent.selectOptions(hour, '17')
+    await userEvent.click(minute)
+    await new Promise((r) => setTimeout(r, 0))
+    await userEvent.keyboard('45')
+    await userEvent.click(hour)
+    await new Promise((r) => setTimeout(r, 0))
+    await userEvent.keyboard('17')
     expect(hour).toHaveValue('17')
     expect(minute).toHaveValue('45')
 
+    await userEvent.click(hour)
+    await new Promise((r) => setTimeout(r, 0))
+    await userEvent.keyboard('9')
+    await userEvent.tab()
+    expect(hour).toHaveValue('09')
+
     await new Promise((r) => setTimeout(r, 50))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ time: '17:45' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ time: '09:45' }))
   })
 
-  it('submits no time when the hour is cleared', async () => {
+  it('submits no time when the hour is emptied', async () => {
     const onSubmit = renderModal(vi.fn(), {
       prefill: { content: 'Đăng kiểm', amount: 1_306_000, categoryId: 'cat-savings', date: '2026-11-14' },
     })
     expect(await screen.findByLabelText('form.content')).toHaveValue('Đăng kiểm')
-    await userEvent.selectOptions(screen.getByLabelText('form.time'), '')
-    expect(screen.getByLabelText('form.minute')).toBeDisabled()
+    await userEvent.clear(screen.getByLabelText('form.time'))
     await new Promise((r) => setTimeout(r, 50))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ time: null }))
