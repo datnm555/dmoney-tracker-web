@@ -1098,7 +1098,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   id="tx-date"
                   type="date"
                   required
-                  className="min-w-0 flex-1 rounded-xl"
+                  className="w-40 shrink-0 rounded-xl"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                 />
