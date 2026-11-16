@@ -31,6 +31,7 @@ export function toTransactionPayload(values: TransactionFormValues, planId: stri
     savingsBank: values.savingsBank,
     accountId: values.payWithAccountId ?? null,
     toAccountId: values.transferToAccountId ?? null,
+    time: values.time || null,
   }
 }
 

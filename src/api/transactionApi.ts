@@ -27,6 +27,8 @@ export interface TransactionPayload {
   savingsBank: string | null
   accountId: string | null
   toAccountId: string | null
+  /** "HH:mm"; null = no time (listed last within its day). */
+  time?: string | null
 }
 
 /**

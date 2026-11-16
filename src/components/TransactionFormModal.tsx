@@ -83,6 +83,8 @@ export interface TransactionFormValues {
   payWithAccountId?: string | null
   /** Own account the money went into (paying a card, an overdraft, topping up a wallet); money out only. */
   transferToAccountId?: string | null
+  /** Time of day "HH:mm" ("Giờ"); orders rows within a day. Null/empty = no time. */
+  time?: string | null
   /** Prefill only: pick the sub-category with this system code (and its category) once loaded. */
   subCategoryCode?: string
   /**
@@ -177,6 +179,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const { refresh: refreshCategories } = useCategories()
   const [type, setType] = useState<'in' | 'out'>('out')
   const [date, setDate] = useState('')
+  const [time, setTime] = useState('')
   const [content, setContent] = useState('')
   const [amountText, setAmountText] = useState('')
   const amountRef = useRef<HTMLInputElement>(null)
@@ -245,6 +248,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       const isIncome = editing.credit.amount > 0
       setType(isIncome ? 'in' : 'out')
       setDate(editing.date)
+      setTime(editing.time?.slice(0, 5) ?? '')
       setContent(editing.content)
       setAmountText(String(Math.round(isIncome ? editing.credit.amount : editing.debit.amount)))
       setCategory(editing.categoryId)
@@ -298,6 +302,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
+      setTime(dayjs().format('HH:mm'))
       setContent('')
       setAmountText('')
       setMoreOpen(false)
@@ -572,6 +577,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       savingsBank: isSavings ? (savingsBank?.trim() || null) : null,
       payWithAccountId: accounts.some((a) => a.id === payWithKey) ? payWithKey : null,
       transferToAccountId: transferToKey,
+      time: time || null,
     }
     return editing ? values : splitOldDebt(values, transferCard, subCategories, t('form.oldDebtPart'))
   }
@@ -1092,6 +1098,15 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   className="rounded-xl"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
+                />
+                <Input
+                  id="tx-time"
+                  type="time"
+                  aria-label={t('form.time')}
+                  title={t('form.time')}
+                  className="w-28 shrink-0 rounded-xl"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
                 />
                 <button
                   type="button"
