@@ -53,7 +53,7 @@ import {
   PAYMENT_METHOD_CODES,
 } from '../utils/paymentMethods'
 import type { CardTypeCode, PaymentMethodCode } from '../utils/paymentMethods'
-import { maskTimeInput, normalizeTime } from '../utils/timeOfDay'
+import { TimeOfDayPicker } from './transactionForm/TimeOfDayPicker'
 
 export interface TransactionFormValues {
   date: string // YYYY-MM-DD
@@ -303,7 +303,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
     } else {
       setType('out')
       setDate(defaultDate ?? dayjs().format('YYYY-MM-DD'))
-      setTime(dayjs().format('HH:mm'))
+      setTime(`${dayjs().format('HH')}:00`)
       setContent('')
       setAmountText('')
       setMoreOpen(false)
@@ -527,8 +527,6 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
   const validateAndBuild = (): TransactionFormValues | null => {
     const nextErrors: Record<string, string> = {}
     if (!date) nextErrors.date = t('form.dateRequired')
-    const normalizedTime = normalizeTime(time)
-    if (normalizedTime === null) nextErrors.time = t('form.timeInvalid')
     if (!content.trim()) nextErrors.content = t('form.contentRequired')
     if (category === null) nextErrors.category = t('form.categoryRequired')
     const amountOptional = type === 'out' && alreadyPrepaid
@@ -580,7 +578,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
       savingsBank: isSavings ? (savingsBank?.trim() || null) : null,
       payWithAccountId: accounts.some((a) => a.id === payWithKey) ? payWithKey : null,
       transferToAccountId: transferToKey,
-      time: normalizedTime || null,
+      time: time || null,
     }
     return editing ? values : splitOldDebt(values, transferCard, subCategories, t('form.oldDebtPart'))
   }
@@ -1102,23 +1100,11 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                 />
-                <Input
-                  id="tx-time"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  placeholder="HH:mm"
-                  maxLength={5}
-                  aria-label={t('form.time')}
-                  title={t('form.time')}
-                  aria-invalid={errors.time ? true : undefined}
-                  className="w-20 shrink-0 rounded-xl text-center tabular-nums"
+                <TimeOfDayPicker
                   value={time}
-                  onChange={(e) => setTime(maskTimeInput(e.target.value))}
-                  onBlur={() => {
-                    const normalized = normalizeTime(time)
-                    if (normalized !== null) setTime(normalized)
-                  }}
+                  onChange={setTime}
+                  hourLabel={t('form.time')}
+                  minuteLabel={t('form.minute')}
                 />
               </div>
               <div className="col-start-2 flex items-center gap-1.5">
@@ -1139,7 +1125,6 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
               </div>
             </div>
             {errors.date && <p className="text-xs text-expense">{errors.date}</p>}
-            {errors.time && <p className="text-xs text-expense">{errors.time}</p>}
           </div>
 
           {editing && (

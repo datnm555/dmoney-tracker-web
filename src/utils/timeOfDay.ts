@@ -1,39 +1,24 @@
 /**
- * 24-hour time-of-day entry for the transaction form ("Giờ"). The native time input follows the
- * browser locale (AM/PM on many machines), so the form uses a plain text field instead.
+ * Time of day ("Giờ") for the transaction form, kept as "HH:mm" (24-hour) or "" for no time.
+ * Hour and minute are picked separately: changing the hour keeps the minute (00 by default).
  */
 
-/** Keeps up to 4 digits and inserts the colon as the user types: "083" → "08:3". */
-export function maskTimeInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 4)
-  return digits.length > 2 ? `${digits.slice(0, 2)}:${digits.slice(2)}` : digits
+export const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
+export const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+
+export function splitTime(value: string): { hour: string; minute: string } {
+  const [hour = '', minute = ''] = value ? value.split(':') : []
+  return { hour, minute: hour ? minute || '00' : '' }
 }
 
-/**
- * Normalizes typed text to "HH:mm" (00:00–23:59): "8" → "08:00", "830" → "08:30", "1745" → "17:45".
- * Returns "" for empty input and null when it is not a valid 24-hour time.
- */
-export function normalizeTime(text: string): string | null {
-  const trimmed = text.trim()
-  if (trimmed === '') return ''
-  if (!/^\d{1,2}(:?\d{0,2})$/.test(trimmed)) return null
-  const digits = trimmed.replace(':', '')
-  const hasColon = trimmed.includes(':')
-  let hours: string
-  let minutes: string
-  if (hasColon) {
-    ;[hours, minutes] = trimmed.split(':')
-    if (minutes.length === 1) return null
-  } else if (digits.length <= 2) {
-    hours = digits
-    minutes = '00'
-  } else {
-    hours = digits.slice(0, digits.length - 2)
-    minutes = digits.slice(-2)
-  }
-  if (minutes === '') minutes = '00'
-  const h = Number(hours)
-  const m = Number(minutes)
-  if (h > 23 || m > 59) return null
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+/** New hour, same minute ("00" when there was no time yet); "" hour clears the time. */
+export function withHour(value: string, hour: string): string {
+  if (!hour) return ''
+  return `${hour}:${splitTime(value).minute || '00'}`
+}
+
+/** Same hour, new minute; ignored while there is no hour. */
+export function withMinute(value: string, minute: string): string {
+  const { hour } = splitTime(value)
+  return hour ? `${hour}:${minute}` : ''
 }

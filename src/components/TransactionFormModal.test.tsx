@@ -232,31 +232,38 @@ describe('TransactionFormModal', () => {
     )
   })
 
-  it('takes a 24-hour time typed as digits and submits it as HH:mm', async () => {
+  it('defaults to the current hour at :00 and keeps the minute when the hour changes', async () => {
     const onSubmit = renderModal(vi.fn(), {
       prefill: { content: 'Đăng kiểm', amount: 1_306_000, categoryId: 'cat-savings', date: '2026-11-14' },
     })
     expect(await screen.findByLabelText('form.content')).toHaveValue('Đăng kiểm')
-    const time = screen.getByLabelText('form.time')
-    await userEvent.clear(time)
-    await userEvent.type(time, '1745')
-    expect(time).toHaveValue('17:45')
+    const hour = screen.getByLabelText('form.time')
+    const minute = screen.getByLabelText('form.minute')
+    expect(hour).toHaveValue(dayjs().format('HH'))
+    expect(minute).toHaveValue('00')
+
+    await userEvent.selectOptions(minute, '45')
+    await userEvent.selectOptions(hour, '08')
+    expect(minute).toHaveValue('45')
+    await userEvent.selectOptions(hour, '17')
+    expect(hour).toHaveValue('17')
+    expect(minute).toHaveValue('45')
+
     await new Promise((r) => setTimeout(r, 50))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ time: '17:45' }))
   })
 
-  it('rejects an hour past 23', async () => {
+  it('submits no time when the hour is cleared', async () => {
     const onSubmit = renderModal(vi.fn(), {
       prefill: { content: 'Đăng kiểm', amount: 1_306_000, categoryId: 'cat-savings', date: '2026-11-14' },
     })
     expect(await screen.findByLabelText('form.content')).toHaveValue('Đăng kiểm')
-    const time = screen.getByLabelText('form.time')
-    await userEvent.clear(time)
-    await userEvent.type(time, '2430')
+    await userEvent.selectOptions(screen.getByLabelText('form.time'), '')
+    expect(screen.getByLabelText('form.minute')).toBeDisabled()
+    await new Promise((r) => setTimeout(r, 50))
     await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
-    expect(await screen.findByText('form.timeInvalid')).toBeInTheDocument()
-    expect(onSubmit).not.toHaveBeenCalled()
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ time: null }))
   })
 
   it('rounds a fractional prefill amount to an integer', async () => {
@@ -1770,23 +1777,23 @@ describe('TransactionFormModal suggestions', () => {
     const onSubmit = renderModal()
     const input = await typeContent('ab')
     await advance(300)
-    const rows = await screen.findAllByRole('option')
+    const rows = within(await screen.findByRole('listbox')).getAllByRole('option')
     expect(rows[0]).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(input, { key: 'ArrowDown' })
-    expect(screen.getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true')
+    expect(within(screen.getByRole('listbox')).getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(input, { key: 'ArrowUp' })
-    expect(screen.getAllByRole('option')[0]).toHaveAttribute('aria-selected', 'true')
+    expect(within(screen.getByRole('listbox')).getAllByRole('option')[0]).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(input).toHaveValue('Hai')
     expect(onSubmit).not.toHaveBeenCalled()
-    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
 
     await typeContent('xy')
     await advance(300)
-    await screen.findAllByRole('option')
+    within(await screen.findByRole('listbox')).getAllByRole('option')
     fireEvent.keyDown(input, { key: 'Escape' })
-    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   it('closes on blur after a tick', async () => {
@@ -1794,10 +1801,10 @@ describe('TransactionFormModal suggestions', () => {
     renderModal()
     const input = await typeContent('cà')
     await advance(300)
-    await screen.findByRole('option')
+    within(await screen.findByRole('listbox')).getByRole('option')
     fireEvent.blur(input)
     await advance(200)
-    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   it('Enter with the dropdown closed submits the form', async () => {
@@ -1842,7 +1849,7 @@ describe('TransactionFormModal final-review fixes', () => {
       fireEvent.change(amount, { target: { value: '50k' } })
       const input = await typeContent('cà')
       await advance(300)
-      await screen.findByRole('option')
+      within(await screen.findByRole('listbox')).getByRole('option')
       fireEvent.keyDown(input, { key: 'Enter' })
       expect(screen.getByLabelText('form.amount')).toHaveValue('50.000')
       fireEvent.keyDown(input, { key: 'Enter' })
@@ -1855,7 +1862,7 @@ describe('TransactionFormModal final-review fixes', () => {
       renderModal()
       await typeContent('cà')
       await advance(300)
-      fireEvent.mouseDown(await screen.findByRole('option'))
+      fireEvent.mouseDown(within(await screen.findByRole('listbox')).getByRole('option'))
       expect(screen.getByLabelText('form.amount')).toHaveValue('45.000')
     })
 
@@ -1866,7 +1873,7 @@ describe('TransactionFormModal final-review fixes', () => {
       renderModal()
       await typeContent('cà')
       await advance(300)
-      fireEvent.mouseDown(await screen.findByRole('option'))
+      fireEvent.mouseDown(within(await screen.findByRole('listbox')).getByRole('option'))
       expect(screen.getByLabelText('form.amount')).toHaveValue('')
     })
 
@@ -1875,10 +1882,10 @@ describe('TransactionFormModal final-review fixes', () => {
       renderModal()
       const input = await typeContent('cà')
       await advance(300)
-      await screen.findByRole('option')
+      within(await screen.findByRole('listbox')).getByRole('option')
       fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 })
       expect(input).toHaveValue('cà')
-      expect(screen.getByRole('option')).toBeInTheDocument()
+      expect(within(screen.getByRole('listbox')).getByRole('option')).toBeInTheDocument()
     })
   })
 
