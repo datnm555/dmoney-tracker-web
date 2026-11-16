@@ -3,6 +3,7 @@ import dayjs from 'dayjs'
 import {
   ArrowRight,
   Banknote,
+  Clock,
   Coins,
   CornerDownRight,
   CreditCard,
@@ -99,6 +100,11 @@ export function TransactionRow({ tx, onEdit, onDelete, accountNames }: Props) {
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[11px] font-medium">
+            {tx.time && (
+              <Chip icon={Clock} className="tabular-nums text-muted-foreground">
+                {tx.time.slice(0, 5)}
+              </Chip>
+            )}
             {tx.categoryId && (
               <span
                 className="inline-flex items-center gap-1 rounded-full px-2 py-0.5"

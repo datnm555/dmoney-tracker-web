@@ -45,6 +45,8 @@ export interface TransactionResponse {
    */
   countedCredit?: MoneyResponse | null
   countedDebit?: MoneyResponse | null
+  /** Time of day ("HH:mm:ss"), optional; within a day rows are listed newest time first, untimed last. */
+  time?: string | null
 }
 
 export interface LinkedTransactionResponse {

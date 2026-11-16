@@ -56,6 +56,7 @@ describe('toTransactionPayload', () => {
       savingsBank: 'sb',
       accountId: null,
       toAccountId: null,
+      time: null,
     })
   })
   it('maps in to creditAmount and prefers the form plan', () => {
@@ -70,6 +71,11 @@ describe('toTransactionPayload', () => {
 
   it('saves the "Chuyển vào / Trả cho" account as toAccountId', () => {
     expect(toTransactionPayload({ ...values, transferToAccountId: 'a-card' }, 'plan-1').toAccountId).toBe('a-card')
+  })
+
+  it('sends the time of day, and null when it is cleared', () => {
+    expect(toTransactionPayload({ ...values, time: '08:30' }, 'plan-1').time).toBe('08:30')
+    expect(toTransactionPayload({ ...values, time: '' }, 'plan-1').time).toBeNull()
   })
 })
 
