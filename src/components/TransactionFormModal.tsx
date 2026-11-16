@@ -1434,7 +1434,7 @@ export function TransactionFormModal({ open, editing, submitting, defaultDate, p
             )}
           </MoreOptionsSection>
 
-          <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-6 gap-2 border-t bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <DialogFooter className="sticky -bottom-6 z-10 -mx-6 -mb-6 gap-2 border-t bg-background/95 px-6 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <Button type="button" variant="outline" onClick={onCancel}>
               {t('summary.cancel')}
             </Button>
