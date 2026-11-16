@@ -232,6 +232,33 @@ describe('TransactionFormModal', () => {
     )
   })
 
+  it('takes a 24-hour time typed as digits and submits it as HH:mm', async () => {
+    const onSubmit = renderModal(vi.fn(), {
+      prefill: { content: 'Đăng kiểm', amount: 1_306_000, categoryId: 'cat-savings', date: '2026-11-14' },
+    })
+    expect(await screen.findByLabelText('form.content')).toHaveValue('Đăng kiểm')
+    const time = screen.getByLabelText('form.time')
+    await userEvent.clear(time)
+    await userEvent.type(time, '1745')
+    expect(time).toHaveValue('17:45')
+    await new Promise((r) => setTimeout(r, 50))
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ time: '17:45' }))
+  })
+
+  it('rejects an hour past 23', async () => {
+    const onSubmit = renderModal(vi.fn(), {
+      prefill: { content: 'Đăng kiểm', amount: 1_306_000, categoryId: 'cat-savings', date: '2026-11-14' },
+    })
+    expect(await screen.findByLabelText('form.content')).toHaveValue('Đăng kiểm')
+    const time = screen.getByLabelText('form.time')
+    await userEvent.clear(time)
+    await userEvent.type(time, '2430')
+    await userEvent.click(screen.getByRole('button', { name: 'summary.submit' }))
+    expect(await screen.findByText('form.timeInvalid')).toBeInTheDocument()
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
   it('rounds a fractional prefill amount to an integer', async () => {
     renderModal(vi.fn(), { prefill: { amount: 165556.5 } })
     await waitFor(() => expect(screen.getByLabelText('form.amount')).toHaveValue('165.557'))
