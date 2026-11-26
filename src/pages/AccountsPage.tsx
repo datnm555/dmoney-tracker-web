@@ -33,6 +33,9 @@ import { CloseMonthDialog } from '../accounts/CloseMonthDialog'
 import type { CloseMonthResult } from '../accounts/CloseMonthDialog'
 import { AccountTransactionsDialog } from '../accounts/AccountTransactionsDialog'
 import { SnapshotDialog } from '../accounts/SnapshotDialog'
+import type { BalanceIncrease } from '../accounts/SnapshotDialog'
+import { getCategories } from '../api/categoryApi'
+import { otherCategory } from '../utils/balanceAdjustment'
 import { SnapshotHistoryDialog } from '../accounts/SnapshotHistoryDialog'
 import { useI18n } from '../i18n/I18nContext'
 import { availableCredit, cashTotal, debtTotal, groupByBank, monthlyInterest, upcomingDues } from '../utils/accounts'
@@ -94,14 +97,14 @@ export function AccountsPage() {
   const interest = useMemo(() => accounts.reduce((s, a) => s + monthlyInterest(a), 0), [accounts])
   const debt = debtTotal(accounts)
 
-  const closingSnapshot = (date: string, balance: number) => ({
+  const closingSnapshot = (date: string, balance: number, note: string | null = null) => ({
     date,
     balance,
     statementAmount: null,
     dueDate: null,
     installmentRemaining: null,
     statementPaid: false,
-    note: null,
+    note,
     statementUntracked: false,
   })
 
@@ -143,7 +146,7 @@ export function AccountsPage() {
     // The transaction exists now: close the form either way so a retry cannot duplicate it.
     setCloseResult(null)
     try {
-      await createSnapshot(result.account.id, closingSnapshot(result.date, result.closing))
+      await createSnapshot(result.account.id, closingSnapshot(result.date, result.closing, result.note ?? null))
     } catch (error) {
       // Compensate so the combined transaction never exists without its closing balance.
       try {
@@ -160,7 +163,10 @@ export function AccountsPage() {
 
   const closePrefill: Partial<TransactionFormValues> | undefined = closeResult
     ? {
-        content: `${t('accounts.closeContent')} ${closeResult.account.name} ${dayjs(closeResult.date).format('MM/YYYY')}`,
+        content:
+          closeResult.content ??
+          `${t('accounts.closeContent')} ${closeResult.account.name} ${dayjs(closeResult.date).format('MM/YYYY')}`,
+        ...(closeResult.categoryId ? { categoryId: closeResult.categoryId } : {}),
         type: closeResult.net > 0 ? 'out' : 'in',
         amount: Math.abs(closeResult.net),
         date: closeResult.date,
@@ -180,6 +186,26 @@ export function AccountsPage() {
         dayjs().format('YYYY-MM-DD'),
       )
     : undefined
+
+  // "Cập nhật số dư" found more money than the book: record the income in the form, then the reading
+  // (the same transaction-then-reading flow as "Chốt tháng", so the reading already includes it).
+  const recordBalanceIncrease = async (increase: BalanceIncrease) => {
+    let categoryId: string | null = null
+    try {
+      categoryId = otherCategory(await getCategories(), 'income')?.id ?? null
+    } catch {
+      // The form still opens; the user picks the category.
+    }
+    setCloseResult({
+      account: increase.account,
+      date: increase.date,
+      closing: increase.balance,
+      net: -increase.amount,
+      content: `${t('accounts.diffContent')} ${increase.account.name}`,
+      categoryId,
+      note: increase.note,
+    })
+  }
 
   const submitPay = async (values: TransactionFormValues) => {
     if (!selectedPlanId) return
@@ -410,6 +436,8 @@ export function AccountsPage() {
       <SnapshotDialog
         account={snapAccount}
         editing={snapEditing}
+        planId={selectedPlanId}
+        onIncome={(increase) => void recordBalanceIncrease(increase)}
         onClose={() => setSnapAccount(null)}
         onSaved={() => {
           setHistoryKey((k) => k + 1)

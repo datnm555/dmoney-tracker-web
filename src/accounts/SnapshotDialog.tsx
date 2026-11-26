@@ -14,10 +14,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createSnapshot, updateSnapshot } from '../api/accountApi'
+import { getCategories } from '../api/categoryApi'
 import { getApiErrorMessage } from '../api/client'
+import { createTransaction, deleteTransaction } from '../api/transactionApi'
 import type { AccountResponse, AccountSnapshotResponse, SnapshotInput } from '../api/types'
 import { useI18n } from '../i18n/I18nContext'
 import { isDebtType } from '../utils/accounts'
+import { adjustmentValues, balanceAdjustment, otherCategory } from '../utils/balanceAdjustment'
+import { toTransactionPayload } from '../utils/transactionPayload'
 import { formatMoney } from '../utils/money'
 import { MoneyInput } from './MoneyInput'
 import { digitsToNumber, toDigits } from './moneyDigits'
@@ -26,17 +30,36 @@ const SECTION_LABEL = 'text-xs font-semibold uppercase tracking-wide text-muted-
 const CHECK_TILE =
   'flex cursor-pointer items-center gap-2.5 rounded-xl border bg-background px-3 py-2.5 text-sm transition-colors has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5'
 
-/** `editing` null = a fresh reading (today, empty amounts); otherwise pre-fills from that snapshot. */
+/** A fresh reading higher than the book: the caller records the income first, then this reading. */
+export interface BalanceIncrease {
+  account: AccountResponse
+  date: string
+  balance: number
+  amount: number
+  note: string | null
+}
+
+/**
+ * `editing` null = a fresh reading (today, empty amounts); otherwise pre-fills from that snapshot.
+ * A fresh reading on a wallet or bank account is compared with the book (balanceAdjustment): lower →
+ * the difference is recorded as "Khác" spending before the reading (tick on by default); higher → the
+ * user is sent to the transaction form via `onIncome` instead of saving the reading silently.
+ */
 export function SnapshotDialog({
   account,
   editing,
+  planId,
   onClose,
   onSaved,
+  onIncome,
 }: {
   account: AccountResponse | null
   editing: AccountSnapshotResponse | null
+  /** Plan ("Sổ") the difference transaction goes into; without one no transaction is offered. */
+  planId: string | null
   onClose: () => void
   onSaved: () => void
+  onIncome: (increase: BalanceIncrease) => void
 }) {
   const { t } = useI18n()
   const [date, setDate] = useState('')
@@ -48,6 +71,7 @@ export function SnapshotDialog({
   const [paid, setPaid] = useState(false)
   const [untracked, setUntracked] = useState(false)
   const [note, setNote] = useState('')
+  const [recordDiff, setRecordDiff] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -63,12 +87,16 @@ export function SnapshotDialog({
     setPaid(src?.statementPaid ?? false)
     setUntracked(src?.statementUntracked ?? false)
     setNote(editing?.note ?? '')
+    setRecordDiff(true)
   }, [account, editing])
 
   if (!account) return null
   const debt = isDebtType(account.type)
   const limit = account.creditLimit?.amount ?? null
   const card = account.type === 'credit_card'
+
+  const adjustment =
+    editing || balance === '' || !planId ? { kind: 'none' as const } : balanceAdjustment(account, Number(balance), date)
 
   const onAvailable = (digits: string) => {
     setAvailable(digits)
@@ -88,16 +116,50 @@ export function SnapshotDialog({
       note: note.trim() || null,
     }
     setSaving(true)
+    // The spending goes in first: on the reading's day but entered before it, the reading already includes it.
+    let diffTransactionId: string | null = null
+    if (adjustment.kind === 'spend' && recordDiff && planId) {
+      try {
+        const category = otherCategory(await getCategories(), 'expense')
+        const values = adjustmentValues(
+          account,
+          'out',
+          adjustment.amount,
+          date,
+          `${t('accounts.diffContent')} ${account.name}`,
+          category?.id ?? null,
+        )
+        diffTransactionId = (await createTransaction(toTransactionPayload(values, planId))).id
+      } catch (error) {
+        toast.error(getApiErrorMessage(error, t('error.network')))
+        setSaving(false)
+        return
+      }
+    }
     try {
       if (editing) await updateSnapshot(editing.id, input)
       else await createSnapshot(account.id, input)
       onSaved()
       onClose()
     } catch (error) {
+      // Compensate so the difference never exists without the reading that explains it.
+      if (diffTransactionId) {
+        try {
+          await deleteTransaction(diffTransactionId)
+        } catch {
+          // The reload after the next save shows the real state.
+        }
+      }
       toast.error(getApiErrorMessage(error, t('error.network')))
     } finally {
       setSaving(false)
     }
+  }
+
+  const recordIncome = () => {
+    if (adjustment.kind !== 'income') return
+    onIncome({ account, date, balance: Number(balance), amount: adjustment.amount, note: note.trim() || null })
+    onClose()
   }
 
   return (
@@ -151,6 +213,28 @@ export function SnapshotDialog({
               <Input id="snap-note" className="rounded-xl" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
           </div>
+          {adjustment.kind === 'spend' && (
+            <label className={CHECK_TILE}>
+              <Checkbox checked={recordDiff} onCheckedChange={(c) => setRecordDiff(c === true)} />
+              <span className="grid gap-0.5">
+                <span>
+                  {t('accounts.diffSpend')}:{' '}
+                  <span className="font-semibold tabular-nums">
+                    {formatMoney({ amount: adjustment.amount, currency: 'VND' })}
+                  </span>
+                </span>
+                <span className="text-xs text-muted-foreground">{t('accounts.diffSpendHint')}</span>
+              </span>
+            </label>
+          )}
+          {adjustment.kind === 'income' && (
+            <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+              {t('accounts.diffIncomeWarning')}:{' '}
+              <span className="font-semibold tabular-nums">
+                {formatMoney({ amount: adjustment.amount, currency: 'VND' })}
+              </span>
+            </div>
+          )}
           {card && (
             <div className="grid gap-3">
               <DialogSectionLabel>{t('accounts.type.credit_card')}</DialogSectionLabel>
@@ -201,9 +285,20 @@ export function SnapshotDialog({
           <Button variant="outline" onClick={onClose}>
             {t('summary.cancel')}
           </Button>
-          <Button disabled={saving || balance === ''} onClick={() => void submit()}>
-            {t('summary.submit')}
-          </Button>
+          {adjustment.kind === 'income' ? (
+            <>
+              <Button variant="outline" disabled={saving} onClick={() => void submit()}>
+                {t('accounts.saveBalanceOnly')}
+              </Button>
+              <Button disabled={saving} onClick={recordIncome}>
+                {t('accounts.diffRecordIncome')}
+              </Button>
+            </>
+          ) : (
+            <Button disabled={saving || balance === ''} onClick={() => void submit()}>
+              {t('summary.submit')}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

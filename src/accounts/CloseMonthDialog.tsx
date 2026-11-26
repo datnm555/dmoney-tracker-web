@@ -20,6 +20,10 @@ export interface CloseMonthResult {
   closing: number
   /** Spent (> 0) or received (< 0) during the period. */
   net: number
+  /** Overrides for the prefilled transaction and the reading (set by an "Cập nhật số dư" increase). */
+  content?: string
+  categoryId?: string | null
+  note?: string | null
 }
 
 /** Step 1 of "Chốt tháng": closing balance and top-ups → the combined amount to record. */
